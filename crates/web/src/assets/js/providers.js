@@ -142,7 +142,7 @@ export function openProviderModal() {
 			item.appendChild(badges);
 
 			item.addEventListener("click", () => {
-				if (p.authType === "api-key") showApiKeyForm(p);
+				if (p.authType === "api-key" || p.name === "anthropic") showApiKeyForm(p);
 				else if (p.authType === "oauth") showOAuthFlow(p);
 				else if (p.authType === "local") showLocalModelFlow(p);
 			});
