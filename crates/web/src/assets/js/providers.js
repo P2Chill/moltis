@@ -138,6 +138,13 @@ export function openProviderModal() {
 					badge.textContent = "API Key";
 				}
 				badges.appendChild(badge);
+				// Anthropic supports both OAuth and API key â show both badges
+				if (p.name === "anthropic" && p.authType === "oauth") {
+					var apiKeyBadge = document.createElement("span");
+					apiKeyBadge.className = "provider-item-badge api-key";
+					apiKeyBadge.textContent = "API Key";
+					badges.appendChild(apiKeyBadge);
+				}
 			}
 			item.appendChild(badges);
 
