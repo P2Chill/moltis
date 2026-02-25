@@ -16,6 +16,8 @@ pub struct AnthropicProvider {
     client: &'static reqwest::Client,
     /// Optional alias for metrics differentiation (e.g., "anthropic-work", "anthropic-2").
     alias: Option<String>,
+    /// Use Authorization: Bearer <token> instead of x-api-key (for Claude OAuth).
+    use_bearer: bool,
 }
 
 impl AnthropicProvider {
@@ -26,6 +28,18 @@ impl AnthropicProvider {
             base_url,
             client: crate::shared_http_client(),
             alias: None,
+            use_bearer: false,
+        }
+    }
+
+    pub fn new_bearer(token: secrecy::Secret<String>, model: String, base_url: String) -> Self {
+        Self {
+            api_key: token,
+            model,
+            base_url,
+            client: crate::shared_http_client(),
+            alias: None,
+            use_bearer: true,
         }
     }
 
@@ -42,7 +56,47 @@ impl AnthropicProvider {
             base_url,
             client: crate::shared_http_client(),
             alias,
+            use_bearer: false,
         }
+    }
+
+    pub fn with_alias_bearer(
+        token: secrecy::Secret<String>,
+        model: String,
+        base_url: String,
+        alias: Option<String>,
+    ) -> Self {
+        Self {
+            api_key: token,
+            model,
+            base_url,
+            client: crate::shared_http_client(),
+            alias,
+            use_bearer: true,
+        }
+    }
+
+    /// Read the current Bearer token from disk (for OAuth mode).
+    /// Falls back to the stored api_key if the file cannot be read.
+    /// This allows Claude Code to refresh the token without restarting moltis.
+    fn live_token(&self) -> String {
+        if !self.use_bearer {
+            return self.api_key.expose_secret().to_string();
+        }
+        let token = std::env::var("HOME").ok().and_then(|home| {
+            let path = std::path::Path::new(&home)
+                .join(".claude")
+                .join(".credentials.json");
+            let content = std::fs::read_to_string(&path).ok()?;
+            let json: serde_json::Value = serde_json::from_str(&content).ok()?;
+            let token = json["claudeAiOauth"]["accessToken"].as_str()?.to_string();
+            if token.is_empty() {
+                None
+            } else {
+                Some(token)
+            }
+        });
+        token.unwrap_or_else(|| self.api_key.expose_secret().to_string())
     }
 }
 
@@ -231,9 +285,28 @@ impl LlmProvider for AnthropicProvider {
         let http_resp = self
             .client
             .post(format!("{}/v1/messages", self.base_url))
-            .header("x-api-key", self.api_key.expose_secret())
+            .header(
+                if self.use_bearer {
+                    "Authorization"
+                } else {
+                    "x-api-key"
+                },
+                if self.use_bearer {
+                    format!("Bearer {}", self.live_token())
+                } else {
+                    self.api_key.expose_secret().to_string()
+                },
+            )
             .header("anthropic-version", "2023-06-01")
             .header("content-type", "application/json")
+            .header(
+                "anthropic-beta",
+                if self.use_bearer {
+                    "oauth-2025-04-20"
+                } else {
+                    ""
+                },
+            )
             .json(&body)
             .send()
             .await?;
@@ -332,9 +405,17 @@ impl LlmProvider for AnthropicProvider {
             let resp = match self
                 .client
                 .post(format!("{}/v1/messages", self.base_url))
-                .header("x-api-key", self.api_key.expose_secret())
+                .header(
+                if self.use_bearer { "Authorization" } else { "x-api-key" },
+                if self.use_bearer {
+                    format!("Bearer {}", self.live_token())
+                } else {
+                    self.api_key.expose_secret().to_string()
+                },
+            )
                 .header("anthropic-version", "2023-06-01")
                 .header("content-type", "application/json")
+                .header("anthropic-beta", if self.use_bearer { "oauth-2025-04-20" } else { "" })
                 .json(&body)
                 .send()
                 .await

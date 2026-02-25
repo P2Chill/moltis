@@ -630,6 +630,41 @@ export function showApiKeyForm(provider) {
 	});
 	btns.appendChild(saveBtn);
 	form.appendChild(btns);
+
+	// Anthropic — offer OAuth via Claude Code as an alternative to an API key
+	if (provider.name === "anthropic") {
+		var divider = document.createElement("div");
+		divider.className = "text-xs text-[var(--muted)]";
+		divider.style.cssText = "text-align:center;margin:12px 0 4px";
+		divider.textContent = "\u2014 or \u2014";
+		form.appendChild(divider);
+
+		var oauthBtn = document.createElement("button");
+		oauthBtn.className = "provider-btn provider-btn-secondary";
+		oauthBtn.style.width = "100%";
+		oauthBtn.textContent = "Connect via Claude Code";
+		oauthBtn.addEventListener("click", () => {
+			oauthBtn.disabled = true;
+			oauthBtn.textContent = "Checking\u2026";
+			setFormError(errorPanel, null);
+			startProviderOAuth("anthropic").then((result) => {
+				if (result.status === "already") {
+					oauthBtn.textContent = "Connected";
+					showOAuthModelSelector(provider);
+				} else if (result.status === "browser") {
+					window.open(result.authUrl, "_blank");
+					oauthBtn.textContent = "Waiting for auth\u2026";
+					pollOAuthStatus(provider);
+				} else {
+					oauthBtn.disabled = false;
+					oauthBtn.textContent = "Connect via Claude Code";
+					setFormError(errorPanel, result.error || "No Claude Code credentials found. Run 'claude' once to log in.");
+				}
+			});
+		});
+		form.appendChild(oauthBtn);
+	}
+
 	m.body.appendChild(form);
 	keyInp.focus();
 }
