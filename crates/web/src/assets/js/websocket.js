@@ -602,6 +602,9 @@ function handleChatFinal(p, isActive, isChatPage, eventSession) {
 	clearStaleRunningToolCards();
 
 	if (S.voicePending && p.text && p.replyMedium === "voice") {
+		// Only autoplay in the tab that sent the voice message
+		var isVoiceSourceTab = !!window._moltisVoiceSource;
+		window._moltisVoiceSource = false;
 		// Voice pending path: we suppressed streaming, so render everything at once.
 		console.debug("[audio] voice-pending path, audio:", !!p.audio, "text:", p.text.substring(0, 40));
 		var msgEl = S.streamEl || document.createElement("div");
@@ -613,7 +616,7 @@ function handleChatFinal(p, isActive, isChatPage, eventSession) {
 			var filename = p.audio.split("/").pop();
 			var audioSrc = `/api/sessions/${encodeURIComponent(p.sessionKey || S.activeSessionKey)}/media/${encodeURIComponent(filename)}`;
 			console.debug("[audio] rendering persisted audio:", filename);
-			renderAudioPlayer(msgEl, audioSrc, true);
+			renderAudioPlayer(msgEl, audioSrc, isVoiceSourceTab);
 		}
 		if (hasNonWhitespaceContent(p.text)) {
 			// Safe: renderMarkdown calls esc() first — all user input is HTML-escaped.
