@@ -4008,6 +4008,9 @@ pub async fn prepare_gateway(
         });
     }
 
+    // Start the Claude OAuth token refresher (keeps ~/.claude/.credentials.json fresh).
+    moltis_providers::claude_oauth_refresh::spawn_refresher();
+
     // Start the cron scheduler (loads persisted jobs, arms the timer).
     if let Err(e) = cron_service.start().await {
         tracing::warn!("failed to start cron scheduler: {e}");
