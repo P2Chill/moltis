@@ -142,14 +142,18 @@ impl ChatMessage {
                     let tc_json: Vec<serde_json::Value> = tool_calls
                         .iter()
                         .map(|tc| {
-                            serde_json::json!({
+                            let mut entry = serde_json::json!({
                                 "id": tc.id,
                                 "type": "function",
                                 "function": {
                                     "name": tc.name,
                                     "arguments": tc.arguments.to_string(),
                                 }
-                            })
+                            });
+                            if let Some(sig) = &tc.thought_signature {
+                                entry["thought_signature"] = serde_json::Value::String(sig.clone());
+                            }
+                            entry
                         })
                         .collect();
                     let mut msg = serde_json::json!({
@@ -241,6 +245,7 @@ pub fn values_to_chat_messages(values: &[serde_json::Value]) -> Vec<ChatMessage>
                                     id,
                                     name,
                                     arguments,
+                                    thought_signature: None,
                                 })
                             })
                             .collect()
@@ -296,6 +301,10 @@ pub enum StreamEvent {
         name: String,
         /// Index of this tool call in the response (0-based).
         index: usize,
+        /// Gemini-specific opaque token that must be echoed back in the
+        /// conversation history when replying to a thinking model tool call.
+        /// None for all other providers.
+        thought_signature: Option<String>,
     },
     /// Streaming delta for tool call arguments (JSON fragment).
     ToolCallArgumentsDelta {
@@ -385,6 +394,7 @@ pub struct ToolCall {
     pub id: String,
     pub name: String,
     pub arguments: serde_json::Value,
+    pub thought_signature: Option<String>,
 }
 
 #[derive(Debug, Clone, Default)]
