@@ -418,7 +418,7 @@ impl OpenAiProvider {
         Self {
             api_key,
             model,
-            base_url,
+            base_url: base_url.trim_end_matches('/').to_string(),
             provider_name: "openai".into(),
             client: crate::shared_http_client(),
             stream_transport: ProviderStreamTransport::Sse,
@@ -434,7 +434,7 @@ impl OpenAiProvider {
         Self {
             api_key,
             model,
-            base_url,
+            base_url: base_url.trim_end_matches('/').to_string(),
             provider_name,
             client: crate::shared_http_client(),
             stream_transport: ProviderStreamTransport::Sse,

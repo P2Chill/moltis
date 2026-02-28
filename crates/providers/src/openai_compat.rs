@@ -69,6 +69,18 @@ pub fn patch_schema_for_strict_mode(schema: &mut serde_json::Value) {
         return;
     };
 
+    // If schema has no type, infer one (OpenAI strict mode requires type on every property schema)
+    if !obj.contains_key("type") && !obj.contains_key("anyOf") && !obj.contains_key("oneOf") && !obj.contains_key("allOf") {
+        let inferred = if obj.contains_key("properties") {
+            "object"
+        } else if obj.contains_key("items") {
+            "array"
+        } else {
+            "string"
+        };
+        obj.insert("type".to_string(), serde_json::json!(inferred));
+    }
+
     // If this is an object type, apply strict mode requirements
     if obj.get("type").and_then(|t| t.as_str()) == Some("object") {
         // Add additionalProperties: false
@@ -704,7 +716,23 @@ pub fn process_openai_sse_line(data: &str, state: &mut StreamingToolState) -> Ss
     // Handle tool calls
     if let Some(tcs) = delta["tool_calls"].as_array() {
         for tc in tcs {
-            let index = tc["index"].as_u64().unwrap_or(0) as usize;
+            let raw_index = tc["index"].as_u64().unwrap_or(0) as usize;
+
+            // Some providers (e.g. Gemini) omit the index field or send all parallel
+            // tool calls at index 0, violating the OpenAI streaming spec. Detect
+            // collisions: if raw_index is already occupied by a DIFFERENT call id,
+            // find the next free slot so parallel calls don't overwrite each other.
+            let index = if let Some(incoming_id) = tc["id"].as_str() {
+                if matches!(state.tool_calls.get(&raw_index), Some((existing_id, ..)) if existing_id != incoming_id) {
+                    let mut next = raw_index + 1;
+                    while state.tool_calls.contains_key(&next) { next += 1; }
+                    next
+                } else {
+                    raw_index
+                }
+            } else {
+                raw_index
+            };
 
             // Check if this is a new tool call (has id and function.name)
             if let (Some(id), Some(name)) = (tc["id"].as_str(), tc["function"]["name"].as_str()) {
