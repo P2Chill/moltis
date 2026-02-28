@@ -3,6 +3,7 @@
 // FFI wrappers for llama-cpp-2 require unsafe Send/Sync impls when local-llm feature is enabled.
 #![cfg_attr(feature = "local-llm", allow(unsafe_code))]
 
+pub mod claude_oauth_refresh;
 pub mod anthropic;
 pub mod error;
 pub mod openai;
