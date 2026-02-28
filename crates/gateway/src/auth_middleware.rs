@@ -164,6 +164,7 @@ fn is_public_path(path: &str) -> bool {
     ) || path.starts_with("/api/auth/")
         || path.starts_with("/api/channels/msteams/")
         || path.starts_with("/assets/")
+        || path.starts_with("/api/avatar/")
         || path.starts_with("/share/")
 }
 

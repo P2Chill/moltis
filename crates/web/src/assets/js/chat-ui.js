@@ -19,6 +19,10 @@ export function scrollChatToBottom() {
 	}, 500);
 }
 
+export function appendAssistantEl(el) {
+	S.chatMsgBox.appendChild(el);
+}
+
 export function chatAddMsg(cls, content, isHtml) {
 	if (!S.chatMsgBox) return null;
 	var welcome = document.getElementById("welcomeCard");

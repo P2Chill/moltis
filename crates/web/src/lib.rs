@@ -7,6 +7,7 @@
 
 pub mod api;
 pub mod assets;
+pub mod avatar;
 pub mod error;
 pub mod gon;
 pub mod oauth;
@@ -152,7 +153,14 @@ fn build_api_routes() -> Router<AppState> {
             "/api/sessions/{session_key}/media/{filename}",
             get(api::api_session_media_handler),
         )
-        .route("/api/logs/download", get(api::api_logs_download_handler));
+        .route("/api/logs/download", get(api::api_logs_download_handler))
+        .route(
+            "/api/avatar/{kind}",
+            get(avatar::get_avatar)
+                .post(avatar::upload_avatar)
+                .delete(avatar::delete_avatar)
+                .layer(axum::extract::DefaultBodyLimit::max(avatar::MAX_AVATAR_SIZE)),
+        );
 
     // Add metrics API routes (protected).
     #[cfg(feature = "metrics")]
