@@ -1575,6 +1575,9 @@ pub async fn prepare_gateway(
                 .clone()
                 .unwrap_or_else(|| format!("https://{rp_id}"));
             try_add(rp_id, &origin, &[]);
+            // Also register localhost so local access works alongside the explicit RP.
+            let localhost_origin = format!("{default_scheme}://localhost:{port}");
+            try_add("localhost", &localhost_origin, &[]);
         } else {
             // Local: register localhost + moltis.localhost as extras.
             let localhost_origin = format!("{default_scheme}://localhost:{port}");
