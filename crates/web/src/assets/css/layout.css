@@ -204,6 +204,10 @@
 .model-item-provider {
   color: var(--muted);
   font-size: 0.68rem;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .model-item-meta {
@@ -396,4 +400,9 @@
   padding: 8px 10px;
   font-size: 0.78rem;
   color: var(--muted);
+}
+
+/* Settings content pane scrolling fix */
+.overflow-y-auto {
+  overflow-y: auto !important;
 }
