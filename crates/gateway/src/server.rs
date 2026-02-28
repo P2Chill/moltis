@@ -3304,6 +3304,14 @@ pub async fn prepare_gateway(
             .await;
         crate::mcp_service::sync_mcp_tools(live_mcp.manager(), &shared_tool_registry).await;
 
+        // Register discover_tools with a live reference to the tool registry.
+        // Queries current tools on each call (reflects MCP toggles, late-loaded tools).
+        {
+            shared_tool_registry.write().await.register(Box::new(
+                moltis_tools::discover_tools::DiscoverToolsTool::new(Arc::clone(&shared_tool_registry)),
+            ));
+        }
+
         // Log registered tools for debugging.
         let schemas = shared_tool_registry.read().await.list_schemas();
         let tool_names: Vec<&str> = schemas.iter().filter_map(|s| s["name"].as_str()).collect();

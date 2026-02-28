@@ -113,6 +113,87 @@ const RATE_LIMIT_INITIAL_RETRY_MS: u64 = 2_000;
 const RATE_LIMIT_MAX_RETRY_MS: u64 = 60_000;
 const RATE_LIMIT_MAX_RETRIES: u8 = 10;
 
+/// Default set of tool names always injected when lazy tool loading is enabled.
+/// All other tools require discovery via `discover_tools`.
+pub const LAZY_CORE_TOOLS: &[&str] = &[
+    "discover_tools",
+    "exec",
+    "memory_search",
+    "memory_get",
+    "memory_save",
+    "web_search",
+    "web_fetch",
+    "create_skill",
+    "send_image",
+    "speak",
+    "transcribe",
+    "session_state",
+    "calc",
+];
+
+/// Filter schemas to only include core tools (or custom core set from config).
+fn filter_to_core_schemas(
+    all_schemas: &[serde_json::Value],
+    custom_core: &[String],
+) -> Vec<serde_json::Value> {
+    all_schemas
+        .iter()
+        .filter(|schema| {
+            let name = schema
+                .get("name")
+                .and_then(|n| n.as_str())
+                .unwrap_or("");
+            if custom_core.is_empty() {
+                LAZY_CORE_TOOLS.contains(&name)
+            } else {
+                custom_core.iter().any(|c| c == name)
+            }
+        })
+        .cloned()
+        .collect()
+}
+
+/// If a `discover_tools` call succeeded, extract the returned schemas
+/// and add any new ones to `schemas_for_api`.
+fn inject_discovered_schemas(
+    schemas_for_api: &mut Vec<serde_json::Value>,
+    tool_name: &str,
+    success: bool,
+    result: &serde_json::Value,
+) {
+    if tool_name != "discover_tools" || !success {
+        return;
+    }
+    let Some(tools) = result
+        .get("result")
+        .and_then(|r| r.get("tools"))
+        .and_then(|t| t.as_array())
+    else {
+        return;
+    };
+    let mut added = 0usize;
+    for schema in tools {
+        let Some(name) = schema.get("name").and_then(|n| n.as_str()) else {
+            continue;
+        };
+        let already_present = schemas_for_api
+            .iter()
+            .any(|s| s.get("name").and_then(|n| n.as_str()) == Some(name));
+        if !already_present {
+            schemas_for_api.push(schema.clone());
+            added += 1;
+            tracing::debug!(tool = %name, "lazy-injected tool schema via discover_tools");
+        }
+    }
+    if added > 0 {
+        tracing::info!(
+            added,
+            total = schemas_for_api.len(),
+            "schemas_for_api expanded after discover_tools"
+        );
+    }
+}
+
 fn next_rate_limit_retry_ms(previous_ms: Option<u64>) -> u64 {
     previous_ms
         .map(|ms| ms.saturating_mul(2))
@@ -776,12 +857,14 @@ pub async fn run_agent_loop_with_context(
     let max_tool_result_bytes = config.tools.max_tool_result_bytes;
     let max_iterations = resolve_agent_max_iterations(config.tools.agent_max_iterations);
     let tool_schemas = tools.list_schemas();
+    let lazy_tools = config.tools.lazy_tools;
 
     let is_multimodal = matches!(user_content, UserContent::Multimodal(_));
     info!(
         provider = provider.name(),
         model = provider.id(),
         native_tools,
+        lazy_tools,
         tools_count = tool_schemas.len(),
         is_multimodal,
         "starting agent loop"
@@ -800,10 +883,15 @@ pub async fn run_agent_loop_with_context(
     let explicit_shell_command = explicit_shell_command_from_user_content(user_content);
 
     // Only send tool schemas to providers that support them natively.
-    let schemas_for_api = if native_tools {
-        &tool_schemas
+    // When lazy_tools is enabled, start with only the core set.
+    let mut schemas_for_api = if native_tools {
+        if lazy_tools {
+            filter_to_core_schemas(&tool_schemas, &config.tools.core_tools)
+        } else {
+            tool_schemas.clone()
+        }
     } else {
-        &vec![]
+        vec![]
     };
 
     // Extract session key once for hook payloads.
@@ -877,7 +965,7 @@ pub async fn run_agent_loop_with_context(
         }
 
         let mut response: CompletionResponse =
-            match provider.complete(&messages, schemas_for_api).await {
+            match provider.complete(&messages, &schemas_for_api).await {
                 Ok(r) => r,
                 Err(e) => {
                     let msg = e.to_string();
@@ -1227,6 +1315,11 @@ pub async fn run_agent_loop_with_context(
             trace!(tool = %tc.name, content = %tool_result_str, "tool result message content");
 
             messages.push(ChatMessage::tool(&tc.id, &tool_result_str));
+
+            // Lazy tool injection: expand schemas_for_api with discovered tools.
+            if lazy_tools {
+                inject_discovered_schemas(&mut schemas_for_api, &tc.name, success, &result);
+            }
         }
     }
 }
@@ -1258,12 +1351,14 @@ pub async fn run_agent_loop_streaming(
     let max_tool_result_bytes = config.tools.max_tool_result_bytes;
     let max_iterations = resolve_agent_max_iterations(config.tools.agent_max_iterations);
     let tool_schemas = tools.list_schemas();
+    let lazy_tools = config.tools.lazy_tools;
 
     let is_multimodal = matches!(user_content, UserContent::Multimodal(_));
     info!(
         provider = provider.name(),
         model = provider.id(),
         native_tools,
+        lazy_tools,
         tools_count = tool_schemas.len(),
         is_multimodal,
         "starting streaming agent loop"
@@ -1282,8 +1377,13 @@ pub async fn run_agent_loop_streaming(
     let explicit_shell_command = explicit_shell_command_from_user_content(user_content);
 
     // Only send tool schemas to providers that support them natively.
-    let schemas_for_api = if native_tools {
-        tool_schemas.clone()
+    // When lazy_tools is enabled, start with only the core set.
+    let mut schemas_for_api = if native_tools {
+        if lazy_tools {
+            filter_to_core_schemas(&tool_schemas, &config.tools.core_tools)
+        } else {
+            tool_schemas.clone()
+        }
     } else {
         vec![]
     };

@@ -1212,6 +1212,14 @@ pub struct ToolsConfig {
     /// Maximum bytes for a single tool result before truncation. Default 50KB.
     #[serde(default = "default_max_tool_result_bytes")]
     pub max_tool_result_bytes: usize,
+    /// Enable lazy tool injection.  When `true`, only core tools are sent to
+    /// the LLM initially; other tools can be discovered via `discover_tools`.
+    #[serde(default)]
+    pub lazy_tools: bool,
+    /// Tool names that are always injected when `lazy_tools` is enabled.
+    /// If empty, the built-in default core set is used.
+    #[serde(default)]
+    pub core_tools: Vec<String>,
 }
 
 impl Default for ToolsConfig {
@@ -1225,6 +1233,8 @@ impl Default for ToolsConfig {
             agent_timeout_secs: default_agent_timeout_secs(),
             agent_max_iterations: default_agent_max_iterations(),
             max_tool_result_bytes: default_max_tool_result_bytes(),
+            lazy_tools: false,
+            core_tools: Vec::new(),
         }
     }
 }
@@ -1791,6 +1801,15 @@ pub struct ToolPolicyConfig {
     pub allow: Vec<String>,
     pub deny: Vec<String>,
     pub profile: Option<String>,
+    /// Override MCP-enabled for models matching this key.
+    #[serde(default)]
+    pub mcp_enabled: Option<bool>,
+    /// Override sandbox-enabled for models matching this key.
+    #[serde(default)]
+    pub sandbox_enabled: Option<bool>,
+    /// Override lazy tool loading for models matching this key.
+    #[serde(default)]
+    pub lazy_tools: Option<bool>,
 }
 
 /// OAuth provider configuration (e.g. openai-codex).
