@@ -14,7 +14,7 @@ provider-async-openai   = ["dep:async-openai"]
 provider-genai          = ["dep:genai"]
 provider-github-copilot = ["dep:moltis-oauth"]
 provider-kimi-code      = ["dep:moltis-oauth"]
-provider-openai-codex   = ["dep:base64", "dep:moltis-oauth"]
+provider-openai-codex   = ["dep:moltis-oauth"]
 
 [dependencies]
 anyhow            = { workspace = true }
@@ -37,7 +37,8 @@ tracing           = { workspace = true }
 
 # Optional LLM provider crates
 async-openai   = { optional = true, workspace = true }
-base64         = { optional = true, workspace = true }
+base64         = { workspace = true }
+image          = { workspace = true }
 directories    = { optional = true, workspace = true }
 encoding_rs    = { optional = true, workspace = true }
 genai          = { optional = true, workspace = true }
