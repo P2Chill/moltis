@@ -1009,6 +1009,7 @@ struct PromptPersona {
     agents_text: Option<String>,
     tools_text: Option<String>,
     memory_text: Option<String>,
+    profile_text: Option<String>,
 }
 
 fn resolve_prompt_agent_id(session_entry: Option<&SessionEntry>) -> String {
@@ -4422,6 +4423,7 @@ impl ChatService for LiveChatService {
                 persona.tools_text.as_deref(),
                 Some(&runtime_context),
                 persona.memory_text.as_deref(),
+                persona.profile_text.as_deref(),
             )
         } else {
             build_system_prompt_minimal_runtime(
@@ -4433,6 +4435,7 @@ impl ChatService for LiveChatService {
                 persona.tools_text.as_deref(),
                 Some(&runtime_context),
                 persona.memory_text.as_deref(),
+                persona.profile_text.as_deref(),
             )
         };
 
@@ -4539,6 +4542,7 @@ impl ChatService for LiveChatService {
                 persona.tools_text.as_deref(),
                 Some(&runtime_context),
                 persona.memory_text.as_deref(),
+                persona.profile_text.as_deref(),
             )
         } else {
             build_system_prompt_minimal_runtime(
@@ -4550,6 +4554,7 @@ impl ChatService for LiveChatService {
                 persona.tools_text.as_deref(),
                 Some(&runtime_context),
                 persona.memory_text.as_deref(),
+                persona.profile_text.as_deref(),
             )
         };
 
@@ -5571,6 +5576,7 @@ async fn run_with_tools(
             persona.tools_text.as_deref(),
             runtime_context,
             persona.memory_text.as_deref(),
+            persona.profile_text.as_deref(),
         )
     } else {
         // Minimal prompt without tools for local LLMs
