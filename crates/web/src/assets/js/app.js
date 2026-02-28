@@ -88,6 +88,11 @@ try {
 }
 gon.onChange("identity", applyIdentity);
 
+// Initialize avatar CSS variables. The agent avatar always resolves (falls
+// back to embedded default). For the user avatar we probe first so we only
+// add the margin/pseudo-element when one is actually set.
+initAvatars();
+
 // Show git branch banner when running on a non-main branch.
 try {
 	showBranchBanner(gon.get("git_branch"));
@@ -431,4 +436,31 @@ function startApp() {
 	connect();
 	fetchBootstrap();
 	initInstallBanner();
+}
+// ── Avatar CSS variable initialisation ───────────────────────────────────────────
+
+export function initAvatars() {
+	// Agent avatar: always set (API falls back to embedded Sparky).
+	var ts = Date.now();
+	document.documentElement.style.setProperty(
+		"--avatar-agent-url",
+		`url('/api/avatar/agent?v=${ts}')`
+	);
+
+	// Update header img src with cache-bust so it refreshes after upload.
+	var headerImg = document.getElementById("agentAvatar");
+	if (headerImg) headerImg.src = `/api/avatar/agent?v=${ts}`;
+
+	// User avatar: probe first, only activate class if one is uploaded.
+	fetch("/api/avatar/user", { method: "HEAD" })
+		.then((r) => {
+			if (r.ok) {
+				document.documentElement.style.setProperty(
+					"--avatar-user-url",
+					`url('/api/avatar/user?v=${ts}')`
+				);
+				document.body.classList.add("has-user-avatar");
+			}
+		})
+		.catch(() => {});
 }
