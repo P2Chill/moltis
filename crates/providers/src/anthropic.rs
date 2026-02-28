@@ -1,3 +1,4 @@
+use std::io::Cursor;
 use std::pin::Pin;
 
 use {async_trait::async_trait, futures::StreamExt, secrecy::ExposeSecret, tokio_stream::Stream};
@@ -92,6 +93,39 @@ fn with_retry_after_marker(base: String, retry_after_ms: Option<u64>) -> String 
 /// (Anthropic takes them as a top-level `system` field). Tool messages become
 /// user messages with `tool_result` content blocks. Assistant messages with
 /// tool calls become `content` arrays with `tool_use` blocks.
+/// Resize an image if either dimension exceeds 1568px (Anthropic recommended max,
+/// safely under the 2000px hard limit for multi-image requests).
+/// Returns (base64_data, media_type) — may convert to JPEG if resizing.
+fn resize_image_if_needed(data: &str, media_type: &str) -> (String, String) {
+    use base64::Engine as _;
+    const MAX_DIM: u32 = 1568;
+
+    let Ok(bytes) = base64::engine::general_purpose::STANDARD.decode(data) else {
+        return (data.to_string(), media_type.to_string());
+    };
+    let Ok(img) = image::load_from_memory(&bytes) else {
+        return (data.to_string(), media_type.to_string());
+    };
+
+    if img.width() <= MAX_DIM && img.height() <= MAX_DIM {
+        return (data.to_string(), media_type.to_string());
+    }
+
+    let resized = img.resize(MAX_DIM, MAX_DIM, image::imageops::FilterType::Lanczos3);
+    let mut buf = Vec::new();
+    if resized
+        .write_to(&mut Cursor::new(&mut buf), image::ImageFormat::Jpeg)
+        .is_err()
+    {
+        return (data.to_string(), media_type.to_string());
+    }
+
+    (
+        base64::engine::general_purpose::STANDARD.encode(&buf),
+        "image/jpeg".to_string(),
+    )
+}
+
 fn to_anthropic_messages(messages: &[ChatMessage]) -> (Option<String>, Vec<serde_json::Value>) {
     let mut system_text: Option<String> = None;
     let mut out = Vec::new();
@@ -116,12 +150,13 @@ fn to_anthropic_messages(messages: &[ChatMessage]) -> (Option<String>, Vec<serde
                                 serde_json::json!({"type": "text", "text": text})
                             },
                             ContentPart::Image { media_type, data } => {
+                                let (resized_data, resized_type) = resize_image_if_needed(data, media_type);
                                 serde_json::json!({
                                     "type": "image",
                                     "source": {
                                         "type": "base64",
-                                        "media_type": media_type,
-                                        "data": data,
+                                        "media_type": resized_type,
+                                        "data": resized_data,
                                     }
                                 })
                             },
