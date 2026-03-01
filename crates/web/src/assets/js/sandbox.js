@@ -101,6 +101,12 @@ export function bindSandboxToggleEvents() {
 			} else {
 				updateSandboxUI(newVal);
 			}
+			// Persist to model override config so LLMs tab stays in sync
+			var modelId = S.selectedModelId;
+			if (modelId) {
+				var overrideKey = modelId.split("::").pop();
+				sendRpc("tools.model_overrides.set", { key: overrideKey, sandbox_enabled: newVal });
+			}
 		});
 	});
 }

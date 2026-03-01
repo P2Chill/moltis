@@ -30,12 +30,6 @@ const DISCORD_MAX_MESSAGE_LEN: usize = 2000;
 /// Discord embed description character limit.
 const DISCORD_MAX_EMBED_DESCRIPTION_LEN: usize = 4096;
 
-/// Minimum chars before the first message is sent during streaming.
-const STREAM_MIN_INITIAL_CHARS: usize = 30;
-
-/// Throttle interval between edit-in-place updates during streaming.
-const STREAM_EDIT_THROTTLE: Duration = Duration::from_millis(500);
-
 /// How often to re-send the typing indicator while waiting for stream events.
 /// Discord typing indicators expire after ~10 s; refresh well before that.
 const TYPING_REFRESH_INTERVAL: Duration = Duration::from_secs(8);
@@ -621,8 +615,7 @@ impl ChannelStreamOutbound for DiscordOutbound {
         let _ = channel_id.broadcast_typing(&http).await;
 
         let mut accumulated = String::new();
-        let mut sent_message_id: Option<MessageId> = None;
-        let mut last_edit = tokio::time::Instant::now();
+        let mut tool_status_messages: std::collections::HashMap<String, MessageId> = std::collections::HashMap::new();
         let mut typing_interval = tokio::time::interval(TYPING_REFRESH_INTERVAL);
         typing_interval.tick().await; // consume the immediate first tick
 
@@ -634,48 +627,37 @@ impl ChannelStreamOutbound for DiscordOutbound {
                     let Some(event) = event else { break };
                     match event {
                         StreamEvent::Delta(delta) => {
+                            // Buffer-only: accumulate text, no send/edit.
                             accumulated.push_str(&delta);
-
-                            // Phase 1: initial send once we have enough text.
-                            if sent_message_id.is_none() {
-                                if accumulated.chars().count() >= STREAM_MIN_INITIAL_CHARS {
-                                    let display =
-                                        truncate_at_char_boundary(&accumulated, DISCORD_MAX_MESSAGE_LEN);
-                                    match send_discord_message(&http, channel_id, display, reference).await
-                                    {
-                                        Ok(msg) => {
-                                            sent_message_id = Some(msg.id);
-                                            last_edit = tokio::time::Instant::now();
-                                        },
-                                        Err(e) => {
-                                            warn!(
-                                                account_id,
-                                                chat_id = to,
-                                                error = %e,
-                                                "discord stream initial send failed"
-                                            );
-                                        },
-                                    }
-                                }
-                                continue;
+                        },
+                        StreamEvent::ToolStatusStart { tool_id, message } => {
+                            // Send a new message for this tool call.
+                            match send_discord_message(&http, channel_id, &message, None).await {
+                                Ok(msg) => {
+                                    tool_status_messages.insert(tool_id, msg.id);
+                                },
+                                Err(e) => {
+                                    debug!(
+                                        account_id,
+                                        chat_id = to,
+                                        error = %e,
+                                        "discord tool status send failed"
+                                    );
+                                },
                             }
-
-                            // Phase 2: throttled in-place edits.
-                            if last_edit.elapsed() >= STREAM_EDIT_THROTTLE
-                                && let Some(msg_id) = sent_message_id
-                            {
-                                let display =
-                                    truncate_at_char_boundary(&accumulated, DISCORD_MAX_MESSAGE_LEN);
-                                let edit = EditMessage::new().content(display);
+                        },
+                        StreamEvent::ToolStatusEnd { tool_id, message } => {
+                            // Edit the previously sent tool status message.
+                            if let Some(msg_id) = tool_status_messages.remove(&tool_id) {
+                                let edit = EditMessage::new().content(&message);
                                 if let Err(e) = channel_id.edit_message(&http, msg_id, edit).await {
                                     debug!(
                                         account_id,
                                         chat_id = to,
                                         error = %e,
-                                        "discord stream edit failed (non-fatal)"
+                                        "discord tool status edit failed"
                                     );
                                 }
-                                last_edit = tokio::time::Instant::now();
                             }
                         },
                         StreamEvent::Done => break,
@@ -689,44 +671,24 @@ impl ChannelStreamOutbound for DiscordOutbound {
                     }
                 }
                 _ = typing_interval.tick() => {
-                    // Re-send typing indicator to keep it visible during
-                    // long-running tool execution or pauses in the stream.
+                    // Re-send typing indicator to keep it visible.
                     let _ = channel_id.broadcast_typing(&http).await;
                 }
             }
         }
 
-        // Phase 3: final update with the complete text.
+        // Send the complete response as a single message.
         if !accumulated.is_empty() {
             if accumulated.len() <= DISCORD_MAX_MESSAGE_LEN {
-                // Content fits in one message -- edit or send.
-                if let Some(msg_id) = sent_message_id {
-                    let edit = EditMessage::new().content(&accumulated);
-                    if let Err(e) = channel_id.edit_message(&http, msg_id, edit).await {
-                        warn!(
-                            account_id,
-                            chat_id = to,
-                            error = %e,
-                            "discord stream final edit failed"
-                        );
-                    }
-                } else {
-                    send_discord_message(&http, channel_id, &accumulated, None)
-                        .await
-                        .map_err(|e| {
-                            ChannelError::external("Discord send", std::io::Error::other(e))
-                        })?;
-                }
+                send_discord_message(&http, channel_id, &accumulated, reference)
+                    .await
+                    .map_err(|e| {
+                        ChannelError::external("Discord send", std::io::Error::other(e))
+                    })?;
             } else {
-                // Content overflows -- edit the first message with the first 2000 chars,
-                // then send the rest as new messages.
+                // Content overflows -- send first chunk, then the rest.
                 let first = truncate_at_char_boundary(&accumulated, DISCORD_MAX_MESSAGE_LEN);
-                if let Some(msg_id) = sent_message_id {
-                    let edit = EditMessage::new().content(first);
-                    let _ = channel_id.edit_message(&http, msg_id, edit).await;
-                } else {
-                    let _ = send_discord_text(&http, channel_id, first).await;
-                }
+                let _ = send_discord_text(&http, channel_id, first).await;
 
                 let rest = &accumulated[first.len()..];
                 if !rest.is_empty() {
@@ -750,7 +712,7 @@ impl ChannelStreamOutbound for DiscordOutbound {
             account_id,
             chat_id = to,
             total_len = accumulated.len(),
-            streamed = sent_message_id.is_some(),
+            tool_status_count = tool_status_messages.len(),
             "discord stream completed"
         );
         Ok(())

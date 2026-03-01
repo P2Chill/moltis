@@ -16,10 +16,11 @@ pub fn check_access(
     username: Option<&str>,
     guild_id: Option<&str>,
     bot_mentioned: bool,
+    is_dedicated_channel: bool,
 ) -> Result<(), AccessDenied> {
     match chat_type {
         ChatType::Dm => check_dm_access(config, peer_id, username),
-        ChatType::Group | ChatType::Channel => check_guild_access(config, guild_id, bot_mentioned),
+        ChatType::Group | ChatType::Channel => check_guild_access(config, guild_id, bot_mentioned, is_dedicated_channel),
     }
 }
 
@@ -50,6 +51,7 @@ fn check_guild_access(
     config: &DiscordAccountConfig,
     guild_id: Option<&str>,
     bot_mentioned: bool,
+    is_dedicated_channel: bool,
 ) -> Result<(), AccessDenied> {
     match config.group_policy {
         GroupPolicy::Disabled => return Err(AccessDenied::GuildsDisabled),
@@ -62,6 +64,11 @@ fn check_guild_access(
             }
         },
         GroupPolicy::Open => {},
+    }
+
+    // Dedicated channels bypass mention mode check.
+    if is_dedicated_channel {
+        return Ok(());
     }
 
     match config.mention_mode {
@@ -113,7 +120,7 @@ mod tests {
     fn open_dm_allows_all() {
         let mut c = cfg();
         c.dm_policy = DmPolicy::Open;
-        assert!(check_access(&c, &ChatType::Dm, "anyone", None, None, false).is_ok());
+        assert!(check_access(&c, &ChatType::Dm, "anyone", None, None, false, false).is_ok());
     }
 
     #[test]
@@ -121,7 +128,7 @@ mod tests {
         let mut c = cfg();
         c.dm_policy = DmPolicy::Disabled;
         assert_eq!(
-            check_access(&c, &ChatType::Dm, "user", None, None, false),
+            check_access(&c, &ChatType::Dm, "user", None, None, false, false),
             Err(AccessDenied::DmsDisabled)
         );
     }
@@ -131,9 +138,9 @@ mod tests {
         let mut c = cfg();
         c.dm_policy = DmPolicy::Allowlist;
         c.allowlist = vec!["400347514466992128".into()];
-        assert!(check_access(&c, &ChatType::Dm, "400347514466992128", None, None, false).is_ok());
+        assert!(check_access(&c, &ChatType::Dm, "400347514466992128", None, None, false, false).is_ok());
         assert_eq!(
-            check_access(&c, &ChatType::Dm, "999999999", None, None, false),
+            check_access(&c, &ChatType::Dm, "999999999", None, None, false, false),
             Err(AccessDenied::NotOnAllowlist)
         );
     }
@@ -151,7 +158,8 @@ mod tests {
                 "400347514466992128",
                 Some("fabienpenso"),
                 None,
-                false
+                false,
+                false,
             )
             .is_ok()
         );
@@ -163,13 +171,14 @@ mod tests {
                 "400347514466992128",
                 Some("other"),
                 None,
-                false
+                false,
+                false,
             ),
             Err(AccessDenied::NotOnAllowlist)
         );
         // No username provided, peer_id doesn't match.
         assert_eq!(
-            check_access(&c, &ChatType::Dm, "400347514466992128", None, None, false),
+            check_access(&c, &ChatType::Dm, "400347514466992128", None, None, false, false),
             Err(AccessDenied::NotOnAllowlist)
         );
     }
@@ -187,7 +196,8 @@ mod tests {
                 "400347514466992128",
                 Some("fabienpenso"),
                 None,
-                false
+                false,
+                false,
             )
             .is_ok()
         );
@@ -202,7 +212,8 @@ mod tests {
                 "400347514466992128",
                 Some("fabienpenso"),
                 None,
-                false
+                false,
+                false,
             )
             .is_ok()
         );
@@ -212,17 +223,17 @@ mod tests {
     fn guild_mention_required() {
         let c = cfg(); // mention_mode=Mention by default
         assert_eq!(
-            check_access(&c, &ChatType::Group, "user", None, Some("grp1"), false),
+            check_access(&c, &ChatType::Group, "user", None, Some("grp1"), false, false),
             Err(AccessDenied::NotMentioned)
         );
-        assert!(check_access(&c, &ChatType::Group, "user", None, Some("grp1"), true).is_ok());
+        assert!(check_access(&c, &ChatType::Group, "user", None, Some("grp1"), true, false).is_ok());
     }
 
     #[test]
     fn guild_always_mode() {
         let mut c = cfg();
         c.mention_mode = MentionMode::Always;
-        assert!(check_access(&c, &ChatType::Group, "user", None, Some("grp1"), false).is_ok());
+        assert!(check_access(&c, &ChatType::Group, "user", None, Some("grp1"), false, false).is_ok());
     }
 
     #[test]
@@ -230,7 +241,7 @@ mod tests {
         let mut c = cfg();
         c.group_policy = GroupPolicy::Disabled;
         assert_eq!(
-            check_access(&c, &ChatType::Group, "user", None, Some("grp1"), true),
+            check_access(&c, &ChatType::Group, "user", None, Some("grp1"), true, false),
             Err(AccessDenied::GuildsDisabled)
         );
     }
@@ -241,9 +252,9 @@ mod tests {
         c.group_policy = GroupPolicy::Allowlist;
         c.guild_allowlist = vec!["grp1".into()];
         c.mention_mode = MentionMode::Always;
-        assert!(check_access(&c, &ChatType::Group, "user", None, Some("grp1"), false).is_ok());
+        assert!(check_access(&c, &ChatType::Group, "user", None, Some("grp1"), false, false).is_ok());
         assert_eq!(
-            check_access(&c, &ChatType::Group, "user", None, Some("grp2"), false),
+            check_access(&c, &ChatType::Group, "user", None, Some("grp2"), false, false),
             Err(AccessDenied::GuildNotOnAllowlist)
         );
     }
@@ -253,11 +264,11 @@ mod tests {
         let mut c = cfg();
         c.dm_policy = DmPolicy::Allowlist;
         assert_eq!(
-            check_access(&c, &ChatType::Dm, "anyone", None, None, false),
+            check_access(&c, &ChatType::Dm, "anyone", None, None, false, false),
             Err(AccessDenied::NotOnAllowlist)
         );
         assert_eq!(
-            check_access(&c, &ChatType::Dm, "anyone", Some("user"), None, false),
+            check_access(&c, &ChatType::Dm, "anyone", Some("user"), None, false, false),
             Err(AccessDenied::NotOnAllowlist)
         );
     }
@@ -268,7 +279,7 @@ mod tests {
         c.group_policy = GroupPolicy::Allowlist;
         c.mention_mode = MentionMode::Always;
         assert_eq!(
-            check_access(&c, &ChatType::Group, "user", None, Some("grp1"), true),
+            check_access(&c, &ChatType::Group, "user", None, Some("grp1"), true, false),
             Err(AccessDenied::GuildNotOnAllowlist)
         );
     }
@@ -286,7 +297,8 @@ mod tests {
                 "400347514466992128",
                 Some("fabienpenso"),
                 None,
-                false
+                false,
+                false,
             )
             .is_ok()
         );
@@ -294,7 +306,7 @@ mod tests {
         c.allowlist.clear();
 
         assert_eq!(
-            check_access(&c, &ChatType::Dm, "400347514466992128", None, None, false),
+            check_access(&c, &ChatType::Dm, "400347514466992128", None, None, false, false),
             Err(AccessDenied::NotOnAllowlist),
             "empty DM allowlist must deny by peer_id"
         );
@@ -305,7 +317,8 @@ mod tests {
                 "400347514466992128",
                 Some("fabienpenso"),
                 None,
-                false
+                false,
+                false,
             ),
             Err(AccessDenied::NotOnAllowlist),
             "empty DM allowlist must deny by username"
@@ -316,12 +329,12 @@ mod tests {
         g.guild_allowlist = vec!["grp1".into()];
         g.mention_mode = MentionMode::Always;
 
-        assert!(check_access(&g, &ChatType::Group, "user", None, Some("grp1"), true).is_ok());
+        assert!(check_access(&g, &ChatType::Group, "user", None, Some("grp1"), true, false).is_ok());
 
         g.guild_allowlist.clear();
 
         assert_eq!(
-            check_access(&g, &ChatType::Group, "user", None, Some("grp1"), true),
+            check_access(&g, &ChatType::Group, "user", None, Some("grp1"), true, false),
             Err(AccessDenied::GuildNotOnAllowlist),
             "empty guild allowlist must deny previously-allowed guild"
         );

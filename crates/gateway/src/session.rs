@@ -1036,10 +1036,16 @@ impl SessionService for LiveSessionService {
             .and_then(|v| v.as_str())
             .filter(|value| !value.trim().is_empty());
 
-        self.metadata
-            .upsert(key, None)
-            .await
-            .map_err(ServiceError::message)?;
+        // Only upsert (create) if the session does not exist yet.
+        // Calling upsert on an existing session bumps its version and emits
+        // a Patched event, which causes a feedback loop when multiple browser
+        // tabs react to session events by re-resolving the active session.
+        if self.metadata.get(key).await.is_none() {
+            self.metadata
+                .upsert(key, None)
+                .await
+                .map_err(ServiceError::message)?;
+        }
         let entry = self
             .ensure_entry_agent_id(key, inherit_from_key)
             .await
@@ -1082,6 +1088,7 @@ impl SessionService for LiveSessionService {
                 "sandbox_image": entry.sandbox_image,
                 "worktree_branch": entry.worktree_branch,
                 "mcpDisabled": entry.mcp_disabled,
+            "thinking_enabled": entry.thinking_enabled,
                 "agent_id": entry.agent_id,
                 "agentId": entry.agent_id,
                 "version": entry.version,
@@ -1094,11 +1101,18 @@ impl SessionService for LiveSessionService {
         let p: PatchParams = parse_params(params)?;
         let key = &p.key;
 
-        let entry = self
-            .metadata
-            .get(key)
-            .await
-            .ok_or_else(|| format!("session '{key}' not found"))?;
+        let entry = match self.metadata.get(key).await {
+            Some(e) => e,
+            None => {
+                // Auto-create the session entry (e.g. for channel slash commands
+                // invoked before any message has been sent).
+                let _ = self.metadata.upsert(key, None::<String>).await;
+                self.metadata
+                    .get(key)
+                    .await
+                    .ok_or_else(|| format!("session '{key}' not found after create"))?
+            },
+        };
         if p.label.is_some() {
             if entry.channel_binding.is_some() {
                 return Err("cannot rename a channel-bound session".into());
@@ -1133,6 +1147,9 @@ impl SessionService for LiveSessionService {
         }
         if let Some(mcp_disabled) = p.mcp_disabled {
             self.metadata.set_mcp_disabled(key, mcp_disabled).await;
+        }
+        if let Some(thinking_enabled) = p.thinking_enabled {
+            self.metadata.set_thinking_enabled(key, thinking_enabled).await;
         }
         if let Some(sandbox_enabled_opt) = p.sandbox_enabled {
             let old_sandbox = entry.sandbox_enabled;

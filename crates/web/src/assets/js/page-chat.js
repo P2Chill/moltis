@@ -27,7 +27,7 @@ import {
 	switchSession,
 } from "./sessions.js";
 import * as S from "./state.js";
-import { initVoiceInput, teardownVoiceInput } from "./voice-input.js";
+import { initVoiceInput, initVadButton, teardownVoiceInput } from "./voice-input.js";
 
 // ── Slash commands ───────────────────────────────────────
 var slashCommands = [
@@ -741,6 +741,47 @@ function toggleMcp() {
 	sendRpc("sessions.patch", { key: S.activeSessionKey, mcpDisabled: newDisabled }).then((res) => {
 		if (res?.ok) {
 			updateMcpToggleUI(!newDisabled);
+			// Persist to model override config so LLMs tab stays in sync
+			var modelId = S.selectedModelId;
+			if (modelId) {
+				var overrideKey = modelId.split("::").pop();
+				sendRpc("tools.model_overrides.set", { key: overrideKey, mcp_enabled: !newDisabled });
+			}
+		}
+	});
+}
+
+// ── Think toggle ─────────────────────────────────────────
+export function updateThinkToggleUI(enabled) {
+	var btn = S.$("thinkToggleBtn");
+	var label = S.$("thinkToggleLabel");
+	if (!btn) return;
+	if (enabled) {
+		btn.style.color = "var(--accent)";
+		btn.style.borderColor = "var(--accent)";
+		if (label) label.textContent = "Think ✓";
+		btn.title = "Extended thinking enabled — click to disable";
+	} else {
+		btn.style.color = "var(--muted)";
+		btn.style.borderColor = "var(--border)";
+		if (label) label.textContent = "Think";
+		btn.title = "Extended thinking disabled — click to enable";
+	}
+}
+
+function toggleThink() {
+	var label = S.$("thinkToggleLabel");
+	var currentlyEnabled = label && label.textContent.includes("✓");
+	var newVal = !currentlyEnabled;
+	sendRpc("sessions.patch", { key: S.activeSessionKey, thinkingEnabled: newVal }).then((res) => {
+		if (res?.ok) {
+			updateThinkToggleUI(newVal);
+			// Persist to model override config so LLMs tab stays in sync
+			var modelId = S.selectedModelId;
+			if (modelId) {
+				var overrideKey = modelId.split("::").pop();
+				sendRpc("tools.model_overrides.set", { key: overrideKey, thinking_enabled: newVal });
+			}
 		}
 	});
 }
@@ -994,6 +1035,10 @@ var chatPageHTML =
 	'<span class="icon icon-md icon-link" style="flex-shrink:0;"></span>' +
 	'<span id="mcpToggleLabel">MCP</span>' +
 	"</button>" +
+	'<button id="thinkToggleBtn" class="mobile-toolbar-extra text-xs border border-[var(--border)] px-2 py-1 rounded-md transition-colors cursor-pointer bg-transparent font-[var(--font-body)]" style="display:inline-flex;align-items:center;gap:4px;color:var(--muted);" title="Toggle extended thinking">' +
+	'<span class="icon icon-md icon-sparkles" style="flex-shrink:0;"></span>' +
+	'<span id="thinkToggleLabel">Think</span>' +
+	"</button>" +
 	'<button id="debugPanelBtn" class="mobile-toolbar-hide text-xs border border-[var(--border)] px-2 py-1 rounded-md transition-colors cursor-pointer bg-transparent font-[var(--font-body)]" style="display:inline-flex;align-items:center;gap:4px;color:var(--muted);" title="Show context debug info">' +
 	'<span class="icon icon-md icon-wrench" style="flex-shrink:0;"></span>' +
 	'<span id="debugPanelLabel">Debug</span>' +
@@ -1018,6 +1063,10 @@ var chatPageHTML =
 	'<button id="micBtn" disabled title="Click to start recording" ' +
 	'class="mic-btn min-h-[40px] px-3 bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--muted)] cursor-pointer disabled:opacity-40 disabled:cursor-default transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text)]">' +
 	'<span class="icon icon-lg icon-microphone"></span>' +
+	"</button>" +
+	'<button id="vadBtn" disabled title="Conversation mode (VAD)" ' +
+	'class="vad-btn min-h-[40px] px-3 bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--muted)] cursor-pointer disabled:opacity-40 disabled:cursor-default transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text)]">' +
+	'<span class="icon icon-lg icon-waveform"></span>' +
 	"</button>" +
 	'<button id="sendBtn" disabled ' +
 	'class="provider-btn min-h-[40px] disabled:opacity-40 disabled:cursor-default">Send</button>' +
@@ -1072,7 +1121,7 @@ registerPrefix(
 		S.setSandboxToggleBtn(S.$("sandboxToggle"));
 		S.setSandboxLabel(S.$("sandboxLabel"));
 		bindSandboxToggleEvents();
-		updateSandboxUI(true);
+		updateSandboxUI(false); // default off; context() will set real value
 
 		S.setSandboxImageBtn(S.$("sandboxImageBtn"));
 		S.setSandboxImageLabel(S.$("sandboxImageLabel"));
@@ -1086,6 +1135,10 @@ registerPrefix(
 		var mcpToggle = S.$("mcpToggleBtn");
 		if (mcpToggle) mcpToggle.addEventListener("click", toggleMcp);
 		updateMcpToggleUI(true); // default: MCP enabled
+
+		var thinkToggle = S.$("thinkToggleBtn");
+		if (thinkToggle) thinkToggle.addEventListener("click", toggleThink);
+		updateThinkToggleUI(false); // default: thinking disabled
 
 		var toolbar = container.querySelector(".chat-toolbar");
 		var mobileControlsBtn = S.$("mobileControlsBtn");
@@ -1168,6 +1221,7 @@ registerPrefix(
 
 		// Initialize voice input
 		initVoiceInput(S.$("micBtn"));
+		initVadButton(S.$("vadBtn"));
 
 		// Desktop only: mobile keeps chat focused and avoids drag/drop chrome.
 		if (window.innerWidth >= 768) {

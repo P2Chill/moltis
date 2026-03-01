@@ -17,3 +17,5 @@ pub mod response_sanitizer;
 pub mod silent_turn;
 pub mod skills;
 pub mod tool_registry;
+
+pub use runner::LAZY_CORE_TOOLS;

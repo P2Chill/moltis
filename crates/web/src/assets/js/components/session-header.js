@@ -322,7 +322,7 @@ export function SessionHeader() {
 			`
 			}
 			${
-				!(isMain || isCron) &&
+				!isMain &&
 				html`
 				<button class="chat-session-btn chat-session-btn-danger" onClick=${onDelete} title="Delete session">
 					Delete

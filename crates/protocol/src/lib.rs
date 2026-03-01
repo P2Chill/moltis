@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 // ── Constants ────────────────────────────────────────────────────────────────
 
 pub const PROTOCOL_VERSION: u32 = 4;
-pub const MAX_PAYLOAD_BYTES: usize = 524_288; // 512 KB
+pub const MAX_PAYLOAD_BYTES: usize = 20_971_520; // 20 MB
 pub const MAX_BUFFERED_BYTES: usize = 1_572_864; // 1.5 MB
 pub const TICK_INTERVAL_MS: u64 = 30_000; // 30s
 pub const HANDSHAKE_TIMEOUT_MS: u64 = 10_000; // 10s

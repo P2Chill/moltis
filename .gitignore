@@ -24,3 +24,5 @@ crates/web/ui/test-results/
 crates/gateway/ui/node_modules/
 crates/gateway/ui/playwright-report/
 crates/gateway/ui/test-results/
+package-lock.json
+node_modules/

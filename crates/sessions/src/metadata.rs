@@ -42,6 +42,8 @@ pub struct SessionEntry {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mcp_disabled: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub thinking_enabled: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub preview: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub agent_id: Option<String>,
@@ -132,6 +134,7 @@ impl SessionMetadata {
                 parent_session_key: None,
                 fork_point: None,
                 mcp_disabled: None,
+                thinking_enabled: None,
                 preview: None,
                 agent_id: None,
                 version: 0,
@@ -196,6 +199,15 @@ impl SessionMetadata {
     pub fn set_mcp_disabled(&mut self, key: &str, disabled: Option<bool>) {
         if let Some(entry) = self.entries.get_mut(key) {
             entry.mcp_disabled = disabled;
+            entry.updated_at = now_ms();
+            entry.version += 1;
+        }
+    }
+
+    /// Set the thinking_enabled override for a session.
+    pub fn set_thinking_enabled(&mut self, key: &str, enabled: Option<bool>) {
+        if let Some(entry) = self.entries.get_mut(key) {
+            entry.thinking_enabled = enabled;
             entry.updated_at = now_ms();
             entry.version += 1;
         }
@@ -288,6 +300,7 @@ struct SessionRow {
     parent_session_key: Option<String>,
     fork_point: Option<i32>,
     mcp_disabled: Option<i32>,
+    thinking_enabled: Option<i32>,
     preview: Option<String>,
     agent_id: Option<String>,
     version: i64,
@@ -313,6 +326,7 @@ impl From<SessionRow> for SessionEntry {
             parent_session_key: r.parent_session_key,
             fork_point: r.fork_point.map(|v| v as u32),
             mcp_disabled: r.mcp_disabled.map(|v| v != 0),
+            thinking_enabled: r.thinking_enabled.map(|v| v != 0),
             preview: r.preview,
             agent_id: r.agent_id,
             version: r.version as u64,
@@ -376,6 +390,7 @@ impl SqliteSessionMetadata {
                 parent_session_key  TEXT,
                 fork_point          INTEGER,
                 mcp_disabled        INTEGER,
+                thinking_enabled    INTEGER,
                 preview             TEXT,
                 agent_id            TEXT,
                 version             INTEGER NOT NULL DEFAULT 0
@@ -610,6 +625,23 @@ impl SqliteSessionMetadata {
         let val = disabled.map(|b| b as i32);
         sqlx::query(
             "UPDATE sessions SET mcp_disabled = ?, updated_at = ?, version = version + 1 WHERE key = ?",
+        )
+        .bind(val)
+        .bind(now)
+        .bind(key)
+            .execute(&self.pool)
+            .await
+            .ok();
+        self.emit(crate::session_events::SessionEvent::Patched {
+            session_key: key.to_string(),
+        });
+    }
+
+    pub async fn set_thinking_enabled(&self, key: &str, enabled: Option<bool>) {
+        let now = now_ms() as i64;
+        let val = enabled.map(|b| b as i32);
+        sqlx::query(
+            "UPDATE sessions SET thinking_enabled = ?, updated_at = ?, version = version + 1 WHERE key = ?",
         )
         .bind(val)
         .bind(now)

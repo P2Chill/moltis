@@ -47,6 +47,7 @@ pub fn build_http_client(proxy_url: Option<&str>) -> reqwest::Client {
 pub mod browser;
 pub mod calc;
 pub mod cron_tool;
+pub mod discover_tools;
 #[cfg(feature = "wasm")]
 pub mod embedded_wasm;
 pub mod exec;

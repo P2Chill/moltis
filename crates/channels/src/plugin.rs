@@ -412,6 +412,20 @@ pub enum StreamEvent {
     Done,
     /// An error occurred.
     Error(String),
+    /// A tool call has started — display status message.
+    ToolStatusStart {
+        /// Unique tool call ID from the provider.
+        tool_id: String,
+        /// Human-readable status message with emoji.
+        message: String,
+    },
+    /// A tool call has completed — edit the status message.
+    ToolStatusEnd {
+        /// Unique tool call ID (must match a previous ToolStatusStart).
+        tool_id: String,
+        /// Updated status message (short: name + emoji).
+        message: String,
+    },
 }
 
 /// Receiver end of a stream channel.

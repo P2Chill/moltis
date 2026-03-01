@@ -57,6 +57,7 @@ const READ_METHODS: &[&str] = &[
     "stt.providers",
     "models.list",
     "models.list_all",
+    "tools.model_overrides.get",
     #[cfg(feature = "agent")]
     "agents.list",
     #[cfg(feature = "agent")]
@@ -165,6 +166,7 @@ const WRITE_METHODS: &[&str] = &[
     "logs.ack",
     "models.detect_supported",
     "models.test",
+    "tools.model_overrides.set",
     "providers.save_key",
     "providers.save_model",
     "providers.save_models",

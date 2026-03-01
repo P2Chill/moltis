@@ -1250,6 +1250,11 @@ pub enum MessageQueueMode {
 pub struct ToolsConfig {
     pub exec: ExecConfig,
     pub policy: ToolPolicyConfig,
+    /// Per-model tool policy overrides. Keys are matched as substrings against
+    /// the raw model ID (e.g. "haiku", "claude-haiku-4-5-20251001").
+    /// The matched policy is merged on top of the global policy.
+    #[serde(default)]
+    pub model_overrides: HashMap<String, ToolPolicyConfig>,
     pub web: WebConfig,
     pub maps: MapsConfig,
     pub browser: BrowserConfig,
@@ -1262,6 +1267,19 @@ pub struct ToolsConfig {
     /// Maximum bytes for a single tool result before truncation. Default 50KB.
     #[serde(default = "default_max_tool_result_bytes")]
     pub max_tool_result_bytes: usize,
+    /// Enable lazy tool injection.  When `true`, only core tools are sent to
+    /// the LLM initially; other tools can be discovered via `discover_tools`.
+    #[serde(default)]
+    pub lazy_tools: bool,
+    /// Tool names that are always injected when `lazy_tools` is enabled.
+    /// If empty, the built-in default core set is used.
+    #[serde(default)]
+    pub core_tools: Vec<String>,
+    /// Number of conversation turns to cache discovered tool schemas.
+    /// When `lazy_tools` is enabled, tools found via `discover_tools`
+    /// are cached for this many turns before expiring. Default 5.
+    #[serde(default = "default_discovered_tool_ttl")]
+    pub discovered_tool_ttl: u8,
 }
 
 impl Default for ToolsConfig {
@@ -1269,12 +1287,16 @@ impl Default for ToolsConfig {
         Self {
             exec: ExecConfig::default(),
             policy: ToolPolicyConfig::default(),
+            model_overrides: HashMap::new(),
             web: WebConfig::default(),
             maps: MapsConfig::default(),
             browser: BrowserConfig::default(),
             agent_timeout_secs: default_agent_timeout_secs(),
             agent_max_iterations: default_agent_max_iterations(),
             max_tool_result_bytes: default_max_tool_result_bytes(),
+            lazy_tools: false,
+            core_tools: Vec::new(),
+            discovered_tool_ttl: default_discovered_tool_ttl(),
         }
     }
 }
@@ -1289,6 +1311,10 @@ fn default_agent_max_iterations() -> usize {
 
 fn default_max_tool_result_bytes() -> usize {
     50_000
+}
+
+fn default_discovered_tool_ttl() -> u8 {
+    5
 }
 
 /// Map tools configuration.
@@ -1841,6 +1867,18 @@ pub struct ToolPolicyConfig {
     pub allow: Vec<String>,
     pub deny: Vec<String>,
     pub profile: Option<String>,
+    /// Override MCP-enabled for models matching this key.
+    #[serde(default)]
+    pub mcp_enabled: Option<bool>,
+    /// Override sandbox-enabled for models matching this key.
+    #[serde(default)]
+    pub sandbox_enabled: Option<bool>,
+    /// Override lazy tool loading for models matching this key.
+    #[serde(default)]
+    pub lazy_tools: Option<bool>,
+    /// Override extended thinking for models matching this key.
+    #[serde(default)]
+    pub thinking_enabled: Option<bool>,
 }
 
 /// OAuth provider configuration (e.g. openai-codex).

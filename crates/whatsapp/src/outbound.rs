@@ -124,6 +124,9 @@ impl ChannelStreamOutbound for WhatsAppOutbound {
                     }
                     break;
                 },
+                // Tool status events are handled by Discord; ignore here.
+                StreamEvent::ToolStatusStart { .. }
+                | StreamEvent::ToolStatusEnd { .. } => {},
             }
         }
         if text.is_empty() {

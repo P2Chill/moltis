@@ -1,6 +1,7 @@
 // ── WebSocket ─────────────────────────────────────────────────
 
 import {
+	appendAssistantEl,
 	appendChannelFooter,
 	appendReasoningDisclosure,
 	chatAddErrorCard,
@@ -139,7 +140,6 @@ function handleChatThinking(p, isActive, isChatPage, eventSession) {
 	thinkEl.className = "msg assistant thinking";
 	thinkEl.id = "thinkingIndicator";
 	thinkEl.appendChild(makeThinkingDots());
-	thinkEl.appendChild(makeThinkingStopBtn(eventSession));
 	S.chatMsgBox.appendChild(thinkEl);
 	S.chatMsgBox.scrollTop = S.chatMsgBox.scrollHeight;
 }
@@ -150,13 +150,11 @@ function handleChatThinkingText(p, isActive, isChatPage, eventSession) {
 	if (!(isActive && isChatPage)) return;
 	var indicator = document.getElementById("thinkingIndicator");
 	if (indicator) {
-		var existingBtn = indicator.querySelector(".thinking-stop-btn");
 		while (indicator.firstChild) indicator.removeChild(indicator.firstChild);
 		var textEl = document.createElement("span");
 		textEl.className = "thinking-text";
 		textEl.textContent = p.text;
 		indicator.appendChild(textEl);
-		indicator.appendChild(existingBtn || makeThinkingStopBtn(eventSession));
 		S.chatMsgBox.scrollTop = S.chatMsgBox.scrollHeight;
 	}
 }
@@ -215,7 +213,7 @@ function handleChatToolCallStart(p, isActive, isChatPage, eventSession) {
 		// Remove the element if it's empty (e.g. only whitespace from a
 		// pre-tool-call delta) to avoid leaving an orphaned empty div.
 		if (!S.streamEl.textContent.trim()) {
-			S.streamEl.remove();
+			removeStreamEl();
 		}
 		S.setStreamEl(null);
 		S.setStreamText("");
@@ -428,6 +426,17 @@ function hasNonWhitespaceContent(text) {
 	return String(text || "").trim().length > 0;
 }
 
+// Remove the stream element and its .msg-row wrapper (if any).
+function removeStreamEl() {
+	if (!S.streamEl) return;
+	var parent = S.streamEl.parentNode;
+	if (parent && parent.classList && parent.classList.contains("msg-row")) {
+		parent.remove();
+	} else {
+		removeStreamEl();
+	}
+}
+
 function handleChatDelta(p, isActive, isChatPage, eventSession) {
 	updateSessionRunId(eventSession, p.runId);
 	if (!p.text) return;
@@ -452,7 +461,7 @@ function handleChatDelta(p, isActive, isChatPage, eventSession) {
 		S.setStreamText("");
 		S.setStreamEl(document.createElement("div"));
 		S.streamEl.className = "msg assistant";
-		S.chatMsgBox.appendChild(S.streamEl);
+		appendAssistantEl(S.streamEl);
 	}
 	S.setStreamText(S.streamText + p.text);
 	setSafeMarkdownHtml(S.streamEl, S.streamText);
@@ -485,10 +494,10 @@ function resolveFinalMessageEl(p) {
 		}
 		if (hasFinalText) return chatAddMsg("assistant", renderMarkdown(finalText), true);
 		// No text (silent reply) — remove any leftover stream element.
-		if (S.streamEl) S.streamEl.remove();
+		if (S.streamEl) removeStreamEl();
 		return null;
 	}
-	if (S.streamEl) S.streamEl.remove();
+	if (S.streamEl) removeStreamEl();
 	return null;
 }
 
@@ -591,6 +600,9 @@ function handleChatFinal(p, isActive, isChatPage, eventSession) {
 	clearStaleRunningToolCards();
 
 	if (S.voicePending && p.text && p.replyMedium === "voice") {
+		// Only autoplay in the tab that sent the voice message
+		var isVoiceSourceTab = !!window._moltisVoiceSource;
+		window._moltisVoiceSource = false;
 		// Voice pending path: we suppressed streaming, so render everything at once.
 		console.debug("[audio] voice-pending path, audio:", !!p.audio, "text:", p.text.substring(0, 40));
 		var msgEl = S.streamEl || document.createElement("div");
@@ -602,7 +614,7 @@ function handleChatFinal(p, isActive, isChatPage, eventSession) {
 			var filename = p.audio.split("/").pop();
 			var audioSrc = `/api/sessions/${encodeURIComponent(p.sessionKey || S.activeSessionKey)}/media/${encodeURIComponent(filename)}`;
 			console.debug("[audio] rendering persisted audio:", filename);
-			renderAudioPlayer(msgEl, audioSrc, true);
+			renderAudioPlayer(msgEl, audioSrc, isVoiceSourceTab);
 		}
 		if (hasNonWhitespaceContent(p.text)) {
 			// Safe: renderMarkdown calls esc() first — all user input is HTML-escaped.

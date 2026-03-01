@@ -503,6 +503,14 @@ pub fn load_heartbeat_md() -> Option<String> {
 }
 
 /// Load MEMORY.md from the workspace root (`data_dir`) if present and non-empty.
+pub fn load_profile_md() -> Option<String> {
+    let path = data_dir().join("PROFILE.md");
+    match std::fs::read_to_string(&path) {
+        Ok(s) if !s.trim().is_empty() => Some(s),
+        _ => None,
+    }
+}
+
 pub fn load_memory_md() -> Option<String> {
     load_workspace_markdown(memory_path())
 }

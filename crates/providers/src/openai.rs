@@ -422,7 +422,7 @@ impl OpenAiProvider {
         Self {
             api_key,
             model,
-            base_url,
+            base_url: base_url.trim_end_matches('/').to_string(),
             provider_name: "openai".into(),
             client: crate::shared_http_client(),
             stream_transport: ProviderStreamTransport::Sse,
@@ -440,7 +440,7 @@ impl OpenAiProvider {
         Self {
             api_key,
             model,
-            base_url,
+            base_url: base_url.trim_end_matches('/').to_string(),
             provider_name,
             client: crate::shared_http_client(),
             stream_transport: ProviderStreamTransport::Sse,
@@ -906,7 +906,7 @@ impl OpenAiProvider {
                             let index = ws_output_index(&evt, current_tool_index);
                             current_tool_index = current_tool_index.max(index + 1);
                             tool_calls.insert(index, (id.clone(), name.clone()));
-                            yield StreamEvent::ToolCallStart { id, name, index };
+                            yield StreamEvent::ToolCallStart { id, name, index, thought_signature: None };
                         }
                     }
                     "response.function_call_arguments.delta" => {
@@ -1270,6 +1270,7 @@ mod tests {
             id: "call_1".into(),
             name: "exec".into(),
             arguments: serde_json::json!({ "command": "uname -a" }),
+            thought_signature: None,
         }])];
 
         let serialized = provider.serialize_messages_for_request(&messages);
@@ -1290,6 +1291,7 @@ mod tests {
             id: "call_1".into(),
             name: "exec".into(),
             arguments: serde_json::json!({ "command": "uname -a" }),
+            thought_signature: None,
         }])];
 
         let serialized = provider.serialize_messages_for_request(&messages);
@@ -1330,6 +1332,7 @@ mod tests {
                     id: long_id.to_string(),
                     name: "exec".to_string(),
                     arguments: serde_json::json!({ "command": "pwd" }),
+                    thought_signature: None,
                 },
             ]),
             ChatMessage::tool(long_id, "ok"),
@@ -1361,6 +1364,7 @@ mod tests {
                     id: short_id.to_string(),
                     name: "exec".to_string(),
                     arguments: serde_json::json!({ "command": "pwd" }),
+                    thought_signature: None,
                 },
             ]),
             ChatMessage::tool(short_id, "ok"),
@@ -1391,6 +1395,7 @@ mod tests {
                 id: "exec:0".into(),
                 name: "exec".into(),
                 arguments: serde_json::json!({ "command": "uname -a" }),
+                thought_signature: None,
             }]),
             ChatMessage::tool("exec:0", "Linux host 6.0"),
         ];
@@ -1560,7 +1565,7 @@ mod tests {
             .collect();
         assert_eq!(starts.len(), 1, "expected exactly one ToolCallStart");
         match &starts[0] {
-            StreamEvent::ToolCallStart { id, name, index } => {
+            StreamEvent::ToolCallStart { id, name, index, .. } => {
                 assert_eq!(id, "call_abc");
                 assert_eq!(name, "create_skill");
                 assert_eq!(*index, 0);
@@ -1622,7 +1627,7 @@ mod tests {
         let starts: Vec<_> = events
             .iter()
             .filter_map(|e| match e {
-                StreamEvent::ToolCallStart { id, name, index } => {
+                StreamEvent::ToolCallStart { id, name, index, .. } => {
                     Some((id.clone(), name.clone(), *index))
                 },
                 _ => None,

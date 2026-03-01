@@ -448,6 +448,7 @@ impl LlmProvider for LocalGgufProvider {
                 id: tc.id,
                 name: tc.name,
                 arguments: tc.arguments,
+                thought_signature: None,
             })
             .collect();
 

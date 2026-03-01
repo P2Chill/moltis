@@ -66,6 +66,8 @@ fn is_channel_control_command_name(cmd: &str) -> bool {
             | "context"
             | "model"
             | "sandbox"
+            | "mcp"
+            | "think"
             | "sessions"
             | "agent"
             | "help"
@@ -1545,6 +1547,100 @@ impl ChannelEventSink for GatewayChannelEventSink {
                     Err(ChannelError::invalid_input(
                         "usage: /sandbox [on|off|image N]",
                     ))
+                }
+            },
+            "mcp" => {
+                let entry = session_metadata.get(&session_key).await;
+                let currently_disabled = entry
+                    .as_ref()
+                    .and_then(|e| e.mcp_disabled)
+                    .unwrap_or(false);
+
+                if args.is_empty() {
+                    let status = if currently_disabled { "disabled" } else { "enabled" };
+                    Ok(format!("MCP tools are currently **{status}**. Use `/mcp on` or `/mcp off` to toggle."))
+                } else {
+                    let new_val = match args {
+                        "on" => false,   // mcp on = mcp_disabled false
+                        "off" => true,   // mcp off = mcp_disabled true
+                        _ => return Err(ChannelError::invalid_input("usage: /mcp [on|off]")),
+                    };
+                    let patch_res = state
+                        .services
+                        .session
+                        .patch(serde_json::json!({
+                            "key": &session_key,
+                            "mcpDisabled": new_val,
+                        }))
+                        .await
+                        .map_err(ChannelError::unavailable)?;
+                    let version = patch_res
+                        .get("version")
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(0);
+                    broadcast(
+                        state,
+                        "session",
+                        serde_json::json!({
+                            "kind": "patched",
+                            "sessionKey": &session_key,
+                            "version": version,
+                        }),
+                        BroadcastOpts {
+                            drop_if_slow: true,
+                            ..Default::default()
+                        },
+                    )
+                    .await;
+                    let label = if new_val { "disabled" } else { "enabled" };
+                    Ok(format!("MCP tools **{label}**."))
+                }
+            },
+            "think" => {
+                let entry = session_metadata.get(&session_key).await;
+                let currently_enabled = entry
+                    .as_ref()
+                    .and_then(|e| e.thinking_enabled)
+                    .unwrap_or(false);
+
+                if args.is_empty() {
+                    let status = if currently_enabled { "enabled" } else { "disabled" };
+                    Ok(format!("Extended thinking is currently **{status}**. Use `/think on` or `/think off` to toggle."))
+                } else {
+                    let new_val = match args {
+                        "on" => true,
+                        "off" => false,
+                        _ => return Err(ChannelError::invalid_input("usage: /think [on|off]")),
+                    };
+                    let patch_res = state
+                        .services
+                        .session
+                        .patch(serde_json::json!({
+                            "key": &session_key,
+                            "thinkingEnabled": new_val,
+                        }))
+                        .await
+                        .map_err(ChannelError::unavailable)?;
+                    let version = patch_res
+                        .get("version")
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(0);
+                    broadcast(
+                        state,
+                        "session",
+                        serde_json::json!({
+                            "kind": "patched",
+                            "sessionKey": &session_key,
+                            "version": version,
+                        }),
+                        BroadcastOpts {
+                            drop_if_slow: true,
+                            ..Default::default()
+                        },
+                    )
+                    .await;
+                    let label = if new_val { "enabled" } else { "disabled" };
+                    Ok(format!("Extended thinking **{label}**."))
                 }
             },
             "sh" => {

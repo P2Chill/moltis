@@ -297,6 +297,8 @@ impl EventHandler for Handler {
             moltis_common::types::ChatType::Dm
         };
         let guild_id_str = msg.guild_id.map(|g| g.to_string());
+        let is_dedicated_channel = config.dedicated_channels.contains(&chat_id);
+
         let policy_allowed = access::check_access(
             &config,
             &chat_type,
@@ -304,6 +306,7 @@ impl EventHandler for Handler {
             username.as_deref(),
             guild_id_str.as_deref(),
             bot_mentioned,
+            is_dedicated_channel,
         )
         .is_ok();
         let access_granted = policy_allowed;

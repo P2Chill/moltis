@@ -6,7 +6,7 @@
 
 use {
     serenity::all::{
-        Command, CommandInteraction, Context, CreateCommand, CreateInteractionResponseFollowup,
+        Command, CommandInteraction, CommandOptionType, Context, CreateCommand, CreateCommandOption, CreateInteractionResponseFollowup,
         EditInteractionResponse, Interaction,
     },
     tracing::{debug, info, warn},
@@ -25,6 +25,9 @@ pub fn build_commands() -> Vec<CreateCommand> {
         CreateCommand::new("sessions").description("List or switch chat sessions"),
         CreateCommand::new("agent").description("List or switch agents"),
         CreateCommand::new("help").description("Show available commands"),
+        CreateCommand::new("sandbox").description("Toggle sandbox mode for this session").add_option(CreateCommandOption::new(CommandOptionType::String, "toggle", "on or off").required(false)),
+        CreateCommand::new("mcp").description("Toggle MCP tools for this session").add_option(CreateCommandOption::new(CommandOptionType::String, "toggle", "on or off").required(false)),
+        CreateCommand::new("think").description("Toggle extended thinking for this session").add_option(CreateCommandOption::new(CommandOptionType::String, "toggle", "on or off").required(false)),
     ]
 }
 
@@ -89,7 +92,20 @@ pub async fn handle_interaction(
         message_id: None,
     };
 
-    let response_text = match sink.dispatch_command(&command.data.name, reply_to).await {
+    // Extract optional "toggle" argument from slash commands (e.g. /think on).
+    let args = command
+        .data
+        .options
+        .first()
+        .and_then(|opt| opt.value.as_str())
+        .unwrap_or("");
+    let full_command = if args.is_empty() {
+        command.data.name.clone()
+    } else {
+        format!("{} {args}", command.data.name)
+    };
+
+    let response_text = match sink.dispatch_command(&full_command, reply_to).await {
         Ok(response) => response,
         Err(e) => format!("Command failed: {e}"),
     };
@@ -131,7 +147,7 @@ mod tests {
     #[test]
     fn build_commands_returns_expected_count() {
         let commands = build_commands();
-        assert_eq!(commands.len(), 8, "expected 8 slash commands");
+        assert_eq!(commands.len(), 11, "expected 11 slash commands");
     }
 
     #[test]
@@ -189,6 +205,7 @@ mod tests {
             .collect();
         for expected in [
             "new", "clear", "compact", "context", "model", "sessions", "agent", "help",
+            "sandbox", "mcp", "think",
         ] {
             assert!(
                 names.contains(&expected.to_string()),

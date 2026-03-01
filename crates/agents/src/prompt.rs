@@ -149,6 +149,7 @@ pub fn build_system_prompt(
         None,
         None,
         None,
+        None,
     )
 }
 
@@ -165,6 +166,7 @@ pub fn build_system_prompt_with_session_runtime(
     tools_text: Option<&str>,
     runtime_context: Option<&PromptRuntimeContext>,
     memory_text: Option<&str>,
+    profile_text: Option<&str>,
 ) -> String {
     build_system_prompt_full(
         tools,
@@ -179,6 +181,7 @@ pub fn build_system_prompt_with_session_runtime(
         runtime_context,
         true, // include_tools
         memory_text,
+        profile_text,
     )
 }
 
@@ -192,6 +195,7 @@ pub fn build_system_prompt_minimal_runtime(
     tools_text: Option<&str>,
     runtime_context: Option<&PromptRuntimeContext>,
     memory_text: Option<&str>,
+    profile_text: Option<&str>,
 ) -> String {
     build_system_prompt_full(
         &ToolRegistry::new(),
@@ -206,12 +210,18 @@ pub fn build_system_prompt_minimal_runtime(
         runtime_context,
         false, // include_tools
         memory_text,
+        profile_text,
     )
 }
 
+/// Maximum number of characters from `PROFILE.md` injected into the system
+/// prompt. Profile holds stable identity facts and is always shown in full
+/// (no truncation expected); this cap is a safety net only.
+const PROFILE_MAX_CHARS: usize = 2_000;
 /// Maximum number of characters from `MEMORY.md` injected into the system
 /// prompt to keep the context window manageable.
-const MEMORY_BOOTSTRAP_MAX_CHARS: usize = 8_000;
+/// Together with PROFILE_MAX_CHARS the total memory budget stays at ~8 000 chars.
+const MEMORY_BOOTSTRAP_MAX_CHARS: usize = 6_000;
 /// Maximum number of characters from project context files (`CLAUDE.md`,
 /// project docs, etc.) injected into the prompt.
 const PROJECT_CONTEXT_MAX_CHARS: usize = 8_000;
@@ -334,6 +344,7 @@ fn build_system_prompt_full(
     runtime_context: Option<&PromptRuntimeContext>,
     include_tools: bool,
     memory_text: Option<&str>,
+    profile_text: Option<&str>,
 ) -> String {
     let tool_schemas = if include_tools {
         tools.list_schemas()
@@ -351,6 +362,7 @@ fn build_system_prompt_full(
     append_runtime_section(&mut prompt, runtime_context, include_tools);
     append_skills_section(&mut prompt, include_tools, skills);
     append_workspace_files_section(&mut prompt, agents_text, tools_text);
+    append_profile_section(&mut prompt, profile_text);
     append_memory_section(&mut prompt, memory_text, &tool_schemas);
     let model_id = runtime_context.and_then(|ctx| ctx.host.model.as_deref());
     append_available_tools_section(&mut prompt, native_tools, &tool_schemas);
@@ -473,6 +485,23 @@ fn append_workspace_files_section(
         );
         prompt.push_str("\n\n");
     }
+}
+
+fn append_profile_section(prompt: &mut String, profile_text: Option<&str>) {
+    let Some(text) = profile_text.filter(|t| !t.is_empty()) else {
+        return;
+    };
+    prompt.push_str("## Profile\n\n");
+    append_truncated_text_block(
+        prompt,
+        text,
+        PROFILE_MAX_CHARS,
+        "\n\n*(PROFILE.md truncated)*\n",
+    );
+    prompt.push_str(concat!(
+        "\n\n**The facts above are stable and always current. ",
+        "Treat them as ground truth in every response.**\n\n",
+    ));
 }
 
 fn append_memory_section(
@@ -1129,6 +1158,7 @@ mod tests {
             None,
             Some(&runtime),
             None,
+            None,
         );
 
         assert!(prompt.contains("## Runtime"));
@@ -1153,7 +1183,7 @@ mod tests {
     #[test]
     fn test_silent_replies_not_in_minimal_prompt() {
         let prompt =
-            build_system_prompt_minimal_runtime(None, None, None, None, None, None, None, None);
+            build_system_prompt_minimal_runtime(None, None, None, None, None, None, None, None, None);
         assert!(!prompt.contains("## Silent Replies"));
     }
 
@@ -1237,6 +1267,7 @@ mod tests {
             None,
             None,
             Some(memory),
+            None,
         );
         assert!(prompt.contains("## Long-Term Memory"));
         assert!(prompt.contains("Important fact"));

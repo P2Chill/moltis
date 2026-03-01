@@ -94,6 +94,8 @@ export function openProviderModal() {
 			return;
 		}
 		var providers = res.payload || [];
+		// openai-codex is shown as part of the openai entry
+		providers = providers.filter((p) => p.name !== "openai-codex");
 
 		providers.sort((a, b) => {
 			var aOrder = Number.isFinite(a.uiOrder) ? a.uiOrder : Number.MAX_SAFE_INTEGER;
@@ -138,6 +140,12 @@ export function openProviderModal() {
 					badge.textContent = "API Key";
 				}
 				badges.appendChild(badge);
+				if (p.name === "anthropic" || p.name === "openai") {
+					var oauthBadge = document.createElement("span");
+					oauthBadge.className = "provider-item-badge oauth";
+					oauthBadge.textContent = "OAuth";
+					badges.appendChild(oauthBadge);
+				}
 			}
 			item.appendChild(badges);
 
@@ -629,6 +637,54 @@ export function showApiKeyForm(provider) {
 			});
 	});
 	btns.appendChild(saveBtn);
+
+	// Anthropic and OpenAI — offer OAuth as an alternative to API key
+	var oauthProviderName = null;
+	var oauthBtnLabel = null;
+	var oauthMissingMsg = null;
+	if (provider.name === "anthropic") {
+		oauthProviderName = "anthropic";
+		oauthBtnLabel = "Connect via Claude Code";
+		oauthMissingMsg = "No Claude Code credentials found. Run 'claude' once to log in.";
+	} else if (provider.name === "openai") {
+		oauthProviderName = "openai-codex";
+		oauthBtnLabel = "Authenticate with OpenAI Codex";
+		oauthMissingMsg = "No OpenAI Codex credentials found. Log in via the Codex CLI first.";
+	}
+	if (oauthProviderName) {
+		var divider = document.createElement("div");
+		divider.className = "text-xs text-[var(--muted)]";
+		divider.style.cssText = "text-align:center;margin:12px 0 4px";
+		divider.textContent = "\u2014 or \u2014";
+		form.appendChild(divider);
+
+		var oauthBtn = document.createElement("button");
+		oauthBtn.className = "provider-btn provider-btn-secondary";
+		oauthBtn.style.width = "100%";
+		oauthBtn.textContent = oauthBtnLabel;
+		oauthBtn.addEventListener("click", () => {
+			oauthBtn.disabled = true;
+			oauthBtn.textContent = "Checking\u2026";
+			setFormError(errorPanel, null);
+			startProviderOAuth(oauthProviderName).then((result) => {
+				if (result.status === "already") {
+					oauthBtn.textContent = "Connected";
+					showOAuthModelSelector(provider);
+				} else if (result.status === "browser") {
+					window.open(result.authUrl, "_blank");
+					oauthBtn.textContent = "Waiting for auth\u2026";
+					var pollProvider = Object.assign({}, provider, {name: oauthProviderName});
+					pollOAuthStatus(pollProvider);
+				} else {
+					oauthBtn.disabled = false;
+					oauthBtn.textContent = oauthBtnLabel;
+					setFormError(errorPanel, result.error || oauthMissingMsg);
+				}
+			});
+		});
+		form.appendChild(oauthBtn);
+	}
+
 	form.appendChild(btns);
 	m.body.appendChild(form);
 	keyInp.focus();

@@ -1505,7 +1505,27 @@ pub async fn prepare_gateway(
     let vault: Option<Arc<moltis_vault::Vault>> = {
         match moltis_vault::Vault::new(db_pool.clone()).await {
             Ok(v) => {
-                info!(status = ?v.status().await, "vault ready");
+                let status = v.status().await;
+                info!(status = ?status, "vault ready");
+                // Auto-unseal on startup for passkey-only setups.
+                if matches!(status, Ok(moltis_vault::VaultStatus::Sealed)) {
+                    let unsealed = if let Some(ref pw) = password {
+                        v.unseal(pw).await.is_ok()
+                    } else {
+                        let key_path = data_dir.join(".vault-key");
+                        if let Ok(key) = std::fs::read_to_string(&key_path) {
+                            let key = key.trim();
+                            !key.is_empty() && v.unseal(key).await.is_ok()
+                        } else {
+                            false
+                        }
+                    };
+                    if unsealed {
+                        info!("vault auto-unsealed on startup");
+                    } else {
+                        warn!("vault is sealed -- unlock via Settings or create ~/.moltis/.vault-key");
+                    }
+                }
                 Some(Arc::new(v))
             },
             Err(e) => {
@@ -1591,6 +1611,9 @@ pub async fn prepare_gateway(
                 .clone()
                 .unwrap_or_else(|| format!("https://{rp_id}"));
             try_add(rp_id, &origin, &[]);
+            // Also register localhost so local access works alongside the explicit RP.
+            let localhost_origin = format!("{default_scheme}://localhost:{port}");
+            try_add("localhost", &localhost_origin, &[]);
         } else {
             // Local: register localhost + moltis.localhost as extras.
             let localhost_origin = format!("{default_scheme}://localhost:{port}");
@@ -3484,6 +3507,14 @@ pub async fn prepare_gateway(
             .await;
         crate::mcp_service::sync_mcp_tools(live_mcp.manager(), &shared_tool_registry).await;
 
+        // Register discover_tools with a live reference to the tool registry.
+        // Queries current tools on each call (reflects MCP toggles, late-loaded tools).
+        {
+            shared_tool_registry.write().await.register(Box::new(
+                moltis_tools::discover_tools::DiscoverToolsTool::new(Arc::clone(&shared_tool_registry)),
+            ));
+        }
+
         // Log registered tools for debugging.
         let schemas = shared_tool_registry.read().await.list_schemas();
         let tool_names: Vec<&str> = schemas.iter().filter_map(|s| s["name"].as_str()).collect();
@@ -4190,6 +4221,9 @@ pub async fn prepare_gateway(
             }
         });
     }
+
+    // Start the Claude OAuth token refresher (keeps ~/.claude/.credentials.json fresh).
+    moltis_providers::claude_oauth_refresh::spawn_refresher();
 
     // Start the cron scheduler (loads persisted jobs, arms the timer).
     if let Err(e) = cron_service.start().await {

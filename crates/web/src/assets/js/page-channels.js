@@ -873,11 +873,15 @@ function EditChannelModal() {
 	var allowlistItems = useSignal([]);
 	var editCredential = useSignal("");
 	var editWebhookSecret = useSignal("");
+	var editAckReaction = useSignal("");
+	var editDedicatedChannels = useSignal("");
 	useEffect(() => {
 		editModel.value = ch?.config?.model || "";
 		allowlistItems.value = ch?.config?.allowlist || [];
 		editCredential.value = "";
 		editWebhookSecret.value = ch?.config?.webhook_secret || "";
+		editAckReaction.value = ch?.config?.ack_reaction || "";
+		editDedicatedChannels.value = (ch?.config?.dedicated_channels || []).join(", ");
 	}, [ch]);
 	if (!ch) return null;
 	var cfg = ch.config || {};
@@ -915,6 +919,16 @@ function EditChannelModal() {
 		}
 		addChannelCredentials(updateConfig);
 		addModelToConfig(updateConfig);
+		// Discord-specific settings.
+		if (isDiscord) {
+			var ackVal = editAckReaction.value.trim();
+			if (ackVal) updateConfig.ack_reaction = ackVal;
+			else updateConfig.ack_reaction = null;
+			updateConfig.dedicated_channels = editDedicatedChannels.value
+				.split(",")
+				.map(s => s.trim())
+				.filter(Boolean);
+		}
 		return updateConfig;
 	}
 
@@ -994,6 +1008,19 @@ function EditChannelModal() {
           <option value="always">Always respond</option>
           <option value="none">Don't respond in groups</option>
         </select>
+      `
+			}
+      ${
+				isDiscord &&
+				html`
+        <label class="text-xs text-[var(--muted)]">Ack Reaction (emoji shown while processing)</label>
+        <input type="text" class="channel-input" placeholder="e.g. \u26A1 or \uD83D\uDC40 (leave empty to disable)"
+          value=${editAckReaction.value}
+          onInput=${(e) => { editAckReaction.value = e.target.value; }} />
+        <label class="text-xs text-[var(--muted)]">Dedicated Channels (respond without @mention)</label>
+        <input type="text" class="channel-input" placeholder="Channel IDs, comma-separated"
+          value=${editDedicatedChannels.value}
+          onInput=${(e) => { editDedicatedChannels.value = e.target.value; }} />
       `
 			}
       <label class="text-xs text-[var(--muted)]">Default Model</label>

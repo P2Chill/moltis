@@ -2847,6 +2847,66 @@ pub(super) fn register(reg: &mut MethodRegistry) {
     );
 
     // Provider setup
+    // Per-model trust profile overrides
+    reg.register(
+        "tools.model_overrides.get",
+        Box::new(|_ctx| {
+            Box::pin(async move {
+                let config = moltis_config::discover_and_load();
+                let overrides: HashMap<String, serde_json::Value> = config
+                    .tools
+                    .model_overrides
+                    .iter()
+                    .map(|(k, v)| {
+                        let obj = serde_json::json!({
+                            "allow": v.allow,
+                            "deny": v.deny,
+                            "mcp_enabled": v.mcp_enabled,
+                            "sandbox_enabled": v.sandbox_enabled,
+                            "lazy_tools": v.lazy_tools,
+                            "thinking_enabled": v.thinking_enabled,
+                        });
+                        (k.clone(), obj)
+                    })
+                    .collect();
+                Ok(serde_json::json!({ "overrides": overrides }))
+            })
+        }),
+    );
+    reg.register(
+        "tools.model_overrides.set",
+        Box::new(|ctx| {
+            Box::pin(async move {
+                let key = ctx
+                    .params
+                    .get("key")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| ErrorShape::new(error_codes::INVALID_REQUEST, "missing key"))?
+                    .to_string();
+                let mcp_enabled: Option<Option<bool>> = ctx.params.get("mcp_enabled")
+                    .map(|v| if v.is_null() { None } else { v.as_bool() });
+                let sandbox_enabled: Option<Option<bool>> = ctx.params.get("sandbox_enabled")
+                    .map(|v| if v.is_null() { None } else { v.as_bool() });
+                let lazy_tools: Option<Option<bool>> = ctx.params.get("lazy_tools")
+                    .map(|v| if v.is_null() { None } else { v.as_bool() });
+                let thinking_enabled: Option<Option<bool>> = ctx.params.get("thinking_enabled")
+                    .map(|v| if v.is_null() { None } else { v.as_bool() });
+
+                moltis_config::update_config(|cfg| {
+                    let entry = cfg.tools.model_overrides.entry(key.clone()).or_default();
+                    if let Some(v) = mcp_enabled { entry.mcp_enabled = v; }
+                    if let Some(v) = sandbox_enabled { entry.sandbox_enabled = v; }
+                    if let Some(v) = lazy_tools { entry.lazy_tools = v; }
+                    if let Some(v) = thinking_enabled { entry.thinking_enabled = v; }
+                })
+                .map_err(|e| ErrorShape::new(error_codes::UNAVAILABLE, e.to_string()))?;
+
+                Ok(serde_json::json!({ "ok": true, "key": key }))
+            })
+        }),
+    );
+
+    // Provider setup
     reg.register(
         "providers.available",
         Box::new(|ctx| {

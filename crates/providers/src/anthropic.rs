@@ -1,3 +1,4 @@
+use std::io::Cursor;
 use std::pin::Pin;
 
 use {async_trait::async_trait, futures::StreamExt, secrecy::ExposeSecret, tokio_stream::Stream};
@@ -16,6 +17,8 @@ pub struct AnthropicProvider {
     client: &'static reqwest::Client,
     /// Optional alias for metrics differentiation (e.g., "anthropic-work", "anthropic-2").
     alias: Option<String>,
+    /// Use Bearer auth (Claude OAuth) instead of x-api-key header.
+    use_bearer: bool,
 }
 
 impl AnthropicProvider {
@@ -26,6 +29,7 @@ impl AnthropicProvider {
             base_url,
             client: crate::shared_http_client(),
             alias: None,
+            use_bearer: false,
         }
     }
 
@@ -42,7 +46,47 @@ impl AnthropicProvider {
             base_url,
             client: crate::shared_http_client(),
             alias,
+            use_bearer: false,
         }
+    }
+
+    pub fn with_alias_bearer(
+        token: secrecy::Secret<String>,
+        model: String,
+        base_url: String,
+        alias: Option<String>,
+    ) -> Self {
+        Self {
+            api_key: token,
+            model,
+            base_url,
+            client: crate::shared_http_client(),
+            alias,
+            use_bearer: true,
+        }
+    }
+
+    /// Read the current Bearer token from disk (for OAuth mode).
+    /// Falls back to the stored api_key if the file cannot be read.
+    /// This allows Claude Code to refresh the token without restarting moltis.
+    fn live_token(&self) -> String {
+        if !self.use_bearer {
+            return self.api_key.expose_secret().to_string();
+        }
+        let token = std::env::var("HOME").ok().and_then(|home| {
+            let path = std::path::Path::new(&home)
+                .join(".claude")
+                .join(".credentials.json");
+            let content = std::fs::read_to_string(&path).ok()?;
+            let json: serde_json::Value = serde_json::from_str(&content).ok()?;
+            let token = json["claudeAiOauth"]["accessToken"].as_str()?.to_string();
+            if token.is_empty() {
+                None
+            } else {
+                Some(token)
+            }
+        });
+        token.unwrap_or_else(|| self.api_key.expose_secret().to_string())
     }
 }
 
@@ -70,6 +114,7 @@ fn parse_tool_calls(content: &[serde_json::Value]) -> Vec<ToolCall> {
                     id: block["id"].as_str().unwrap_or("").to_string(),
                     name: block["name"].as_str().unwrap_or("").to_string(),
                     arguments: block["input"].clone(),
+                    thought_signature: None,
                 })
             } else {
                 None
@@ -92,6 +137,39 @@ fn with_retry_after_marker(base: String, retry_after_ms: Option<u64>) -> String 
 /// (Anthropic takes them as a top-level `system` field). Tool messages become
 /// user messages with `tool_result` content blocks. Assistant messages with
 /// tool calls become `content` arrays with `tool_use` blocks.
+/// Resize an image if either dimension exceeds 1568px (Anthropic recommended max,
+/// safely under the 2000px hard limit for multi-image requests).
+/// Returns (base64_data, media_type) — may convert to JPEG if resizing.
+fn resize_image_if_needed(data: &str, media_type: &str) -> (String, String) {
+    use base64::Engine as _;
+    const MAX_DIM: u32 = 1568;
+
+    let Ok(bytes) = base64::engine::general_purpose::STANDARD.decode(data) else {
+        return (data.to_string(), media_type.to_string());
+    };
+    let Ok(img) = image::load_from_memory(&bytes) else {
+        return (data.to_string(), media_type.to_string());
+    };
+
+    if img.width() <= MAX_DIM && img.height() <= MAX_DIM {
+        return (data.to_string(), media_type.to_string());
+    }
+
+    let resized = img.resize(MAX_DIM, MAX_DIM, image::imageops::FilterType::Lanczos3);
+    let mut buf = Vec::new();
+    if resized
+        .write_to(&mut Cursor::new(&mut buf), image::ImageFormat::Jpeg)
+        .is_err()
+    {
+        return (data.to_string(), media_type.to_string());
+    }
+
+    (
+        base64::engine::general_purpose::STANDARD.encode(&buf),
+        "image/jpeg".to_string(),
+    )
+}
+
 fn to_anthropic_messages(messages: &[ChatMessage]) -> (Option<String>, Vec<serde_json::Value>) {
     let mut system_text: Option<String> = None;
     let mut out = Vec::new();
@@ -116,12 +194,13 @@ fn to_anthropic_messages(messages: &[ChatMessage]) -> (Option<String>, Vec<serde
                                 serde_json::json!({"type": "text", "text": text})
                             },
                             ContentPart::Image { media_type, data } => {
+                                let (resized_data, resized_type) = resize_image_if_needed(data, media_type);
                                 serde_json::json!({
                                     "type": "image",
                                     "source": {
                                         "type": "base64",
-                                        "media_type": media_type,
-                                        "data": data,
+                                        "media_type": resized_type,
+                                        "data": resized_data,
                                     }
                                 })
                             },
@@ -219,6 +298,19 @@ impl LlmProvider for AnthropicProvider {
             body["tools"] = serde_json::Value::Array(to_anthropic_tools(tools));
         }
 
+        let thinking_budget = moltis_agents::model::THINKING_BUDGET.try_with(|b| *b).unwrap_or(0);
+        if thinking_budget > 0 {
+            body["thinking"] = serde_json::json!({
+                "type": "enabled",
+                "budget_tokens": thinking_budget,
+            });
+            // Anthropic requires max_tokens >= budget_tokens for thinking models
+            let min_max = (thinking_budget + 16384) as u64;
+            if body["max_tokens"].as_u64().unwrap_or(0) < min_max {
+                body["max_tokens"] = serde_json::json!(min_max);
+            }
+        }
+
         debug!(
             model = %self.model,
             messages_count = anthropic_messages.len(),
@@ -231,9 +323,28 @@ impl LlmProvider for AnthropicProvider {
         let http_resp = self
             .client
             .post(format!("{}/v1/messages", self.base_url))
-            .header("x-api-key", self.api_key.expose_secret())
+            .header(
+                if self.use_bearer { "Authorization" } else { "x-api-key" },
+                if self.use_bearer {
+                    format!("Bearer {}", self.live_token())
+                } else {
+                    self.api_key.expose_secret().to_string()
+                },
+            )
             .header("anthropic-version", "2023-06-01")
             .header("content-type", "application/json")
+            .header(
+                "anthropic-beta",
+                {
+                    let mut beta = String::new();
+                    if self.use_bearer { beta.push_str("oauth-2025-04-20"); }
+                    if thinking_budget > 0 {
+                        if !beta.is_empty() { beta.push_str(","); }
+                        beta.push_str("interleaved-thinking-2025-05-14");
+                    }
+                    beta
+                },
+            )
             .json(&body)
             .send()
             .await?;
@@ -320,6 +431,19 @@ impl LlmProvider for AnthropicProvider {
                 body["tools"] = serde_json::Value::Array(to_anthropic_tools(&tools));
             }
 
+            let thinking_budget = moltis_agents::model::THINKING_BUDGET.try_with(|b| *b).unwrap_or(0);
+
+            if thinking_budget > 0 {
+                body["thinking"] = serde_json::json!({
+                    "type": "enabled",
+                    "budget_tokens": thinking_budget,
+                });
+                let min_max = (thinking_budget + 16384) as u64;
+                if body["max_tokens"].as_u64().unwrap_or(0) < min_max {
+                    body["max_tokens"] = serde_json::json!(min_max);
+                }
+            }
+
             debug!(
                 model = %self.model,
                 messages_count = anthropic_messages.len(),
@@ -332,9 +456,25 @@ impl LlmProvider for AnthropicProvider {
             let resp = match self
                 .client
                 .post(format!("{}/v1/messages", self.base_url))
-                .header("x-api-key", self.api_key.expose_secret())
+                .header(
+                    if self.use_bearer { "Authorization" } else { "x-api-key" },
+                    if self.use_bearer {
+                        format!("Bearer {}", self.live_token())
+                    } else {
+                        self.api_key.expose_secret().to_string()
+                    },
+                )
                 .header("anthropic-version", "2023-06-01")
                 .header("content-type", "application/json")
+                .header("anthropic-beta", {
+                    let mut beta = String::new();
+                    if self.use_bearer { beta.push_str("oauth-2025-04-20"); }
+                    if thinking_budget > 0 {
+                        if !beta.is_empty() { beta.push_str(","); }
+                        beta.push_str("interleaved-thinking-2025-05-14");
+                    }
+                    beta
+                })
                 .json(&body)
                 .send()
                 .await
@@ -392,18 +532,26 @@ impl LlmProvider for AnthropicProvider {
                                         let content_block = &evt["content_block"];
                                         let block_type = content_block["type"].as_str().unwrap_or("");
 
-                                        if block_type == "tool_use" {
+                                        if block_type == "thinking" {
+                                            // Track thinking block — deltas will emit ReasoningDelta
+                                        } else if block_type == "tool_use" {
                                             let id = content_block["id"].as_str().unwrap_or("").to_string();
                                             let name = content_block["name"].as_str().unwrap_or("").to_string();
                                             current_block_index = Some(index);
-                                            yield StreamEvent::ToolCallStart { id, name, index };
+                                            yield StreamEvent::ToolCallStart { id, name, index, thought_signature: None };
                                         }
                                     }
                                     "content_block_delta" => {
                                         let delta = &evt["delta"];
                                         let delta_type = delta["type"].as_str().unwrap_or("");
 
-                                        if delta_type == "text_delta" {
+                                        if delta_type == "thinking_delta" {
+                                            if let Some(text) = delta["thinking"].as_str() {
+                                                if !text.is_empty() {
+                                                    yield StreamEvent::ReasoningDelta(text.to_string());
+                                                }
+                                            }
+                                        } else if delta_type == "text_delta" {
                                             if let Some(text) = delta["text"].as_str() {
                                                 if !text.is_empty() {
                                                     yield StreamEvent::Delta(text.to_string());

@@ -251,7 +251,7 @@ fn load_rustls_config(cert_path: &Path, key_path: &Path) -> Result<ServerConfig>
         .with_no_client_auth()
         .with_single_cert(certs, key)
         .context("build rustls ServerConfig")?;
-    config.alpn_protocols = vec![b"h2".to_vec(), b"http/1.1".to_vec()];
+    config.alpn_protocols = vec![b"http/1.1".to_vec()]; // h2 disabled: WS-over-h2 (RFC 8441) not yet supported
     Ok(config)
 }
 

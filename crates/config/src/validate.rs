@@ -229,6 +229,8 @@ fn build_schema_map() -> KnownKeys {
     let tools = || {
         Struct(HashMap::from([
             ("exec", exec()),
+            ("lazy_tools", Leaf),
+            ("core_tools", Leaf),
             ("browser", browser()),
             (
                 "policy",

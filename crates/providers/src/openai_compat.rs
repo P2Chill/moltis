@@ -69,6 +69,18 @@ pub fn patch_schema_for_strict_mode(schema: &mut serde_json::Value) {
         return;
     };
 
+    // If schema has no type, infer one (OpenAI strict mode requires type on every property schema)
+    if !obj.contains_key("type") && !obj.contains_key("anyOf") && !obj.contains_key("oneOf") && !obj.contains_key("allOf") {
+        let inferred = if obj.contains_key("properties") {
+            "object"
+        } else if obj.contains_key("items") {
+            "array"
+        } else {
+            "string"
+        };
+        obj.insert("type".to_string(), serde_json::json!(inferred));
+    }
+
     // If this is an object type, apply strict mode requirements
     if obj.get("type").and_then(|t| t.as_str()) == Some("object") {
         // Add additionalProperties: false
@@ -315,10 +327,12 @@ pub fn parse_tool_calls(message: &serde_json::Value) -> Vec<ToolCall> {
                     let name = tc["function"]["name"].as_str()?.to_string();
                     let args_str = tc["function"]["arguments"].as_str().unwrap_or("{}");
                     let arguments = serde_json::from_str(args_str).unwrap_or(serde_json::json!({}));
+                    let thought_signature = tc["thought_signature"].as_str().map(str::to_string);
                     Some(ToolCall {
                         id,
                         name,
                         arguments,
+                        thought_signature,
                     })
                 })
                 .collect()
@@ -488,8 +502,8 @@ pub fn strip_think_tags(content: &str) -> (String, String) {
 /// State for tracking streaming tool calls.
 #[derive(Default)]
 pub struct StreamingToolState {
-    /// Map from index -> (id, name, arguments_buffer)
-    pub tool_calls: HashMap<usize, (String, String, String)>,
+    /// Map from index -> (id, name, arguments_buffer, thought_signature)
+    pub tool_calls: HashMap<usize, (String, String, String, Option<String>)>,
     pub input_tokens: u32,
     pub output_tokens: u32,
     pub cache_read_tokens: u32,
@@ -704,17 +718,35 @@ pub fn process_openai_sse_line(data: &str, state: &mut StreamingToolState) -> Ss
     // Handle tool calls
     if let Some(tcs) = delta["tool_calls"].as_array() {
         for tc in tcs {
-            let index = tc["index"].as_u64().unwrap_or(0) as usize;
+            let raw_index = tc["index"].as_u64().unwrap_or(0) as usize;
+
+            // Some providers (e.g. Gemini) omit the index field or send all parallel
+            // tool calls at index 0, violating the OpenAI streaming spec. Detect
+            // collisions: if raw_index is already occupied by a DIFFERENT call id,
+            // find the next free slot so parallel calls don't overwrite each other.
+            let index = if let Some(incoming_id) = tc["id"].as_str() {
+                if matches!(state.tool_calls.get(&raw_index), Some((existing_id, ..)) if existing_id != incoming_id) {
+                    let mut next = raw_index + 1;
+                    while state.tool_calls.contains_key(&next) { next += 1; }
+                    next
+                } else {
+                    raw_index
+                }
+            } else {
+                raw_index
+            };
 
             // Check if this is a new tool call (has id and function.name)
             if let (Some(id), Some(name)) = (tc["id"].as_str(), tc["function"]["name"].as_str()) {
+                let thought_signature = tc["thought_signature"].as_str().map(str::to_string);
                 state
                     .tool_calls
-                    .insert(index, (id.to_string(), name.to_string(), String::new()));
+                    .insert(index, (id.to_string(), name.to_string(), String::new(), thought_signature.clone()));
                 events.push(StreamEvent::ToolCallStart {
                     id: id.to_string(),
                     name: name.to_string(),
                     index,
+                    thought_signature,
                 });
             }
 
@@ -722,7 +754,7 @@ pub fn process_openai_sse_line(data: &str, state: &mut StreamingToolState) -> Ss
             if let Some(args_delta) = tc["function"]["arguments"].as_str()
                 && !args_delta.is_empty()
             {
-                if let Some((_, _, args_buf)) = state.tool_calls.get_mut(&index) {
+                if let Some((_, _, args_buf, _)) = state.tool_calls.get_mut(&index) {
                     args_buf.push_str(args_delta);
                 }
                 events.push(StreamEvent::ToolCallArgumentsDelta {
@@ -1149,7 +1181,7 @@ mod tests {
                 assert!(matches!(&events[0], StreamEvent::ProviderRaw(_)));
                 assert!(matches!(
                     &events[1],
-                    StreamEvent::ToolCallStart { id, name, index }
+                    StreamEvent::ToolCallStart { id, name, index, .. }
                     if id == "call_1" && name == "test" && *index == 0
                 ));
             },
@@ -1187,7 +1219,7 @@ mod tests {
         let mut state = StreamingToolState::default();
         state
             .tool_calls
-            .insert(0, ("call_1".into(), "test".into(), "{}".into()));
+            .insert(0, ("call_1".into(), "test".into(), "{}".into(), None));
         state.input_tokens = 10;
         state.output_tokens = 5;
 

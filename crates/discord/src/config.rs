@@ -67,6 +67,10 @@ pub struct DiscordAccountConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ack_reaction: Option<String>,
 
+    /// Discord channel IDs where the bot responds to all messages without @mention.
+    #[serde(default)]
+    pub dedicated_channels: Vec<String>,
+
     /// Bot activity status text (e.g. "with AI").
     /// When set, the bot displays a status like "Playing with AI".
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -124,6 +128,7 @@ impl Default for DiscordAccountConfig {
             model_provider: None,
             reply_to_message: false,
             ack_reaction: None,
+            dedicated_channels: Vec::new(),
             activity: None,
             activity_type: None,
             status: None,

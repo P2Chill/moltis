@@ -355,6 +355,17 @@ function restoreMcpToggle(mcpEnabled) {
 	if (mcpLabel) mcpLabel.textContent = mcpEnabled ? "MCP" : "MCP off";
 }
 
+// ── Think toggle restore ─────────────────────────────────────
+function restoreThinkToggle(enabled) {
+	var btn = S.$("thinkToggleBtn");
+	var label = S.$("thinkToggleLabel");
+	if (btn) {
+		btn.style.color = enabled ? "var(--accent)" : "var(--muted)";
+		btn.style.borderColor = enabled ? "var(--accent)" : "var(--border)";
+	}
+	if (label) label.textContent = enabled ? "Think \u2713" : "Think";
+}
+
 // ── Switch session ──────────────────────────────────────────
 
 function restoreSessionState(entry, projectId) {
@@ -372,14 +383,15 @@ function restoreSessionState(entry, projectId) {
 		var found = modelStore.getById(entry.model);
 		if (S.modelComboLabel) S.modelComboLabel.textContent = found ? found.displayName || found.id : entry.model;
 	}
-	updateSandboxUI(entry.sandbox_enabled !== false);
+	updateSandboxUI(entry.sandbox_enabled === true);
 	updateSandboxImageUI(entry.sandbox_image || null);
 	var sandboxRuntimeAvailable = (S.sandboxInfo?.backend || "none") !== "none";
-	var effectiveSandboxRoute = entry.sandbox_enabled !== false && sandboxRuntimeAvailable;
+	var effectiveSandboxRoute = entry.sandbox_enabled === true && sandboxRuntimeAvailable;
 	S.setSessionExecMode(effectiveSandboxRoute ? "sandbox" : "host");
 	S.setSessionExecPromptSymbol(effectiveSandboxRoute || S.hostExecIsRoot ? "#" : "$");
 	updateCommandInputUI();
 	restoreMcpToggle(!entry.mcpDisabled);
+	restoreThinkToggle(entry.thinking_enabled === true);
 	updateChatSessionHeader();
 }
 
@@ -641,6 +653,10 @@ function postHistoryLoadActions(key, searchContext, msgEls, thinkingText) {
 			S.setHostExecIsRoot(hostIsRoot);
 			S.setSessionExecMode(mode);
 			S.setSessionExecPromptSymbol(isRoot ? "#" : "$");
+			// Update sandbox toggle from authoritative context() response.
+			var sb = ctxRes.payload.sandbox || {};
+			updateSandboxUI(sb.enabled === true);
+			if (sb.image) updateSandboxImageUI(sb.image);
 		}
 		updateCommandInputUI();
 		updateTokenBar();

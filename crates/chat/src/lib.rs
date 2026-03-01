@@ -1009,6 +1009,7 @@ struct PromptPersona {
     agents_text: Option<String>,
     tools_text: Option<String>,
     memory_text: Option<String>,
+    profile_text: Option<String>,
 }
 
 fn resolve_prompt_agent_id(session_entry: Option<&SessionEntry>) -> String {
@@ -1072,6 +1073,7 @@ fn load_prompt_persona_for_agent(agent_id: &str) -> PromptPersona {
         agents_text: moltis_config::load_agents_md_for_agent(agent_id),
         tools_text: moltis_config::load_tools_md_for_agent(agent_id),
         memory_text: moltis_config::load_memory_md_for_agent(agent_id),
+        profile_text: moltis_config::load_profile_md(),
     }
 }
 
@@ -1370,19 +1372,42 @@ fn apply_runtime_tool_filters(
     config: &moltis_config::MoltisConfig,
     _skills: &[moltis_skills::types::SkillMetadata],
     mcp_disabled: bool,
+    model_id: Option<&str>,
 ) -> ToolRegistry {
-    let base_registry = if mcp_disabled {
+    // Resolve effective MCP disabled: model override takes priority over session flag.
+    let effective_mcp_disabled = model_id
+        .and_then(|mid| {
+            let mid_lower = mid.to_lowercase();
+            config.tools.model_overrides.iter().find_map(|(key, ov)| {
+                if mid_lower.contains(&key.to_lowercase()) {
+                    ov.mcp_enabled.map(|v| !v)
+                } else {
+                    None
+                }
+            })
+        })
+        .unwrap_or(mcp_disabled);
+
+    let base_registry = if effective_mcp_disabled {
         base.clone_without_mcp()
     } else {
         base.clone_without(&[])
     };
 
-    let policy = effective_tool_policy(config);
-    // NOTE: Do not globally restrict tools by discovered skill `allowed_tools`.
-    // Skills are always discovered for prompt injection; applying those lists at
-    // runtime can unintentionally remove unrelated tools (for example, leaving
-    // only `web_fetch` and preventing `create_skill` from being called).
-    // Tool availability here is controlled by configured runtime policy.
+    let mut policy = effective_tool_policy(config);
+    if let Some(mid) = model_id {
+        let mid_lower = mid.to_lowercase();
+        for (key, override_policy) in &config.tools.model_overrides {
+            if mid_lower.contains(&key.to_lowercase()) {
+                let override_tp = ToolPolicy {
+                    allow: override_policy.allow.clone(),
+                    deny: override_policy.deny.clone(),
+                };
+                policy = policy.merge_with(&override_tp);
+                break;
+            }
+        }
+    }
     base_registry.clone_allowed_by(|name| policy.is_allowed(name))
 }
 
@@ -3152,6 +3177,10 @@ impl ChatService for LiveChatService {
             .as_ref()
             .and_then(|entry| entry.mcp_disabled)
             .unwrap_or(false);
+        let thinking_enabled = session_entry
+            .as_ref()
+            .and_then(|entry| entry.thinking_enabled)
+            .unwrap_or(false);
         let mut runtime_context = build_prompt_runtime_context(
             &self.state,
             &provider,
@@ -3432,6 +3461,7 @@ impl ChatService for LiveChatService {
                         conn_id.clone(),
                         Some(&session_store),
                         mcp_disabled,
+                        thinking_enabled,
                         client_seq,
                         Some(Arc::clone(&active_thinking_text)),
                         Some(Arc::clone(&active_tool_calls)),
@@ -3752,6 +3782,7 @@ impl ChatService for LiveChatService {
                 None, // send_sync: no conn_id
                 Some(&self.session_store),
                 false, // send_sync: MCP tools always enabled for API calls
+                false, // send_sync: no thinking for API calls
                 None,  // send_sync: no client seq
                 None,  // send_sync: no thinking text tracking
                 None,  // send_sync: no tool call tracking
@@ -4250,7 +4281,7 @@ impl ChatService for LiveChatService {
         let tools: Vec<Value> = if supports_tools {
             let registry_guard = self.tool_registry.read().await;
             let effective_registry =
-                apply_runtime_tool_filters(&registry_guard, &config, &[], mcp_disabled);
+                apply_runtime_tool_filters(&registry_guard, &config, &[], mcp_disabled, None);
             effective_registry
                 .list_schemas()
                 .iter()
@@ -4287,9 +4318,39 @@ impl ChatService for LiveChatService {
             }
         };
 
-        // Sandbox info
+        // Sandbox info: session metadata override > per-model override > router default.
         let sandbox_info = if let Some(router) = self.state.sandbox_router() {
-            let is_sandboxed = router.is_sandboxed(&session_key).await;
+            let router_sandboxed = router.is_sandboxed(&session_key).await;
+
+            // Session metadata override (set by /sandbox on|off) takes highest priority.
+            let session_sandbox_override = session_entry
+                .as_ref()
+                .and_then(|e| e.sandbox_enabled);
+
+            let is_sandboxed = if let Some(session_val) = session_sandbox_override {
+                // User explicitly toggled sandbox for this session.
+                session_val
+            } else {
+                // Fall back to per-model override, then router default.
+                let session_model = session_entry.as_ref().and_then(|e| e.model.as_deref());
+                let effective_model = session_model.or_else(|| {
+                    // No session model yet — use the default (first) provider.
+                    None
+                });
+                if let Some(mid) = effective_model {
+                    let mid_lower = mid.to_lowercase();
+                    let model_override = config.tools.model_overrides.iter().find_map(|(key, ov)| {
+                        if mid_lower.contains(&key.to_lowercase()) {
+                            ov.sandbox_enabled
+                        } else {
+                            None
+                        }
+                    });
+                    model_override.unwrap_or(router_sandboxed)
+                } else {
+                    router_sandboxed
+                }
+            };
             let config = router.config();
             let session_image = session_entry.as_ref().and_then(|e| e.sandbox_image.clone());
             let effective_image = match session_image {
@@ -4465,7 +4526,6 @@ impl ChatService for LiveChatService {
             .as_ref()
             .and_then(|entry| entry.mcp_disabled)
             .unwrap_or(false);
-
         // Build filtered tool registry.
         let filtered_registry = {
             let registry_guard = self.tool_registry.read().await;
@@ -4475,6 +4535,7 @@ impl ChatService for LiveChatService {
                     &persona.config,
                     &discovered_skills,
                     mcp_disabled,
+                    None,
                 )
             } else {
                 registry_guard.clone_without(&[])
@@ -4497,6 +4558,7 @@ impl ChatService for LiveChatService {
                 persona.tools_text.as_deref(),
                 Some(&runtime_context),
                 persona.memory_text.as_deref(),
+                persona.profile_text.as_deref(),
             )
         } else {
             build_system_prompt_minimal_runtime(
@@ -4508,6 +4570,7 @@ impl ChatService for LiveChatService {
                 persona.tools_text.as_deref(),
                 Some(&runtime_context),
                 persona.memory_text.as_deref(),
+                persona.profile_text.as_deref(),
             )
         };
 
@@ -4588,7 +4651,6 @@ impl ChatService for LiveChatService {
             .as_ref()
             .and_then(|entry| entry.mcp_disabled)
             .unwrap_or(false);
-
         // Build filtered tool registry.
         let filtered_registry = {
             let registry_guard = self.tool_registry.read().await;
@@ -4598,6 +4660,7 @@ impl ChatService for LiveChatService {
                     &persona.config,
                     &discovered_skills,
                     mcp_disabled,
+                    None,
                 )
             } else {
                 registry_guard.clone_without(&[])
@@ -4618,6 +4681,7 @@ impl ChatService for LiveChatService {
                 persona.tools_text.as_deref(),
                 Some(&runtime_context),
                 persona.memory_text.as_deref(),
+                persona.profile_text.as_deref(),
             )
         } else {
             build_system_prompt_minimal_runtime(
@@ -4629,6 +4693,7 @@ impl ChatService for LiveChatService {
                 persona.tools_text.as_deref(),
                 Some(&runtime_context),
                 persona.memory_text.as_deref(),
+                persona.profile_text.as_deref(),
             )
         };
 
@@ -4995,6 +5060,27 @@ impl ChannelStreamDispatcher {
             if worker.sender.send(event.clone()).await.is_err() {
                 debug!("channel stream delta dropped: worker closed");
             }
+        }
+    }
+
+    async fn send_tool_start(&mut self, tool_id: &str, message: &str) {
+        self.ensure_started().await;
+        let event = moltis_channels::StreamEvent::ToolStatusStart {
+            tool_id: tool_id.to_string(),
+            message: message.to_string(),
+        };
+        for worker in &self.workers {
+            let _ = worker.sender.send(event.clone()).await;
+        }
+    }
+
+    async fn send_tool_end(&mut self, tool_id: &str, message: &str) {
+        let event = moltis_channels::StreamEvent::ToolStatusEnd {
+            tool_id: tool_id.to_string(),
+            message: message.to_string(),
+        };
+        for worker in &self.workers {
+            let _ = worker.sender.send(event.clone()).await;
         }
     }
 
@@ -5636,6 +5722,7 @@ async fn run_with_tools(
     conn_id: Option<String>,
     session_store: Option<&Arc<SessionStore>>,
     mcp_disabled: bool,
+    thinking_enabled: bool,
     client_seq: Option<u64>,
     active_thinking_text: Option<Arc<RwLock<HashMap<String, String>>>>,
     active_tool_calls: Option<Arc<RwLock<HashMap<String, Vec<ActiveToolCall>>>>>,
@@ -5650,7 +5737,7 @@ async fn run_with_tools(
     let mut filtered_registry = {
         let registry_guard = tool_registry.read().await;
         if tools_enabled {
-            apply_runtime_tool_filters(&registry_guard, &persona.config, skills, mcp_disabled)
+            apply_runtime_tool_filters(&registry_guard, &persona.config, skills, mcp_disabled, Some(model_id))
         } else {
             registry_guard.clone_without(&[])
         }
@@ -5659,13 +5746,32 @@ async fn run_with_tools(
         install_agent_scoped_memory_tools(&mut filtered_registry, manager, agent_id);
     }
 
+    // Resolve lazy_tools for this model (per-model override takes priority).
+    let lazy_tools_for_prompt = {
+        let model_lower = model_id.to_lowercase();
+        persona.config.tools.model_overrides.iter()
+            .find_map(|(key, ov)| {
+                if model_lower.contains(&key.to_lowercase()) { ov.lazy_tools } else { None }
+            })
+            .unwrap_or(persona.config.tools.lazy_tools)
+    };
+
+    // When lazy loading is on, only show core tools in the system prompt.
+    // The full registry is still passed to the runner for execution.
+    let prompt_registry = if lazy_tools_for_prompt && native_tools {
+        let core = &moltis_agents::runner::LAZY_CORE_TOOLS;
+        filtered_registry.clone_allowed_by(|name| core.contains(&name))
+    } else {
+        filtered_registry.clone_without(&[])
+    };
+
     // Build system prompt:
     // - Native tools: full prompt with tool schemas sent via API
     // - Text tools: full prompt with tool schemas embedded + call guidance
     // - Off: minimal prompt without tools
     let system_prompt = if tools_enabled {
         build_system_prompt_with_session_runtime(
-            &filtered_registry,
+            &prompt_registry,
             native_tools,
             project_context,
             skills,
@@ -5676,6 +5782,7 @@ async fn run_with_tools(
             persona.tools_text.as_deref(),
             runtime_context,
             persona.memory_text.as_deref(),
+            persona.profile_text.as_deref(),
         )
     } else {
         build_system_prompt_minimal_runtime(
@@ -5687,6 +5794,7 @@ async fn run_with_tools(
             persona.tools_text.as_deref(),
             runtime_context,
             persona.memory_text.as_deref(),
+            persona.profile_text.as_deref(),
         )
     };
 
@@ -5696,11 +5804,42 @@ async fn run_with_tools(
         apply_voice_reply_suffix(system_prompt, desired_reply_medium, runtime_context);
 
     // Determine sandbox mode for this session.
-    let session_is_sandboxed = if let Some(router) = state.sandbox_router() {
-        router.is_sandboxed(session_key).await
-    } else {
-        false
+    let session_is_sandboxed = {
+        let base = if let Some(router) = state.sandbox_router() {
+            router.is_sandboxed(session_key).await
+        } else {
+            false
+        };
+        // Per-model sandbox_enabled overrides the session setting.
+        let mid_lower = model_id.to_lowercase();
+        let model_sandbox_override = persona.config.tools.model_overrides.iter().find_map(|(key, ov)| {
+            if mid_lower.contains(&key.to_lowercase()) {
+                ov.sandbox_enabled
+            } else {
+                None
+            }
+        });
+        model_sandbox_override.unwrap_or(base)
     };
+
+    // Push per-model sandbox override into the router so exec/browser tools
+    // (which re-check is_sandboxed independently) see the resolved value.
+    if let Some(router) = state.sandbox_router() {
+        router.set_override(session_key, session_is_sandboxed).await;
+    }
+
+    // Resolve extended thinking for this session+model.
+    let thinking_enabled = {
+        let mid_lower = model_id.to_lowercase();
+        persona.config.tools.model_overrides.iter().find_map(|(key, ov)| {
+            if mid_lower.contains(&key.to_lowercase()) {
+                ov.thinking_enabled
+            } else {
+                None
+            }
+        }).unwrap_or(thinking_enabled)
+    };
+    let thinking_budget: u32 = if thinking_enabled { 10_000 } else { 0 };
 
     // Broadcast tool events to the UI in the order emitted by the runner.
     let state_for_events = Arc::clone(state);
@@ -5780,6 +5919,12 @@ async fn run_with_tools(
                         .await;
                     });
 
+                    // Send tool status to channel stream (Discord edit-in-place).
+                    if let Some(ref dispatcher) = channel_stream_for_events {
+                        let msg = format_tool_status_message(&name, &arguments);
+                        dispatcher.lock().await.send_tool_start(&id, &msg).await;
+                    }
+
                     let is_browser = name == "browser";
                     let mut payload = serde_json::json!({
                         "runId": run_id,
@@ -5829,6 +5974,21 @@ async fn run_with_tools(
                     if let Some(ref err) = error {
                         payload["error"] = serde_json::json!(parse_chat_error(err, None));
                     }
+                    // Send tool completion to channel stream (Discord edit-in-place).
+                    if let Some(ref dispatcher) = channel_stream_for_events {
+                        let args_ref = tool_args_map.get(&id);
+                        let empty_args = Value::Null;
+                        let tool_args = args_ref.unwrap_or(&empty_args);
+                        let end_msg = format_tool_end_message(
+                            &name,
+                            tool_args,
+                            success,
+                            result.as_ref(),
+                            error.as_deref(),
+                        );
+                        dispatcher.lock().await.send_tool_end(&id, &end_msg).await;
+                    }
+
                     // Check for screenshot/image to send to channel (Telegram, etc.)
                     let screenshot_to_send = result
                         .as_ref()
@@ -6110,7 +6270,7 @@ async fn run_with_tools(
     }
 
     let provider_ref = provider.clone();
-    let first_result = run_agent_loop_streaming(
+    let first_result = moltis_agents::model::THINKING_BUDGET.scope(thinking_budget, run_agent_loop_streaming(
         provider,
         &filtered_registry,
         &system_prompt,
@@ -6119,8 +6279,7 @@ async fn run_with_tools(
         hist,
         Some(tool_context.clone()),
         hook_registry.clone(),
-    )
-    .await;
+    )).await;
 
     // On context-window overflow, compact the session and retry once.
     let result = match first_result {
@@ -6173,7 +6332,7 @@ async fn run_with_tools(
                         Some(compacted_chat)
                     };
 
-                    run_agent_loop_streaming(
+                    moltis_agents::model::THINKING_BUDGET.scope(thinking_budget, run_agent_loop_streaming(
                         provider_ref.clone(),
                         &filtered_registry,
                         &system_prompt,
@@ -6182,8 +6341,7 @@ async fn run_with_tools(
                         retry_hist,
                         Some(tool_context),
                         hook_registry,
-                    )
-                    .await
+                    )).await
                 },
                 Err(e) => {
                     warn!(run_id, error = %e, "retry compaction failed");
@@ -6579,6 +6737,7 @@ async fn run_streaming(
         persona.tools_text.as_deref(),
         runtime_context,
         persona.memory_text.as_deref(),
+        persona.profile_text.as_deref(),
     );
 
     // Layer 1: instruct the LLM to write speech-friendly output when voice is active.
@@ -7024,14 +7183,8 @@ async fn deliver_channel_replies(
     // Drain buffered status log entries to build a logbook suffix.
     let status_log = state.drain_channel_status_log(session_key).await;
     let logbook_html = format_logbook_html(&status_log);
-    if !streamed_targets.is_empty() && !logbook_html.is_empty() {
-        send_channel_logbook_follow_up_to_targets(
-            Arc::clone(&outbound),
-            streamed_targets,
-            &logbook_html,
-        )
-        .await;
-    }
+    // Streamed targets receive real-time tool status messages (ToolStatusStart/End),
+    // so skip the batch logbook follow-up for them.
     if targets.is_empty() {
         if is_channel_session {
             info!(
@@ -7711,13 +7864,13 @@ fn format_tool_status_message(tool_name: &str, arguments: &Value) -> String {
         "exec" => {
             let command = arguments.get("command").and_then(|v| v.as_str());
             if let Some(cmd) = command {
-                // Show first ~50 chars of command
-                let display_cmd = if cmd.len() > 50 {
-                    format!("{}...", truncate_at_char_boundary(cmd, 50))
+                let display_cmd = if cmd.len() > 150 {
+                    format!("{}...", truncate_at_char_boundary(cmd, 150))
                 } else {
                     cmd.to_string()
                 };
-                format!("💻 Running: `{}`", display_cmd)
+                let (emoji, verb) = classify_exec_command(cmd);
+                format!("{emoji} {verb}: `{display_cmd}`")
             } else {
                 "💻 Executing command...".to_string()
             }
@@ -7766,6 +7919,214 @@ fn format_tool_status_message(tool_name: &str, arguments: &Value) -> String {
 }
 
 /// Truncate a URL for display (show domain + short path).
+/// Format end-of-tool message for Discord with past tense + output snippet.
+fn format_tool_end_message(
+    tool_name: &str,
+    arguments: &Value,
+    success: bool,
+    result: Option<&Value>,
+    error: Option<&str>,
+) -> String {
+    let fail_prefix = if success { "" } else { "❌ " };
+
+    // Build the action line (past tense).
+    let action = match tool_name {
+        "exec" => {
+            let command = arguments.get("command").and_then(|v| v.as_str());
+            if let Some(cmd) = command {
+                let display_cmd = if cmd.len() > 150 {
+                    format!("{}...", truncate_at_char_boundary(cmd, 150))
+                } else {
+                    cmd.to_string()
+                };
+                let (emoji, _verb) = classify_exec_command(cmd);
+                let past_verb = classify_exec_command_past(cmd);
+                format!("{emoji} {past_verb}: `{display_cmd}`")
+            } else {
+                "💻 Ran command".to_string()
+            }
+        },
+        "browser" => {
+            let action = arguments.get("action").and_then(|v| v.as_str()).unwrap_or("unknown");
+            let url = arguments.get("url").and_then(|v| v.as_str());
+            match action {
+                "navigate" => {
+                    if let Some(u) = url {
+                        format!("🌐 Navigated to {}", truncate_url(u))
+                    } else {
+                        "🌐 Navigated".to_string()
+                    }
+                },
+                "screenshot" => "📸 Screenshot taken".to_string(),
+                "snapshot" => "📋 Got page snapshot".to_string(),
+                "click" => "👆 Clicked".to_string(),
+                "type" => "⌨️ Typed".to_string(),
+                _ => format!("🌐 Browser: {action}"),
+            }
+        },
+        "web_fetch" => {
+            let url = arguments.get("url").and_then(|v| v.as_str());
+            if let Some(u) = url {
+                format!("🔗 Fetched {}", truncate_url(u))
+            } else {
+                "🔗 Fetched URL".to_string()
+            }
+        },
+        "web_search" => {
+            let query = arguments.get("query").and_then(|v| v.as_str());
+            if let Some(q) = query {
+                let display_q = if q.len() > 40 {
+                    format!("{}...", truncate_at_char_boundary(q, 40))
+                } else {
+                    q.to_string()
+                };
+                format!("🔍 Searched: {display_q}")
+            } else {
+                "🔍 Searched".to_string()
+            }
+        },
+        "memory_search" => "🧠 Searched memory".to_string(),
+        "memory_store" => "🧠 Stored to memory".to_string(),
+        _ => format!("🔧 {tool_name}"),
+    };
+
+    // Extract output snippet (up to ~300 chars, ~5 lines).
+    let snippet = if !success {
+        error.map(|e| {
+            let short = if e.len() > 300 { &e[..300] } else { e };
+            short.to_string()
+        })
+    } else {
+        result.and_then(|r| {
+            // Try common output fields: exec returns stdout/stderr,
+            // process returns output, other tools use text/result.
+            let raw = r.get("stdout")
+                .and_then(|v| v.as_str())
+                .or_else(|| r.get("output").and_then(|v| v.as_str()))
+                .or_else(|| r.get("text").and_then(|v| v.as_str()))
+                .or_else(|| r.get("result").and_then(|v| v.as_str()))
+                .unwrap_or("");
+            let trimmed = raw.trim();
+            if trimmed.is_empty() {
+                return None;
+            }
+            // Take first 8 lines, max 500 chars.
+            let lines: Vec<&str> = trimmed.lines().take(8).collect();
+            let mut out = lines.join("\n");
+            if out.len() > 500 {
+                out.truncate(500);
+                out.push_str("...");
+            } else if trimmed.lines().count() > 8 {
+                out.push_str("\n...");
+            }
+            Some(out)
+        })
+    };
+
+    match snippet {
+        Some(s) if !s.is_empty() => format!("{fail_prefix}{action}\n```\n{s}\n```"),
+        _ => format!("{fail_prefix}{action}"),
+    }
+}
+
+/// Classify an exec command into (emoji, present-tense verb) based on the first command word.
+fn classify_exec_command(cmd: &str) -> (&'static str, &'static str) {
+    // Strip leading env vars, sudo, nice, etc.
+    let first_word = cmd
+        .split(|c: char| c == '|' || c == '&' || c == ';')
+        .next()
+        .unwrap_or(cmd)
+        .trim()
+        .split_whitespace()
+        .find(|w| !w.contains('=') && *w != "sudo" && *w != "nice" && *w != "nohup" && *w != "env" && *w != "time")
+        .unwrap_or("");
+
+    match first_word {
+        // Reading
+        "cat" | "head" | "tail" | "less" | "more" | "bat" | "xxd" | "od" => ("📖", "Reading"),
+        // Writing / copying
+        "echo" | "printf" | "tee" | "cp" | "rsync" | "scp" | "install" if cmd.contains('>') || cmd.contains("cp ") || cmd.contains("rsync") || cmd.contains("scp") => ("📝", "Writing"),
+        "cp" | "rsync" | "scp" => ("📝", "Copying"),
+        "echo" | "printf" if cmd.contains('>') => ("📝", "Writing"),
+        "echo" | "printf" => ("💬", "Printing"),
+        // Editing
+        "sed" | "awk" | "patch" | "perl" => ("✏️", "Editing"),
+        // Searching
+        "grep" | "rg" | "ag" | "ack" | "find" | "fd" | "locate" | "which" | "whereis" => ("🔍", "Searching"),
+        // Listing / inspecting
+        "ls" | "ll" | "tree" | "exa" | "eza" | "dir" | "stat" | "file" | "wc" | "du" | "df" => ("📂", "Listing"),
+        // Creating directories
+        "mkdir" => ("📁", "Creating directory"),
+        // Deleting
+        "rm" | "rmdir" | "unlink" | "shred" => ("🗑️", "Deleting"),
+        // Moving / renaming
+        "mv" => ("📦", "Moving"),
+        // Downloading / network
+        "curl" | "wget" | "http" | "httpie" => ("🌐", "Fetching"),
+        // Git
+        "git" => ("🔀", "Git"),
+        // Package managers
+        "npm" | "npx" | "yarn" | "pnpm" | "bun" | "pip" | "pip3" | "pipx" | "cargo" | "apt" | "apt-get" | "brew" | "dnf" | "pacman" => ("📦", "Package"),
+        // Docker / containers
+        "docker" | "podman" | "docker-compose" => ("🐳", "Docker"),
+        // SSH / remote
+        "ssh" => ("🔌", "SSH"),
+        // Build / compile
+        "make" | "cmake" | "gcc" | "g++" | "rustc" | "javac" | "go" => ("🔨", "Building"),
+        // Interpreters / scripts
+        "python" | "python3" | "node" | "ruby" | "php" | "lua" | "deno" | "ts-node" => ("⚡", "Running script"),
+        // System / process
+        "systemctl" | "service" | "journalctl" => ("⚙️", "System"),
+        "ps" | "top" | "htop" | "kill" | "pkill" | "killall" => ("⚙️", "Process"),
+        // Archiving
+        "tar" | "zip" | "unzip" | "gzip" | "gunzip" | "7z" | "xz" => ("🗜️", "Archiving"),
+        // Text processing / sorting
+        "sort" | "uniq" | "cut" | "tr" | "jq" | "yq" | "xargs" | "diff" | "comm" => ("🔧", "Processing"),
+        // Permissions
+        "chmod" | "chown" | "chgrp" => ("🔐", "Permissions"),
+        // Default
+        _ => ("💻", "Running"),
+    }
+}
+
+/// Past-tense version for end messages.
+fn classify_exec_command_past(cmd: &str) -> &'static str {
+    let first_word = cmd
+        .split(|c: char| c == '|' || c == '&' || c == ';')
+        .next()
+        .unwrap_or(cmd)
+        .trim()
+        .split_whitespace()
+        .find(|w| !w.contains('=') && *w != "sudo" && *w != "nice" && *w != "nohup" && *w != "env" && *w != "time")
+        .unwrap_or("");
+
+    match first_word {
+        "cat" | "head" | "tail" | "less" | "more" | "bat" | "xxd" | "od" => "Read",
+        "cp" | "rsync" | "scp" => "Copied",
+        "echo" | "printf" if cmd.contains('>') => "Wrote",
+        "echo" | "printf" => "Printed",
+        "sed" | "awk" | "patch" | "perl" => "Edited",
+        "grep" | "rg" | "ag" | "ack" | "find" | "fd" | "locate" | "which" | "whereis" => "Searched",
+        "ls" | "ll" | "tree" | "exa" | "eza" | "dir" | "stat" | "file" | "wc" | "du" | "df" => "Listed",
+        "mkdir" => "Created directory",
+        "rm" | "rmdir" | "unlink" | "shred" => "Deleted",
+        "mv" => "Moved",
+        "curl" | "wget" | "http" | "httpie" => "Fetched",
+        "git" => "Git",
+        "npm" | "npx" | "yarn" | "pnpm" | "bun" | "pip" | "pip3" | "pipx" | "cargo" | "apt" | "apt-get" | "brew" | "dnf" | "pacman" => "Installed",
+        "docker" | "podman" | "docker-compose" => "Docker",
+        "ssh" => "SSH",
+        "make" | "cmake" | "gcc" | "g++" | "rustc" | "javac" | "go" => "Built",
+        "python" | "python3" | "node" | "ruby" | "php" | "lua" | "deno" | "ts-node" => "Ran script",
+        "systemctl" | "service" | "journalctl" => "System",
+        "ps" | "top" | "htop" | "kill" | "pkill" | "killall" => "Process",
+        "tar" | "zip" | "unzip" | "gzip" | "gunzip" | "7z" | "xz" => "Archived",
+        "sort" | "uniq" | "cut" | "tr" | "jq" | "yq" | "xargs" | "diff" | "comm" => "Processed",
+        "chmod" | "chown" | "chgrp" => "Set permissions",
+        _ => "Ran",
+    }
+}
+
 fn truncate_url(url: &str) -> String {
     // Try to extract domain from URL
     let without_scheme = url
@@ -9696,7 +10057,7 @@ mod tests {
             source: None,
         }];
 
-        let filtered = apply_runtime_tool_filters(&registry, &cfg, &skills, false);
+        let filtered = apply_runtime_tool_filters(&registry, &cfg, &skills, false, None);
         assert!(filtered.get("exec").is_some());
         assert!(filtered.get("web_fetch").is_some());
         assert!(filtered.get("create_skill").is_some());
@@ -9729,7 +10090,7 @@ mod tests {
             source: None,
         }];
 
-        let filtered = apply_runtime_tool_filters(&registry, &cfg, &skills, false);
+        let filtered = apply_runtime_tool_filters(&registry, &cfg, &skills, false, None);
         assert!(filtered.get("create_skill").is_some());
         assert!(filtered.get("web_fetch").is_some());
     }

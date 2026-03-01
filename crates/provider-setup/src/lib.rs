@@ -1601,6 +1601,19 @@ fn has_oauth_tokens_for_provider(
             && codex_cli_auth_path()
                 .as_deref()
                 .is_some_and(codex_cli_auth_has_access_token))
+        || (provider_name == "anthropic"
+            && std::env::var("HOME").ok().is_some_and(|home| {
+                let path = Path::new(&home).join(".claude").join(".credentials.json");
+                let Ok(raw) = std::fs::read_to_string(&path) else {
+                    return false;
+                };
+                let Ok(json) = serde_json::from_str::<Value>(&raw) else {
+                    return false;
+                };
+                json["claudeAiOauth"]["accessToken"]
+                    .as_str()
+                    .is_some_and(|t| !t.trim().is_empty())
+            }))
 }
 
 /// Build provider-specific extra headers for device-flow OAuth calls.

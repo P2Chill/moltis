@@ -23,6 +23,7 @@ var detectError = signal("");
 var detectProgress = signal(null);
 var deletingProvider = signal("");
 var providerActionError = signal("");
+var modelOverrides = signal({});
 
 function countUniqueProviders(models) {
 	return new Set(models.map((m) => m.provider)).size;
@@ -68,9 +69,10 @@ function handleModelsUpdatedEvent(payload) {
 
 function fetchProviders() {
 	loading.value = true;
-	return Promise.all([sendRpc("models.list_all", {}), sendRpc("providers.available", {})])
-		.then(([modelsRes, providersRes]) => {
+	return Promise.all([sendRpc("models.list_all", {}), sendRpc("providers.available", {}), sendRpc("tools.model_overrides.get", {})])
+		.then(([modelsRes, providersRes, overridesRes]) => {
 			loading.value = false;
+			if (overridesRes?.ok) modelOverrides.value = overridesRes.payload?.overrides || {};
 			var providerMeta = new Map();
 			var configuredProviders = [];
 			if (providersRes?.ok) {
@@ -191,6 +193,69 @@ function groupProviderRows(models, metaMap) {
 	return result;
 }
 
+// Key used when writing a new override — strips provider:: prefix.
+function getOverrideKeyForModel(modelId) {
+	var parts = modelId.split("::");
+	return parts[parts.length - 1];
+}
+
+// Exact match only — strips provider prefix, looks for exact config key.
+function getModelOverrideValues(modelId) {
+	var stripped = modelId.split("::").pop().toLowerCase();
+	var overrides = modelOverrides.value;
+	var key = Object.keys(overrides).find(function(k) { return k.toLowerCase() === stripped; });
+	return key ? overrides[key] : {};
+}
+
+// Cycle trust pill and persist.
+function cycleTrustPill(modelId, field) {
+	var ov = getModelOverrideValues(modelId);
+	var cur = ov[field] ?? null;
+	var next = cur === true ? false : true;
+	var overrideKey = getOverrideKeyForModel(modelId);
+	var params = { key: overrideKey };
+	params[field] = next;
+	sendRpc("tools.model_overrides.set", params).then((res) => {
+		if (res?.ok) {
+			var updated = { ...modelOverrides.value };
+			if (!updated[overrideKey]) updated[overrideKey] = {};
+			updated[overrideKey] = { ...updated[overrideKey], [field]: next };
+			modelOverrides.value = updated;
+			// Sync to active session so the chat toolbar reflects the change
+			var selected = (S.selectedModelId || "").split("::").pop();
+			if (selected && selected.toLowerCase() === overrideKey.toLowerCase()) {
+				if (field === "mcp_enabled") {
+					sendRpc("sessions.patch", { key: S.activeSessionKey, mcpDisabled: !next });
+				} else if (field === "sandbox_enabled") {
+					sendRpc("sessions.patch", { key: S.activeSessionKey, sandboxEnabled: next });
+				} else if (field === "thinking_enabled") {
+					sendRpc("sessions.patch", { key: S.activeSessionKey, thinkingEnabled: next });
+				}
+			}
+		}
+	});
+}
+
+// Pill showing forced-on (accent), forced-off (danger), or inherit (muted/dim).
+function TrustPill({ label, value, onCycle }) {
+	var base = "cursor:pointer;font-size:10px;padding:1px 6px;border-radius:9999px;border:1px solid;user-select:none;";
+	var style, title, text;
+	if (value === true) {
+		style = base + "background:color-mix(in srgb,var(--accent,#3b82f6) 18%,transparent);border-color:var(--accent,#3b82f6);color:var(--accent,#3b82f6);";
+		title = label + ": forced ON (click to cycle)";
+		text = label + " \u2713";
+	} else if (value === false) {
+		style = base + "background:color-mix(in srgb,var(--danger,#ef4444) 15%,transparent);border-color:var(--danger,#ef4444);color:var(--danger,#ef4444);";
+		title = label + ": forced OFF (click to cycle)";
+		text = label + " \u2717";
+	} else {
+		style = base + "border-color:var(--border);color:var(--muted);";
+		title = label + ": inherit default (click to override)";
+		text = label;
+	}
+	return html`<button style=${style} title=${title} onClick=${(e) => { e.stopPropagation(); onCycle(); }}>${text}</button>`;
+}
+
 function ProviderSection(props) {
 	var group = props.group;
 
@@ -274,6 +339,12 @@ function ProviderSection(props) {
 								</div>
 								<div class="mt-1 text-xs text-[var(--muted)] font-mono opacity-75">${model.id}</div>
 								${model.createdAt ? html`<time class="mt-0.5 text-xs text-[var(--muted)] opacity-60 block" data-epoch-ms=${model.createdAt * 1000} data-format="year-month"></time>` : null}
+								<div class="mt-1 flex items-center gap-1">
+									<${TrustPill} label="MCP" value=${getModelOverrideValues(model.id)?.mcp_enabled ?? false} onCycle=${() => cycleTrustPill(model.id, "mcp_enabled")} />
+									<${TrustPill} label="Sandbox" value=${getModelOverrideValues(model.id)?.sandbox_enabled ?? false} onCycle=${() => cycleTrustPill(model.id, "sandbox_enabled")} />
+									<${TrustPill} label="Lazy" value=${getModelOverrideValues(model.id)?.lazy_tools ?? false} onCycle=${() => cycleTrustPill(model.id, "lazy_tools")} />
+									<${TrustPill} label="Think" value=${getModelOverrideValues(model.id)?.thinking_enabled ?? null} onCycle=${() => cycleTrustPill(model.id, "thinking_enabled")} />
+								</div>
 							</div>
 							<button class="provider-btn provider-btn-secondary provider-btn-sm" onClick=${() => onToggleModel(model)}>
 								${model.disabled ? t("common:actions.enable") : t("common:actions.disable")}

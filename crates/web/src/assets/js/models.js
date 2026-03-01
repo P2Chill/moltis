@@ -2,7 +2,8 @@
 
 import { sendRpc } from "./helpers.js";
 import { t } from "./i18n.js";
-import { showModelNotice } from "./page-chat.js";
+import { showModelNotice, updateMcpToggleUI, updateThinkToggleUI } from "./page-chat.js";
+import { updateSandboxUI } from "./sandbox.js";
 import * as S from "./state.js";
 import { modelStore } from "./stores/model-store.js";
 
@@ -43,6 +44,38 @@ export function selectModel(m) {
 	closeModelDropdown();
 	// Show notice if model doesn't support tools
 	showModelNotice(m);
+	// Apply per-model overrides (MCP, sandbox) to the active session
+	applyModelOverrides(m.id);
+}
+
+function applyModelOverrides(modelId) {
+	var overrideKey = modelId.split("::").pop();
+	sendRpc("tools.model_overrides.get", {}).then((res) => {
+		if (!res?.ok) return;
+		var overrides = res.payload?.overrides || {};
+		var key = Object.keys(overrides).find(function(k) {
+			return k.toLowerCase() === overrideKey.toLowerCase();
+		});
+		var ov = key ? overrides[key] : {};
+		var mcpEnabled = ov.mcp_enabled ?? true;
+		var sandboxEnabled = ov.sandbox_enabled ?? false;
+		// Only patch session when values actually differ to avoid spamming
+		// "Sandbox enabled/disabled" system messages on every model switch.
+		var patch = {};
+		var mcpLabel = S.$("mcpToggleLabel");
+		var currentMcpEnabled = mcpLabel ? mcpLabel.textContent === "MCP" : true;
+		if (mcpEnabled !== currentMcpEnabled) patch.mcpDisabled = !mcpEnabled;
+		if (sandboxEnabled !== S.sessionSandboxEnabled) patch.sandboxEnabled = sandboxEnabled;
+		if (Object.keys(patch).length > 0) {
+			patch.key = S.activeSessionKey;
+			sendRpc("sessions.patch", patch);
+		}
+		var thinkingEnabled = ov.thinking_enabled ?? false;
+		if (thinkingEnabled !== false) patch.thinkingEnabled = thinkingEnabled;
+		updateMcpToggleUI(mcpEnabled);
+		updateSandboxUI(sandboxEnabled);
+		updateThinkToggleUI(thinkingEnabled);
+	});
 }
 
 export function openModelDropdown() {
@@ -80,7 +113,9 @@ function buildModelItem(m, currentId) {
 	if (m.provider) {
 		var prov = document.createElement("span");
 		prov.className = "model-item-provider";
-		prov.textContent = m.provider;
+		var provName = m.provider.replace(/^custom-/, "");
+		var provAliases = { "generativelanguage-googleapis-com": "Google" };
+		prov.textContent = provAliases[provName] || provName;
 		meta.appendChild(prov);
 	}
 
