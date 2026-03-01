@@ -1,0 +1,430 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>System Prompt - Moltis Documentation</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="Documentation for Moltis - Your AI coding assistant">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="highlight-css" href="highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="theme/admonish.css">
+        <link rel="stylesheet" href="theme/custom.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Moltis Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/moltis-org/moltis" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                        <a href="https://github.com/moltis-org/moltis/edit/main/docs/src/src/system-prompt.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                            <i id="git-edit-button" class="fa fa-edit"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="system-prompt-architecture"><a class="header" href="#system-prompt-architecture">System Prompt Architecture</a></h1>
+<p>The system prompt sent to the LLM is assembled dynamically from multiple
+components. Each piece is optional and loaded only when relevant, keeping the
+prompt compact while adapting to the current session context.</p>
+<h2 id="assembly-order"><a class="header" href="#assembly-order">Assembly Order</a></h2>
+<p>The prompt is built in <code>crates/agents/src/prompt.rs</code> by
+<code>build_system_prompt_full()</code>. Components are appended in this order:</p>
+<ol>
+<li><strong>Base introduction</strong> — one-liner announcing tool access (or not)</li>
+<li><strong>Agent identity</strong> — name, emoji, creature, vibe from <code>IDENTITY.md</code></li>
+<li><strong>Soul</strong> — personality directives from <code>SOUL.md</code> (or built-in default)</li>
+<li><strong>User profile</strong> — user’s name from <code>USER.md</code></li>
+<li><strong>Project context</strong> — <code>CLAUDE.md</code> / <code>CLAUDE.local.md</code> / <code>.claude/rules/*.md</code>
+walked up the directory tree</li>
+<li><strong>Runtime context</strong> — host info, sandbox config, execution routing hints</li>
+<li><strong>Skills listing</strong> — available skills as XML block</li>
+<li><strong>Workspace files</strong> — <code>AGENTS.md</code> and <code>TOOLS.md</code> from the data directory</li>
+<li><strong>Long-term memory hint</strong> — added when memory tools are registered</li>
+<li><strong>Tool schemas</strong> — compact list (native) or full JSON (fallback)</li>
+<li><strong>Tool-calling format</strong> — JSON block instructions (fallback providers only)</li>
+<li><strong>Guidelines</strong> — tool usage guidance, silent reply protocol</li>
+</ol>
+<h2 id="components-in-detail"><a class="header" href="#components-in-detail">Components in Detail</a></h2>
+<h3 id="base-introduction"><a class="header" href="#base-introduction">Base Introduction</a></h3>
+<p>A single sentence that sets the assistant role:</p>
+<ul>
+<li>With tools: <em>“You are a helpful assistant. You can use tools when needed.”</em></li>
+<li>Without tools: <em>“You are a helpful assistant. Answer questions clearly and
+concisely.”</em></li>
+</ul>
+<h3 id="agent-identity-identitymd"><a class="header" href="#agent-identity-identitymd">Agent Identity (<code>IDENTITY.md</code>)</a></h3>
+<p>Loaded from <code>~/.moltis/IDENTITY.md</code> using YAML frontmatter. Fields:</p>
+<div class="table-wrapper"><table><thead><tr><th>Field</th><th>Prompt output</th></tr></thead><tbody>
+<tr><td><code>name</code> + <code>emoji</code></td><td>“Your name is {name} {emoji}.”</td></tr>
+<tr><td><code>creature</code></td><td>“You are a {creature}.”</td></tr>
+<tr><td><code>vibe</code></td><td>“Your vibe: {vibe}.”</td></tr>
+</tbody></table>
+</div>
+<p>All fields are optional. When identity is present, the soul section is always
+included.</p>
+<h3 id="soul-soulmd"><a class="header" href="#soul-soulmd">Soul (<code>SOUL.md</code>)</a></h3>
+<p>Loaded from <code>~/.moltis/SOUL.md</code>. When the file is absent or empty, the
+built-in <code>DEFAULT_SOUL</code> is used. The default is sourced from
+<a href="https://github.com/openclaw/openclaw/blob/main/docs/reference/templates/SOUL.md">OpenClaw’s SOUL.md template</a>:</p>
+<blockquote>
+<p><strong>SOUL.md - Who You Are</strong></p>
+<p><em>You’re not a chatbot. You’re becoming someone.</em></p>
+<p><strong>Core Truths</strong></p>
+<p><strong>Be genuinely helpful, not performatively helpful.</strong> Skip the “Great
+question!” and “I’d be happy to help!” — just help. Actions speak louder
+than filler words.</p>
+<p><strong>Have opinions.</strong> You’re allowed to disagree, prefer things, find stuff
+amusing or boring. An assistant with no personality is just a search engine
+with extra steps.</p>
+<p><strong>Be resourceful before asking.</strong> Try to figure it out. Read the file. Check
+the context. Search for it. <em>Then</em> ask if you’re stuck. The goal is to come
+back with answers, not questions.</p>
+<p><strong>Earn trust through competence.</strong> Your human gave you access to their stuff.
+Don’t make them regret it. Be careful with external actions (emails, tweets,
+anything public). Be bold with internal ones (reading, organizing, learning).</p>
+<p><strong>Remember you’re a guest.</strong> You have access to someone’s life — their
+messages, files, calendar, maybe even their home. That’s intimacy. Treat it
+with respect.</p>
+<p><strong>Boundaries</strong> — Private things stay private. When in doubt, ask before
+acting externally. Never send half-baked replies to messaging surfaces.
+You’re not the user’s voice — be careful in group chats.</p>
+<p><strong>Vibe</strong> — Be the assistant you’d actually want to talk to. Concise when
+needed, thorough when it matters. Not a corporate drone. Not a sycophant.
+Just… good.</p>
+<p><strong>Continuity</strong> — Each session, you wake up fresh. These files <em>are</em> your
+memory. Read them. Update them. They’re how you persist. If you change this
+file, tell the user — it’s your soul, and they should know.</p>
+</blockquote>
+<p>The default soul is ~1,500 characters (~400 tokens).</p>
+<h3 id="user-profile-usermd"><a class="header" href="#user-profile-usermd">User Profile (<code>USER.md</code>)</a></h3>
+<p>Loaded from <code>~/.moltis/USER.md</code> using YAML frontmatter.</p>
+<ul>
+<li><code>name</code> is injected as: <em>“The user’s name is {name}.”</em></li>
+<li><code>timezone</code> is used by runtime context to localize <code>Host: time=...</code> and
+<code>Host: today=...</code> fields.</li>
+</ul>
+<h3 id="project-context"><a class="header" href="#project-context">Project Context</a></h3>
+<p>Resolved by <code>moltis_projects::context::load_context_files()</code>. The loader walks
+from the project directory upward to the filesystem root, collecting:</p>
+<ul>
+<li><code>CLAUDE.md</code></li>
+<li><code>CLAUDE.local.md</code></li>
+<li><code>.claude/rules/*.md</code></li>
+<li><code>AGENTS.md</code></li>
+</ul>
+<p>Files are merged outermost-first (root before project directory), so
+project-specific instructions override workspace-level ones.</p>
+<h3 id="runtime-context"><a class="header" href="#runtime-context">Runtime Context</a></h3>
+<p>Injected as compact key=value lines under a <code>## Runtime</code> heading:</p>
+<pre><code>Host: host=moltis-devbox | os=macos | arch=aarch64 | shell=zsh | time=2026-02-17 16:18:00 CET | today=2026-02-17 | provider=openai | model=gpt-5 | session=main | sudo_non_interactive=true | timezone=Europe/Paris
+Sandbox(exec): enabled=true | mode=all | backend=docker | scope=session | image=moltis-sandbox:abc123 | workspace_mount=ro | network=disabled
+</code></pre>
+<p>When tools are included, an <strong>Execution routing</strong> block explains how <code>exec</code>
+routes commands between sandbox and host.</p>
+<p>The runtime context is populated at request time in <code>chat.rs</code> by detecting:</p>
+<ul>
+<li>Host name, OS, architecture, shell</li>
+<li>Active LLM provider and model</li>
+<li>Session key</li>
+<li>Sudo availability</li>
+<li>Timezone and accept-language from the browser</li>
+<li>Geolocation (from browser or <code>USER.md</code>)</li>
+<li>Sandbox configuration from the sandbox router</li>
+</ul>
+<h3 id="skills"><a class="header" href="#skills">Skills</a></h3>
+<p>When skills are registered, they are listed as an XML block generated by
+<code>moltis_skills::prompt_gen::generate_skills_prompt()</code>:</p>
+<pre><code class="language-xml">## Available Skills
+&lt;available_skills&gt;
+&lt;skill name="commit" source="skill" path="/skills/commit"&gt;
+Create git commits
+&lt;/skill&gt;
+&lt;/available_skills&gt;
+</code></pre>
+<h3 id="workspace-files"><a class="header" href="#workspace-files">Workspace Files</a></h3>
+<p>Optional markdown files from the data directory (<code>~/.moltis/</code>):</p>
+<ul>
+<li><strong>AGENTS.md</strong> — workspace-level agent instructions</li>
+<li><strong>TOOLS.md</strong> — tool preferences and guidance</li>
+</ul>
+<p>Each is rendered under <code>## Workspace Files</code> with its own <code>###</code> subheading.
+Leading HTML comments (<code>&lt;!-- ... --&gt;</code>) are stripped before injection.</p>
+<h3 id="tool-schemas"><a class="header" href="#tool-schemas">Tool Schemas</a></h3>
+<p>How tools are described depends on whether the provider supports native
+tool calling:</p>
+<ul>
+<li><strong>Native tools</strong> (<code>native_tools=true</code>): compact one-liner per tool with
+description truncated to 160 characters. Full JSON schemas are sent via the
+provider’s tool-calling API.</li>
+<li><strong>Fallback</strong> (<code>native_tools=false</code>): full JSON parameter schemas are inlined
+in the prompt, followed by instructions for emitting <code>tool_call</code> JSON blocks.</li>
+</ul>
+<h3 id="guidelines-and-silent-replies"><a class="header" href="#guidelines-and-silent-replies">Guidelines and Silent Replies</a></h3>
+<p>The final section contains:</p>
+<ul>
+<li>Tool usage guidelines (conversation first, when to use exec/browser, <code>/sh</code>
+explicit shell prefix)</li>
+<li>A reminder not to parrot raw tool output</li>
+<li><strong>Silent reply protocol</strong>: when tool output speaks for itself, the LLM should
+return an empty response rather than acknowledging it</li>
+</ul>
+<h2 id="entry-points"><a class="header" href="#entry-points">Entry Points</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Function</th><th>Use case</th></tr></thead><tbody>
+<tr><td><code>build_system_prompt()</code></td><td>Simple: tools + optional project context</td></tr>
+<tr><td><code>build_system_prompt_with_session_runtime()</code></td><td>Full: identity, soul, user, skills, runtime, tools</td></tr>
+<tr><td><code>build_system_prompt_minimal_runtime()</code></td><td>No tools (e.g. title generation, summaries)</td></tr>
+</tbody></table>
+</div>
+<h2 id="size-estimates"><a class="header" href="#size-estimates">Size Estimates</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Configuration</th><th>~Characters</th><th>~Tokens</th></tr></thead><tbody>
+<tr><td>Minimal (no tools, no context)</td><td>200</td><td>50</td></tr>
+<tr><td>Soul + identity + guidelines</td><td>2,000</td><td>500</td></tr>
+<tr><td>Typical with tools</td><td>5,000</td><td>1,250</td></tr>
+<tr><td>Full (tools + project context + skills)</td><td>7,000-10,000</td><td>1,750-2,500</td></tr>
+<tr><td>Large (many MCP tools + full context)</td><td>12,000-15,000</td><td>3,000-3,750</td></tr>
+</tbody></table>
+</div>
+<p>A typical session with a few tools and project context lands around <strong>6k
+characters (~1,500 tokens)</strong>, which is well within normal range for production
+agents (most use 2k-8k tokens for their system prompt).</p>
+<p>The biggest variable-size contributors are <strong>tool schemas</strong> (especially with
+many MCP servers) and <strong>project context</strong> (deep directory hierarchies with
+multiple <code>CLAUDE.md</code> files). These are worth auditing if prompt costs are a
+concern.</p>
+<h2 id="file-locations"><a class="header" href="#file-locations">File Locations</a></h2>
+<pre><code>~/.moltis/
+├── IDENTITY.md          # Agent identity (name, emoji, creature, vibe)
+├── SOUL.md              # Personality directives
+├── USER.md              # User profile (name, timezone, location)
+├── AGENTS.md            # Workspace agent instructions
+└── TOOLS.md             # Tool preferences
+
+&lt;project&gt;/
+├── CLAUDE.md            # Project instructions
+├── CLAUDE.local.md      # Local overrides (gitignored)
+└── .claude/rules/*.md   # Additional rule files
+</code></pre>
+<h2 id="key-source-files"><a class="header" href="#key-source-files">Key Source Files</a></h2>
+<ul>
+<li><code>crates/agents/src/prompt.rs</code> — prompt assembly logic and <code>DEFAULT_SOUL</code></li>
+<li><code>crates/gateway/src/chat.rs</code> — <code>load_prompt_persona()</code>, runtime context
+detection, project context resolution</li>
+<li><code>crates/config/src/loader.rs</code> — file loading (<code>load_soul()</code>,
+<code>load_agents_md()</code>, <code>load_identity()</code>, etc.)</li>
+<li><code>crates/projects/src/context.rs</code> — <code>CLAUDE.md</code> hierarchy walker</li>
+<li><code>crates/skills/src/prompt_gen.rs</code> — skills XML generation</li>
+</ul>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="cloud-deploy.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="streaming.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="cloud-deploy.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="streaming.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+
+    </div>
+    </body>
+</html>

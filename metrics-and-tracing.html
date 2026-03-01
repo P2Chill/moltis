@@ -1,0 +1,630 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Metrics &amp; Tracing - Moltis Documentation</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="Documentation for Moltis - Your AI coding assistant">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="highlight-css" href="highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="theme/admonish.css">
+        <link rel="stylesheet" href="theme/custom.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Moltis Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/moltis-org/moltis" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                        <a href="https://github.com/moltis-org/moltis/edit/main/docs/src/src/metrics-and-tracing.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                            <i id="git-edit-button" class="fa fa-edit"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="metrics-and-tracing"><a class="header" href="#metrics-and-tracing">Metrics and Tracing</a></h1>
+<p>Moltis includes comprehensive observability support through Prometheus metrics and
+tracing integration. This document explains how to enable, configure, and use
+these features.</p>
+<h2 id="overview"><a class="header" href="#overview">Overview</a></h2>
+<p>The metrics system is built on the <a href="https://docs.rs/metrics"><code>metrics</code></a> crate
+facade, which provides a unified interface similar to the <code>log</code> crate. When the
+<code>prometheus</code> feature is enabled, metrics are exported in Prometheus text format
+for scraping by Grafana, Prometheus, or other monitoring tools.</p>
+<p>All metrics are <strong>feature-gated</strong> — they add zero overhead when disabled.</p>
+<h2 id="feature-flags"><a class="header" href="#feature-flags">Feature Flags</a></h2>
+<p>Metrics are controlled by two feature flags:</p>
+<div class="table-wrapper"><table><thead><tr><th>Feature</th><th>Description</th><th>Default</th></tr></thead><tbody>
+<tr><td><code>metrics</code></td><td>Enables metrics collection and the <code>/api/metrics</code> JSON API</td><td>Enabled</td></tr>
+<tr><td><code>prometheus</code></td><td>Enables the <code>/metrics</code> Prometheus endpoint (requires <code>metrics</code>)</td><td>Enabled</td></tr>
+</tbody></table>
+</div>
+<h3 id="compile-time-configuration"><a class="header" href="#compile-time-configuration">Compile-Time Configuration</a></h3>
+<pre><code class="language-toml"># Enable only metrics collection (no Prometheus endpoint)
+moltis-gateway = { version = "0.1", features = ["metrics"] }
+
+# Enable metrics with Prometheus export (default)
+moltis-gateway = { version = "0.1", features = ["metrics", "prometheus"] }
+
+# Enable metrics for specific crates
+moltis-agents = { version = "0.1", features = ["metrics"] }
+moltis-cron = { version = "0.1", features = ["metrics"] }
+</code></pre>
+<p>To build without metrics entirely:</p>
+<pre><code class="language-bash">cargo build --release --no-default-features --features "file-watcher,tailscale,tls,web-ui"
+</code></pre>
+<h2 id="prometheus-endpoint"><a class="header" href="#prometheus-endpoint">Prometheus Endpoint</a></h2>
+<p>When the <code>prometheus</code> feature is enabled, the gateway exposes a <code>/metrics</code> endpoint:</p>
+<pre><code>GET http://localhost:18789/metrics
+</code></pre>
+<p>This endpoint is <strong>unauthenticated</strong> to allow Prometheus scrapers to access it.
+It returns metrics in Prometheus text format:</p>
+<pre><code># HELP moltis_http_requests_total Total number of HTTP requests handled
+# TYPE moltis_http_requests_total counter
+moltis_http_requests_total{method="GET",status="200",endpoint="/api/chat"} 42
+
+# HELP moltis_llm_completion_duration_seconds Duration of LLM completion requests
+# TYPE moltis_llm_completion_duration_seconds histogram
+moltis_llm_completion_duration_seconds_bucket{provider="anthropic",model="claude-3-opus",le="1.0"} 5
+</code></pre>
+<h3 id="grafana-integration"><a class="header" href="#grafana-integration">Grafana Integration</a></h3>
+<p>To scrape metrics with Prometheus and visualize in Grafana:</p>
+<ol>
+<li>Add moltis to your <code>prometheus.yml</code>:</li>
+</ol>
+<pre><code class="language-yaml">scrape_configs:
+  - job_name: 'moltis'
+    static_configs:
+      - targets: ['localhost:18789']
+    metrics_path: /metrics
+    scrape_interval: 15s
+</code></pre>
+<ol start="2">
+<li>Import or create Grafana dashboards using the <code>moltis_*</code> metrics.</li>
+</ol>
+<h2 id="json-api-endpoints"><a class="header" href="#json-api-endpoints">JSON API Endpoints</a></h2>
+<p>For the web UI dashboard and programmatic access, authenticated JSON endpoints
+are available:</p>
+<div class="table-wrapper"><table><thead><tr><th>Endpoint</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>GET /api/metrics</code></td><td>Full metrics snapshot with aggregates and per-provider breakdown</td></tr>
+<tr><td><code>GET /api/metrics/summary</code></td><td>Lightweight counts for navigation badges</td></tr>
+<tr><td><code>GET /api/metrics/history</code></td><td>Time-series data points for charts (last hour, 10s intervals)</td></tr>
+</tbody></table>
+</div>
+<h3 id="history-endpoint"><a class="header" href="#history-endpoint">History Endpoint</a></h3>
+<p>The <code>/api/metrics/history</code> endpoint returns historical metrics data for rendering
+time-series charts:</p>
+<pre><code class="language-json">{
+  "enabled": true,
+  "interval_seconds": 10,
+  "max_points": 60480,
+  "points": [
+    {
+      "timestamp": 1706832000000,
+      "llm_completions": 42,
+      "llm_input_tokens": 15000,
+      "llm_output_tokens": 8000,
+      "http_requests": 150,
+      "ws_active": 3,
+      "tool_executions": 25,
+      "mcp_calls": 12,
+      "active_sessions": 2
+    }
+  ]
+}
+</code></pre>
+<h2 id="metrics-persistence"><a class="header" href="#metrics-persistence">Metrics Persistence</a></h2>
+<p>Metrics history is persisted to SQLite, so historical data survives server
+restarts. The database is stored at <code>~/.moltis/metrics.db</code> (or the configured
+data directory).</p>
+<p>Key features:</p>
+<ul>
+<li><strong>7-day retention</strong>: History is kept for 7 days (60,480 data points at
+10-second intervals)</li>
+<li><strong>Automatic cleanup</strong>: Old data is automatically removed hourly</li>
+<li><strong>Startup recovery</strong>: History is loaded from the database when the server
+starts</li>
+</ul>
+<p>The storage backend uses a trait-based design (<code>MetricsStore</code>), allowing
+alternative implementations (e.g., TimescaleDB) for larger deployments.</p>
+<h3 id="storage-architecture"><a class="header" href="#storage-architecture">Storage Architecture</a></h3>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// The MetricsStore trait defines the storage interface
+#[async_trait]
+pub trait MetricsStore: Send + Sync {
+    async fn save_point(&amp;self, point: &amp;MetricsHistoryPoint) -&gt; Result&lt;()&gt;;
+    async fn load_history(&amp;self, since: u64, limit: usize) -&gt; Result&lt;Vec&lt;MetricsHistoryPoint&gt;&gt;;
+    async fn cleanup_before(&amp;self, before: u64) -&gt; Result&lt;u64&gt;;
+    async fn latest_point(&amp;self) -&gt; Result&lt;Option&lt;MetricsHistoryPoint&gt;&gt;;
+}
+<span class="boring">}</span></code></pre></pre>
+<p>The default <code>SqliteMetricsStore</code> implementation stores data in a single table
+with an index on the timestamp column for efficient range queries.</p>
+<h2 id="web-ui-dashboard"><a class="header" href="#web-ui-dashboard">Web UI Dashboard</a></h2>
+<p>The gateway includes a built-in metrics dashboard at <code>/monitoring</code> in the web UI.
+This page displays:</p>
+<p><strong>Overview Tab:</strong></p>
+<ul>
+<li>System metrics (uptime, connected clients, active sessions)</li>
+<li>LLM usage (completions, tokens, cache statistics)</li>
+<li>Tool execution statistics</li>
+<li>MCP server status</li>
+<li>Provider breakdown table</li>
+<li>Prometheus endpoint (with copy button)</li>
+</ul>
+<p><strong>Charts Tab:</strong></p>
+<ul>
+<li>Token usage over time (input/output)</li>
+<li>HTTP requests and LLM completions</li>
+<li>WebSocket connections and active sessions</li>
+<li>Tool executions and MCP calls</li>
+</ul>
+<p>The dashboard uses <a href="https://github.com/leeoniya/uPlot">uPlot</a> for lightweight,
+high-performance time-series charts. Data updates every 10 seconds for current
+metrics and every 30 seconds for history.</p>
+<h2 id="available-metrics"><a class="header" href="#available-metrics">Available Metrics</a></h2>
+<h3 id="http-metrics"><a class="header" href="#http-metrics">HTTP Metrics</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Metric</th><th>Type</th><th>Labels</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>moltis_http_requests_total</code></td><td>Counter</td><td>method, status, endpoint</td><td>Total HTTP requests</td></tr>
+<tr><td><code>moltis_http_request_duration_seconds</code></td><td>Histogram</td><td>method, status, endpoint</td><td>Request latency</td></tr>
+<tr><td><code>moltis_http_requests_in_flight</code></td><td>Gauge</td><td>—</td><td>Currently processing requests</td></tr>
+</tbody></table>
+</div>
+<h3 id="llmagent-metrics"><a class="header" href="#llmagent-metrics">LLM/Agent Metrics</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Metric</th><th>Type</th><th>Labels</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>moltis_llm_completions_total</code></td><td>Counter</td><td>provider, model</td><td>Total completions requested</td></tr>
+<tr><td><code>moltis_llm_completion_duration_seconds</code></td><td>Histogram</td><td>provider, model</td><td>Completion latency</td></tr>
+<tr><td><code>moltis_llm_input_tokens_total</code></td><td>Counter</td><td>provider, model</td><td>Input tokens processed</td></tr>
+<tr><td><code>moltis_llm_output_tokens_total</code></td><td>Counter</td><td>provider, model</td><td>Output tokens generated</td></tr>
+<tr><td><code>moltis_llm_completion_errors_total</code></td><td>Counter</td><td>provider, model, error_type</td><td>Completion failures</td></tr>
+<tr><td><code>moltis_llm_time_to_first_token_seconds</code></td><td>Histogram</td><td>provider, model</td><td>Streaming TTFT</td></tr>
+</tbody></table>
+</div>
+<h4 id="provider-aliases"><a class="header" href="#provider-aliases">Provider Aliases</a></h4>
+<p>When you have multiple instances of the same provider type (e.g., separate API keys
+for work and personal use), you can use the <code>alias</code> configuration option to
+differentiate them in metrics:</p>
+<pre><code class="language-toml">[providers.anthropic]
+api_key = "sk-work-..."
+alias = "anthropic-work"
+
+# Note: You would need separate config sections for multiple instances
+# of the same provider. This is a placeholder for future functionality.
+</code></pre>
+<p>The alias appears in the <code>provider</code> label of all LLM metrics:</p>
+<pre><code>moltis_llm_input_tokens_total{provider="anthropic-work", model="claude-3-opus"} 5000
+moltis_llm_input_tokens_total{provider="anthropic-personal", model="claude-3-opus"} 3000
+</code></pre>
+<p>This allows you to:</p>
+<ul>
+<li>Track token usage separately for billing purposes</li>
+<li>Create separate Grafana dashboards per provider instance</li>
+<li>Monitor rate limits and quotas independently</li>
+</ul>
+<h3 id="mcp-model-context-protocol-metrics"><a class="header" href="#mcp-model-context-protocol-metrics">MCP (Model Context Protocol) Metrics</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Metric</th><th>Type</th><th>Labels</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>moltis_mcp_tool_calls_total</code></td><td>Counter</td><td>server, tool</td><td>Tool invocations</td></tr>
+<tr><td><code>moltis_mcp_tool_call_duration_seconds</code></td><td>Histogram</td><td>server, tool</td><td>Tool call latency</td></tr>
+<tr><td><code>moltis_mcp_tool_call_errors_total</code></td><td>Counter</td><td>server, tool, error_type</td><td>Tool call failures</td></tr>
+<tr><td><code>moltis_mcp_servers_connected</code></td><td>Gauge</td><td>—</td><td>Active MCP server connections</td></tr>
+</tbody></table>
+</div>
+<h3 id="tool-execution-metrics"><a class="header" href="#tool-execution-metrics">Tool Execution Metrics</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Metric</th><th>Type</th><th>Labels</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>moltis_tool_executions_total</code></td><td>Counter</td><td>tool</td><td>Tool executions</td></tr>
+<tr><td><code>moltis_tool_execution_duration_seconds</code></td><td>Histogram</td><td>tool</td><td>Execution time</td></tr>
+<tr><td><code>moltis_sandbox_command_executions_total</code></td><td>Counter</td><td>—</td><td>Sandbox commands run</td></tr>
+</tbody></table>
+</div>
+<h3 id="session-metrics"><a class="header" href="#session-metrics">Session Metrics</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Metric</th><th>Type</th><th>Labels</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>moltis_sessions_created_total</code></td><td>Counter</td><td>—</td><td>Sessions created</td></tr>
+<tr><td><code>moltis_sessions_active</code></td><td>Gauge</td><td>—</td><td>Currently active sessions</td></tr>
+<tr><td><code>moltis_session_messages_total</code></td><td>Counter</td><td>role</td><td>Messages by role</td></tr>
+</tbody></table>
+</div>
+<h3 id="cron-job-metrics"><a class="header" href="#cron-job-metrics">Cron Job Metrics</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Metric</th><th>Type</th><th>Labels</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>moltis_cron_jobs_scheduled</code></td><td>Gauge</td><td>—</td><td>Number of scheduled jobs</td></tr>
+<tr><td><code>moltis_cron_executions_total</code></td><td>Counter</td><td>—</td><td>Job executions</td></tr>
+<tr><td><code>moltis_cron_execution_duration_seconds</code></td><td>Histogram</td><td>—</td><td>Job duration</td></tr>
+<tr><td><code>moltis_cron_errors_total</code></td><td>Counter</td><td>—</td><td>Failed jobs</td></tr>
+<tr><td><code>moltis_cron_stuck_jobs_cleared_total</code></td><td>Counter</td><td>—</td><td>Jobs exceeding 2h timeout</td></tr>
+<tr><td><code>moltis_cron_input_tokens_total</code></td><td>Counter</td><td>—</td><td>Input tokens from cron runs</td></tr>
+<tr><td><code>moltis_cron_output_tokens_total</code></td><td>Counter</td><td>—</td><td>Output tokens from cron runs</td></tr>
+</tbody></table>
+</div>
+<h3 id="memorysearch-metrics"><a class="header" href="#memorysearch-metrics">Memory/Search Metrics</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Metric</th><th>Type</th><th>Labels</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>moltis_memory_searches_total</code></td><td>Counter</td><td>search_type</td><td>Searches performed</td></tr>
+<tr><td><code>moltis_memory_search_duration_seconds</code></td><td>Histogram</td><td>search_type</td><td>Search latency</td></tr>
+<tr><td><code>moltis_memory_embeddings_generated_total</code></td><td>Counter</td><td>provider</td><td>Embeddings created</td></tr>
+</tbody></table>
+</div>
+<h3 id="channel-metrics"><a class="header" href="#channel-metrics">Channel Metrics</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Metric</th><th>Type</th><th>Labels</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>moltis_channels_active</code></td><td>Gauge</td><td>—</td><td>Loaded channel plugins</td></tr>
+<tr><td><code>moltis_channel_messages_received_total</code></td><td>Counter</td><td>channel</td><td>Inbound messages</td></tr>
+<tr><td><code>moltis_channel_messages_sent_total</code></td><td>Counter</td><td>channel</td><td>Outbound messages</td></tr>
+</tbody></table>
+</div>
+<h3 id="telegram-specific-metrics"><a class="header" href="#telegram-specific-metrics">Telegram-Specific Metrics</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Metric</th><th>Type</th><th>Labels</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>moltis_telegram_messages_received_total</code></td><td>Counter</td><td>—</td><td>Messages from Telegram</td></tr>
+<tr><td><code>moltis_telegram_access_control_denials_total</code></td><td>Counter</td><td>—</td><td>Access denied events</td></tr>
+<tr><td><code>moltis_telegram_polling_duration_seconds</code></td><td>Histogram</td><td>—</td><td>Message handling time</td></tr>
+</tbody></table>
+</div>
+<h3 id="oauth-metrics"><a class="header" href="#oauth-metrics">OAuth Metrics</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Metric</th><th>Type</th><th>Labels</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>moltis_oauth_flow_starts_total</code></td><td>Counter</td><td>—</td><td>OAuth flows initiated</td></tr>
+<tr><td><code>moltis_oauth_flow_completions_total</code></td><td>Counter</td><td>—</td><td>Successful completions</td></tr>
+<tr><td><code>moltis_oauth_token_refresh_total</code></td><td>Counter</td><td>—</td><td>Token refreshes</td></tr>
+<tr><td><code>moltis_oauth_token_refresh_failures_total</code></td><td>Counter</td><td>—</td><td>Refresh failures</td></tr>
+</tbody></table>
+</div>
+<h3 id="skills-metrics"><a class="header" href="#skills-metrics">Skills Metrics</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Metric</th><th>Type</th><th>Labels</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>moltis_skills_installation_attempts_total</code></td><td>Counter</td><td>—</td><td>Installation attempts</td></tr>
+<tr><td><code>moltis_skills_installation_duration_seconds</code></td><td>Histogram</td><td>—</td><td>Installation time</td></tr>
+<tr><td><code>moltis_skills_git_clone_total</code></td><td>Counter</td><td>—</td><td>Successful git clones</td></tr>
+<tr><td><code>moltis_skills_git_clone_fallback_total</code></td><td>Counter</td><td>—</td><td>Fallbacks to HTTP tarball</td></tr>
+</tbody></table>
+</div>
+<h2 id="tracing-integration"><a class="header" href="#tracing-integration">Tracing Integration</a></h2>
+<p>The <code>moltis-metrics</code> crate includes optional tracing integration via the
+<code>tracing</code> feature. This allows span context to propagate to metric labels.</p>
+<h3 id="enabling-tracing"><a class="header" href="#enabling-tracing">Enabling Tracing</a></h3>
+<pre><code class="language-toml">moltis-metrics = { version = "0.1", features = ["prometheus", "tracing"] }
+</code></pre>
+<h3 id="initialization"><a class="header" href="#initialization">Initialization</a></h3>
+<pre><pre class="playground"><code class="language-rust">use moltis_metrics::tracing_integration::init_tracing;
+
+fn main() {
+    // Initialize tracing with metrics context propagation
+    init_tracing();
+
+    // Now spans will add labels to metrics
+}</code></pre></pre>
+<h3 id="how-it-works"><a class="header" href="#how-it-works">How It Works</a></h3>
+<p>When tracing is enabled, span fields are automatically added as metric labels:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use tracing::instrument;
+
+#[instrument(fields(operation = "fetch_user", component = "api"))]
+async fn fetch_user(id: u64) -&gt; User {
+    // Metrics recorded here will include:
+    // - operation="fetch_user"
+    // - component="api"
+    counter!("api_calls_total").increment(1);
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="span-labels"><a class="header" href="#span-labels">Span Labels</a></h3>
+<p>The following span fields are propagated to metrics:</p>
+<div class="table-wrapper"><table><thead><tr><th>Field</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>operation</code></td><td>The operation being performed</td></tr>
+<tr><td><code>component</code></td><td>The component/module name</td></tr>
+<tr><td><code>span.name</code></td><td>The span’s target/name</td></tr>
+</tbody></table>
+</div>
+<h2 id="adding-custom-metrics"><a class="header" href="#adding-custom-metrics">Adding Custom Metrics</a></h2>
+<h3 id="in-your-code"><a class="header" href="#in-your-code">In Your Code</a></h3>
+<p>Use the <code>metrics</code> macros re-exported from <code>moltis-metrics</code>:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use moltis_metrics::{counter, gauge, histogram, labels};
+
+// Simple counter
+counter!("my_custom_requests_total").increment(1);
+
+// Counter with labels
+counter!(
+    "my_custom_requests_total",
+    labels::ENDPOINT =&gt; "/api/users",
+    labels::METHOD =&gt; "GET"
+).increment(1);
+
+// Gauge (current value)
+gauge!("my_queue_size").set(42.0);
+
+// Histogram (distribution)
+histogram!("my_operation_duration_seconds").record(0.123);
+<span class="boring">}</span></code></pre></pre>
+<h3 id="feature-gating"><a class="header" href="#feature-gating">Feature-Gating</a></h3>
+<p>Always gate metrics code to avoid overhead when disabled:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[cfg(feature = "metrics")]
+use moltis_metrics::{counter, histogram};
+
+pub async fn my_function() {
+    #[cfg(feature = "metrics")]
+    let start = std::time::Instant::now();
+
+    // ... do work ...
+
+    #[cfg(feature = "metrics")]
+    {
+        counter!("my_operations_total").increment(1);
+        histogram!("my_operation_duration_seconds")
+            .record(start.elapsed().as_secs_f64());
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="adding-new-metric-definitions"><a class="header" href="#adding-new-metric-definitions">Adding New Metric Definitions</a></h3>
+<p>For consistency, add metric name constants to <code>crates/metrics/src/definitions.rs</code>:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>/// My feature metrics
+pub mod my_feature {
+    /// Total operations performed
+    pub const OPERATIONS_TOTAL: &amp;str = "moltis_my_feature_operations_total";
+    /// Operation duration in seconds
+    pub const OPERATION_DURATION_SECONDS: &amp;str = "moltis_my_feature_operation_duration_seconds";
+}
+<span class="boring">}</span></code></pre></pre>
+<p>Then use them:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use moltis_metrics::{counter, my_feature};
+
+counter!(my_feature::OPERATIONS_TOTAL).increment(1);
+<span class="boring">}</span></code></pre></pre>
+<h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
+<p>Metrics configuration in <code>moltis.toml</code>:</p>
+<pre><code class="language-toml">[metrics]
+enabled = true              # Enable metrics collection (default: true)
+prometheus_endpoint = true  # Expose /metrics endpoint (default: true)
+labels = { env = "prod" }   # Add custom labels to all metrics
+</code></pre>
+<p>Environment variables:</p>
+<ul>
+<li><code>RUST_LOG=moltis_metrics=debug</code> — Enable debug logging for metrics initialization</li>
+</ul>
+<h2 id="best-practices"><a class="header" href="#best-practices">Best Practices</a></h2>
+<ol>
+<li><strong>Use consistent naming</strong>: Follow the pattern <code>moltis_&lt;subsystem&gt;_&lt;metric&gt;_&lt;unit&gt;</code></li>
+<li><strong>Add units to names</strong>: <code>_total</code> for counters, <code>_seconds</code> for durations, <code>_bytes</code> for sizes</li>
+<li><strong>Keep cardinality low</strong>: Avoid high-cardinality labels (like user IDs or request IDs)</li>
+<li><strong>Feature-gate everything</strong>: Use <code>#[cfg(feature = "metrics")]</code> to ensure zero overhead when disabled</li>
+<li><strong>Use predefined buckets</strong>: The <code>buckets</code> module has standard histogram buckets for common metric types</li>
+</ol>
+<h2 id="troubleshooting"><a class="header" href="#troubleshooting">Troubleshooting</a></h2>
+<h3 id="metrics-not-appearing"><a class="header" href="#metrics-not-appearing">Metrics not appearing</a></h3>
+<ol>
+<li>Verify the <code>metrics</code> feature is enabled at compile time</li>
+<li>Check that the metrics recorder is initialized (happens automatically in gateway)</li>
+<li>Ensure you’re hitting the correct <code>/metrics</code> endpoint</li>
+<li>Check <code>moltis.toml</code> has <code>[metrics] enabled = true</code></li>
+</ol>
+<h3 id="prometheus-endpoint-not-available"><a class="header" href="#prometheus-endpoint-not-available">Prometheus endpoint not available</a></h3>
+<ol>
+<li>Ensure the <code>prometheus</code> feature is enabled (it’s separate from <code>metrics</code>)</li>
+<li>Check your build: <code>cargo build --features prometheus</code></li>
+</ol>
+<h3 id="high-memory-usage"><a class="header" href="#high-memory-usage">High memory usage</a></h3>
+<ul>
+<li>Check for high-cardinality labels (many unique label combinations)</li>
+<li>Consider reducing histogram bucket counts</li>
+</ul>
+<h3 id="missing-labels"><a class="header" href="#missing-labels">Missing labels</a></h3>
+<ul>
+<li>Ensure labels are passed consistently across all metric recordings</li>
+<li>Check that tracing spans include the expected fields</li>
+</ul>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="sqlite-migration.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="tool-registry.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="sqlite-migration.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="tool-registry.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+
+    </div>
+    </body>
+</html>

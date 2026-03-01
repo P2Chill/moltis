@@ -1,0 +1,461 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Moltis vs OpenClaw - Moltis Documentation</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="Documentation for Moltis - Your AI coding assistant">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="highlight-css" href="highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="theme/admonish.css">
+        <link rel="stylesheet" href="theme/custom.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Moltis Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/moltis-org/moltis" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                        <a href="https://github.com/moltis-org/moltis/edit/main/docs/src/src/memory-comparison.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                            <i id="git-edit-button" class="fa fa-edit"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="memory-moltis-vs-openclaw"><a class="header" href="#memory-moltis-vs-openclaw">Memory: Moltis vs OpenClaw</a></h1>
+<p>This page provides a detailed comparison of the memory systems in Moltis and
+<a href="https://github.com/openclaw/openclaw">OpenClaw</a>. Both projects share the
+same core architecture for long-term memory, but differ in implementation
+details, tool surface, and configuration.</p>
+<h2 id="overview"><a class="header" href="#overview">Overview</a></h2>
+<p>Both systems follow the same fundamental approach: <strong>plain Markdown files are
+the source of truth</strong> for agent memory, indexed for semantic search using
+hybrid vector + keyword retrieval. The agent reads from memory via search
+tools and writes to memory via file-writing tools (either dedicated or
+general-purpose).</p>
+<h2 id="feature-comparison"><a class="header" href="#feature-comparison">Feature Comparison</a></h2>
+<h3 id="storage-and-indexing"><a class="header" href="#storage-and-indexing">Storage and Indexing</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Feature</th><th>Moltis</th><th>OpenClaw</th></tr></thead><tbody>
+<tr><td><strong>Storage format</strong></td><td>Markdown files on disk</td><td>Markdown files on disk</td></tr>
+<tr><td><strong>Index storage</strong></td><td>SQLite (per data dir)</td><td>SQLite (per agent)</td></tr>
+<tr><td><strong>Default backend</strong></td><td>Built-in (SQLite + FTS5 + vector)</td><td>Built-in (SQLite + BM25 + vector)</td></tr>
+<tr><td><strong>Alternative backend</strong></td><td>QMD (sidecar, BM25 + vector + reranking)</td><td>QMD (sidecar, BM25 + vector + reranking)</td></tr>
+<tr><td><strong>Keyword search</strong></td><td>FTS5</td><td>BM25</td></tr>
+<tr><td><strong>Vector search</strong></td><td>Cosine similarity</td><td>Cosine similarity</td></tr>
+<tr><td><strong>Hybrid scoring</strong></td><td>Configurable vector/keyword weights</td><td>Configurable vector/text weights</td></tr>
+<tr><td><strong>Chunking</strong></td><td>Markdown-aware (~400 tokens, configurable)</td><td>Markdown-aware (~400 tokens, 80-token overlap)</td></tr>
+<tr><td><strong>Embedding cache</strong></td><td>SQLite with LRU eviction</td><td>SQLite, chunk-level</td></tr>
+<tr><td><strong>File watching</strong></td><td>Real-time sync via <code>notify</code></td><td>File watcher with 1.5s debounce</td></tr>
+<tr><td><strong>Auto-reindex on provider change</strong></td><td>No (manual)</td><td>Yes (fingerprint-based)</td></tr>
+</tbody></table>
+</div>
+<h3 id="embedding-providers"><a class="header" href="#embedding-providers">Embedding Providers</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Provider</th><th>Moltis</th><th>OpenClaw</th></tr></thead><tbody>
+<tr><td><strong>Local GGUF</strong></td><td>EmbeddingGemma-300M via llama-cpp-2</td><td>Auto-download GGUF (~0.6 GB)</td></tr>
+<tr><td><strong>Ollama</strong></td><td>nomic-embed-text</td><td>Not listed</td></tr>
+<tr><td><strong>OpenAI</strong></td><td>text-embedding-3-small</td><td>Via API key</td></tr>
+<tr><td><strong>Gemini</strong></td><td>Not available</td><td>Via API key</td></tr>
+<tr><td><strong>Voyage</strong></td><td>Not available</td><td>Via API key</td></tr>
+<tr><td><strong>Custom endpoint</strong></td><td>OpenAI-compatible</td><td>Not listed</td></tr>
+<tr><td><strong>Batch embedding</strong></td><td>OpenAI batch API (50% cost saving)</td><td>OpenAI, Gemini, Voyage batch</td></tr>
+<tr><td><strong>Fallback chain</strong></td><td>Auto-detect + circuit breaker</td><td>Auto-select in priority order</td></tr>
+<tr><td><strong>Offline support</strong></td><td>Yes (local embeddings)</td><td>Yes (local embeddings)</td></tr>
+</tbody></table>
+</div>
+<h3 id="memory-files"><a class="header" href="#memory-files">Memory Files</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Aspect</th><th>Moltis</th><th>OpenClaw</th></tr></thead><tbody>
+<tr><td><strong>Data directory</strong></td><td><code>~/.moltis/</code> (configurable)</td><td><code>~/.openclaw/workspace/</code></td></tr>
+<tr><td><strong>Long-term memory</strong></td><td><code>MEMORY.md</code></td><td><code>MEMORY.md</code></td></tr>
+<tr><td><strong>Daily logs</strong></td><td><code>memory/YYYY-MM-DD.md</code></td><td><code>memory/YYYY-MM-DD.md</code></td></tr>
+<tr><td><strong>Session transcripts</strong></td><td><code>memory/sessions/*.md</code></td><td>Session JSONL files (separate)</td></tr>
+<tr><td><strong>Extra paths</strong></td><td>Via <code>memory_dirs</code> config</td><td>Via <code>memorySearch.extraPaths</code></td></tr>
+<tr><td><strong>MEMORY.md loading</strong></td><td>Always available in system prompt</td><td>Only in private sessions (not group chats)</td></tr>
+</tbody></table>
+</div>
+<h3 id="agent-tools"><a class="header" href="#agent-tools">Agent Tools</a></h3>
+<p>This is where the two systems differ most significantly in approach.</p>
+<div class="table-wrapper"><table><thead><tr><th>Tool</th><th>Moltis</th><th>OpenClaw</th></tr></thead><tbody>
+<tr><td><strong>memory_search</strong></td><td>Dedicated tool, hybrid search</td><td>Dedicated tool, hybrid search</td></tr>
+<tr><td><strong>memory_get</strong></td><td>Dedicated tool, by chunk ID</td><td>Dedicated tool, by path + optional line range</td></tr>
+<tr><td><strong>memory_save</strong></td><td>Dedicated tool with path validation</td><td>No dedicated tool</td></tr>
+<tr><td><strong>General file writing</strong></td><td><code>exec</code> tool (shell commands)</td><td>Generic <code>write_file</code> tool</td></tr>
+<tr><td><strong>Silent memory turn</strong></td><td>Pre-compaction flush via <code>MemoryWriter</code></td><td>Pre-compaction flush via <code>write_file</code></td></tr>
+</tbody></table>
+</div>
+<h4 id="how-remember-x-works"><a class="header" href="#how-remember-x-works">How “Remember X” Works</a></h4>
+<p>When a user says “remember that I prefer dark mode”, here is how each system
+handles it:</p>
+<p><strong>Moltis:</strong>
+The agent calls the <code>memory_save</code> tool directly:</p>
+<pre><code class="language-json">{
+  "content": "User prefers dark mode.",
+  "file": "MEMORY.md",
+  "append": true
+}
+</code></pre>
+<p>The <code>memory_save</code> tool validates the path, writes the file, and re-indexes it
+so the content is immediately searchable. The agent does not need shell access
+or a generic file-writing tool.</p>
+<p><strong>OpenClaw:</strong>
+The agent calls the generic <code>write_file</code> tool (which is also used for writing
+code, configs, and any other file):</p>
+<pre><code class="language-json">{
+  "path": "MEMORY.md",
+  "content": "User prefers dark mode.",
+  "append": true
+}
+</code></pre>
+<p>The system prompt instructs the agent which paths are for memory. The tool
+itself has no special memory awareness – it is a general-purpose file writer.
+The memory indexer’s file watcher detects the change and re-indexes
+asynchronously (1.5s debounce).</p>
+<p><strong>Key difference:</strong> Moltis uses a purpose-built <code>memory_save</code> tool with
+built-in path validation (only <code>MEMORY.md</code> and <code>memory/*.md</code> are writable)
+and immediate re-indexing. OpenClaw uses a general-purpose <code>write_file</code> tool
+that can write anywhere, relying on the system prompt to guide the agent to
+memory paths and the file watcher to re-index.</p>
+<h3 id="session-memory-and-compaction"><a class="header" href="#session-memory-and-compaction">Session Memory and Compaction</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Feature</th><th>Moltis</th><th>OpenClaw</th></tr></thead><tbody>
+<tr><td><strong>Session storage</strong></td><td>SQLite database</td><td>JSONL files (append-only, tree structure)</td></tr>
+<tr><td><strong>Auto-compaction</strong></td><td>Yes, near context window limit</td><td>Yes, near context window limit</td></tr>
+<tr><td><strong>Manual compaction</strong></td><td>Not yet</td><td><code>/compact</code> command with optional instructions</td></tr>
+<tr><td><strong>Pre-compaction memory flush</strong></td><td>Silent turn via <code>MemoryWriter</code> trait</td><td>Silent turn via <code>write_file</code> tool</td></tr>
+<tr><td><strong>Flush visibility</strong></td><td>Completely hidden from user</td><td>Hidden via <code>NO_REPLY</code> convention</td></tr>
+<tr><td><strong>Session export to memory</strong></td><td>Markdown files in <code>memory/sessions/</code></td><td>Optional (<code>sessionMemory</code> experimental flag)</td></tr>
+<tr><td><strong>Session pruning</strong></td><td>Not yet</td><td>Cache-TTL based, trims old tool results</td></tr>
+<tr><td><strong>Session transcript indexing</strong></td><td>Via session export</td><td>Experimental, async delta-based</td></tr>
+</tbody></table>
+</div>
+<h3 id="pre-compaction-memory-flush-detailed-comparison"><a class="header" href="#pre-compaction-memory-flush-detailed-comparison">Pre-Compaction Memory Flush: Detailed Comparison</a></h3>
+<p>Both systems run a hidden LLM turn before compaction to persist important
+context. The implementation differs:</p>
+<p><strong>Moltis:</strong></p>
+<ul>
+<li>The gateway detects that compaction is needed</li>
+<li>A <code>run_silent_memory_turn()</code> call creates a temporary agent loop with a
+<code>write_file</code> tool backed by <code>MemoryWriter</code></li>
+<li>The <code>MemoryWriter</code> trait is implemented by <code>MemoryManager</code>, which validates
+paths and re-indexes after writing</li>
+<li>The LLM’s response text is discarded</li>
+<li>Written file paths are returned to the caller for logging</li>
+</ul>
+<p><strong>OpenClaw:</strong></p>
+<ul>
+<li>A soft threshold (default 4000 tokens below compaction trigger) activates
+the flush</li>
+<li>The flush executes as a regular turn with <code>NO_REPLY</code> prefix to suppress
+user-facing output</li>
+<li>The agent writes memory files via the same <code>write_file</code> tool used during
+normal conversation</li>
+<li>Flush state is tracked in <code>sessions.json</code> (<code>memoryFlushAt</code>,
+<code>memoryFlushCompactionCount</code>) to run once per compaction cycle</li>
+<li>Skipped for read-only workspaces</li>
+</ul>
+<h3 id="write-path-security"><a class="header" href="#write-path-security">Write Path Security</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Aspect</th><th>Moltis</th><th>OpenClaw</th></tr></thead><tbody>
+<tr><td><strong>Path validation</strong></td><td>Strict allowlist (MEMORY.md, memory.md, memory/*.md)</td><td>No special memory path restrictions</td></tr>
+<tr><td><strong>Traversal prevention</strong></td><td>Rejects <code>..</code>, absolute paths, non-.md extensions</td><td>Relies on workspace sandboxing</td></tr>
+<tr><td><strong>Size limit</strong></td><td>50 KB per write</td><td>No documented limit</td></tr>
+<tr><td><strong>Write scope</strong></td><td>Only memory files</td><td>Any file in workspace</td></tr>
+<tr><td><strong>Mechanism</strong></td><td><code>validate_memory_path()</code> in <code>MemoryWriter</code></td><td>Workspace access mode (rw/ro/none)</td></tr>
+</tbody></table>
+</div>
+<h3 id="search-features"><a class="header" href="#search-features">Search Features</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Feature</th><th>Moltis</th><th>OpenClaw</th></tr></thead><tbody>
+<tr><td><strong>LLM reranking</strong></td><td>Optional (configurable)</td><td>Built-in with QMD</td></tr>
+<tr><td><strong>Citations</strong></td><td>Configurable (auto/on/off)</td><td>Configurable (auto/on/off)</td></tr>
+<tr><td><strong>Result format</strong></td><td>Chunk ID, path, source, line range, score, text</td><td>Path, line range, score, snippet (~700 chars)</td></tr>
+<tr><td><strong>Fallback</strong></td><td>Keyword-only if no embeddings</td><td>BM25-only if no embeddings</td></tr>
+</tbody></table>
+</div>
+<h3 id="configuration"><a class="header" href="#configuration">Configuration</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Setting</th><th>Moltis (<code>moltis.toml</code>)</th><th>OpenClaw (<code>openclaw.json</code>)</th></tr></thead><tbody>
+<tr><td><strong>Backend</strong></td><td><code>memory.backend = "builtin"</code></td><td><code>memory.backend = "builtin"</code></td></tr>
+<tr><td><strong>Provider</strong></td><td><code>memory.provider = "local"</code></td><td>Auto-detect from available keys</td></tr>
+<tr><td><strong>Citations</strong></td><td><code>memory.citations = "auto"</code></td><td><code>memory.citations = "auto"</code></td></tr>
+<tr><td><strong>LLM reranking</strong></td><td><code>memory.llm_reranking = false</code></td><td>Via QMD config</td></tr>
+<tr><td><strong>Session export</strong></td><td><code>memory.session_export = true</code></td><td><code>memorySearch.experimental.sessionMemory</code></td></tr>
+<tr><td><strong>UI configuration</strong></td><td>Settings &gt; Memory page</td><td>Config file only</td></tr>
+<tr><td><strong>QMD settings</strong></td><td><code>[memory.qmd]</code> section</td><td><code>memory.backend = "qmd"</code></td></tr>
+</tbody></table>
+</div>
+<h3 id="cli-commands"><a class="header" href="#cli-commands">CLI Commands</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Command</th><th>Moltis</th><th>OpenClaw</th></tr></thead><tbody>
+<tr><td><strong>Status</strong></td><td>Settings &gt; Memory (web UI)</td><td><code>openclaw memory status [--deep]</code></td></tr>
+<tr><td><strong>Index/reindex</strong></td><td>Automatic on startup</td><td><code>openclaw memory index [--verbose]</code></td></tr>
+<tr><td><strong>Search</strong></td><td>Via agent tool only</td><td><code>openclaw memory search "query"</code></td></tr>
+<tr><td><strong>Per-agent scoping</strong></td><td>Single agent</td><td><code>--agent &lt;id&gt;</code> flag</td></tr>
+</tbody></table>
+</div>
+<h3 id="architecture"><a class="header" href="#architecture">Architecture</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Aspect</th><th>Moltis</th><th>OpenClaw</th></tr></thead><tbody>
+<tr><td><strong>Language</strong></td><td>Rust</td><td>TypeScript/Node.js</td></tr>
+<tr><td><strong>Memory crate/module</strong></td><td><code>moltis-memory</code> crate</td><td><code>memory-core</code> plugin</td></tr>
+<tr><td><strong>Write abstraction</strong></td><td><code>MemoryWriter</code> trait (shared by tools and silent turn)</td><td>Direct file I/O via <code>write_file</code> tool</td></tr>
+<tr><td><strong>Plugin system</strong></td><td>Memory is a core crate</td><td>Memory is a swappable plugin slot</td></tr>
+<tr><td><strong>Multi-agent</strong></td><td>Single agent</td><td>Per-agent memory isolation</td></tr>
+</tbody></table>
+</div>
+<h2 id="what-moltis-has-that-openclaw-does-not"><a class="header" href="#what-moltis-has-that-openclaw-does-not">What Moltis Has That OpenClaw Does Not</a></h2>
+<ul>
+<li><strong>Dedicated <code>memory_save</code> tool</strong> with path validation and immediate
+re-indexing, reducing reliance on the system prompt for write guidance</li>
+<li><strong>Ollama embedding support</strong> as a provider option</li>
+<li><strong>Custom OpenAI-compatible embedding endpoints</strong></li>
+<li><strong>Circuit breaker</strong> with automatic fallback chain for embedding providers</li>
+<li><strong>Web UI for memory configuration</strong> (Settings &gt; Memory page)</li>
+<li><strong>Pure Rust implementation</strong> with zero external runtime dependencies</li>
+</ul>
+<h2 id="what-openclaw-has-that-moltis-does-not-yet"><a class="header" href="#what-openclaw-has-that-moltis-does-not-yet">What OpenClaw Has That Moltis Does Not (Yet)</a></h2>
+<ul>
+<li><strong>Manual <code>/compact</code> command</strong> with user-specified instructions</li>
+<li><strong>CLI memory commands</strong> (<code>status</code>, <code>index</code>, <code>search</code>) for debugging</li>
+<li><strong>Session pruning</strong> (cache-TTL based trimming of old tool results)</li>
+<li><strong>Gemini and Voyage embedding providers</strong></li>
+<li><strong>Per-agent memory isolation</strong> for multi-agent setups</li>
+<li><strong>Automatic re-indexing on embedding provider/model change</strong> (fingerprint
+detection)</li>
+<li><strong>Memory plugin slot</strong> allowing third-party memory implementations</li>
+<li><strong>Flush-once-per-compaction tracking</strong> to avoid redundant silent turns</li>
+<li><strong>Configurable flush threshold</strong> (soft threshold tokens before compaction)</li>
+</ul>
+<h2 id="summary"><a class="header" href="#summary">Summary</a></h2>
+<p>The two systems are architecturally equivalent – both use Markdown files,
+hybrid search, and pre-compaction memory flushes. The main differences are:</p>
+<ol>
+<li>
+<p><strong>Tool approach</strong>: Moltis provides a purpose-built <code>memory_save</code> tool with
+security validation; OpenClaw uses a general-purpose <code>write_file</code> tool
+guided by the system prompt.</p>
+</li>
+<li>
+<p><strong>Write safety</strong>: Moltis validates write paths at the tool level (allowlist</p>
+<ul>
+<li>traversal checks); OpenClaw relies on workspace-level access control.</li>
+</ul>
+</li>
+<li>
+<p><strong>Implementation</strong>: Moltis is pure Rust with a <code>MemoryWriter</code> trait
+abstraction; OpenClaw is TypeScript with direct file I/O through a plugin
+system.</p>
+</li>
+<li>
+<p><strong>Maturity</strong>: OpenClaw has more CLI tooling and configuration knobs for
+advanced memory management; Moltis has a simpler, more opinionated setup
+with a web UI.</p>
+</li>
+</ol>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="memory.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="hooks.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="memory.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="hooks.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+
+    </div>
+    </body>
+</html>

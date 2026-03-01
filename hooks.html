@@ -1,0 +1,620 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Hooks - Moltis Documentation</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="Documentation for Moltis - Your AI coding assistant">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="highlight-css" href="highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="theme/admonish.css">
+        <link rel="stylesheet" href="theme/custom.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Moltis Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/moltis-org/moltis" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                        <a href="https://github.com/moltis-org/moltis/edit/main/docs/src/src/hooks.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                            <i id="git-edit-button" class="fa fa-edit"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="hooks"><a class="header" href="#hooks">Hooks</a></h1>
+<p>Hooks let you observe, modify, or block actions at key points in the agent lifecycle. Use them for auditing, policy enforcement, prompt injection filtering, notifications, and custom integrations.</p>
+<h2 id="how-hooks-work"><a class="header" href="#how-hooks-work">How Hooks Work</a></h2>
+<pre><code>┌──────────────────────────────────────────────────────────────┐
+│                        Agent Loop                            │
+│                                                              │
+│  User Message ─→ BeforeLLMCall ─→ LLM Provider              │
+│                       │                 │                    │
+│                  modify/block      AfterLLMCall              │
+│                                         │                    │
+│                                    modify/block              │
+│                                         │                    │
+│                                         ▼                    │
+│                                  BeforeToolCall              │
+│                                         │                    │
+│                                    modify/block              │
+│                                         │                    │
+│                                    Tool Execution            │
+│                                         │                    │
+│                                    AfterToolCall             │
+│                                         │                    │
+│                                         ▼                    │
+│                              (loop continues or)             │
+│                             Response → MessageSent           │
+└──────────────────────────────────────────────────────────────┘
+</code></pre>
+<h2 id="event-types"><a class="header" href="#event-types">Event Types</a></h2>
+<h3 id="modifying-events-sequential"><a class="header" href="#modifying-events-sequential">Modifying Events (Sequential)</a></h3>
+<p>These events run hooks sequentially. Hooks can modify the payload or block the action.</p>
+<div class="table-wrapper"><table><thead><tr><th>Event</th><th>Description</th><th>Can Modify</th><th>Can Block</th></tr></thead><tbody>
+<tr><td><code>BeforeAgentStart</code></td><td>Before agent loop starts</td><td>yes</td><td>yes</td></tr>
+<tr><td><code>BeforeLLMCall</code></td><td>Before prompt is sent to the LLM provider</td><td>yes</td><td>yes</td></tr>
+<tr><td><code>AfterLLMCall</code></td><td>After LLM response, before tool execution</td><td>yes</td><td>yes</td></tr>
+<tr><td><code>BeforeToolCall</code></td><td>Before a tool executes</td><td>yes</td><td>yes</td></tr>
+<tr><td><code>BeforeCompaction</code></td><td>Before context compaction</td><td>yes</td><td>yes</td></tr>
+<tr><td><code>MessageSending</code></td><td>Before sending a response</td><td>yes</td><td>yes</td></tr>
+<tr><td><code>ToolResultPersist</code></td><td>When a tool result is persisted</td><td>yes</td><td>yes</td></tr>
+</tbody></table>
+</div>
+<h3 id="read-only-events-parallel"><a class="header" href="#read-only-events-parallel">Read-Only Events (Parallel)</a></h3>
+<p>These events run hooks in parallel for performance. They cannot modify or block.</p>
+<div class="table-wrapper"><table><thead><tr><th>Event</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>AfterToolCall</code></td><td>After a tool completes</td></tr>
+<tr><td><code>AfterCompaction</code></td><td>After context is compacted</td></tr>
+<tr><td><code>AgentEnd</code></td><td>When agent loop completes</td></tr>
+<tr><td><code>MessageReceived</code></td><td>When a user message arrives</td></tr>
+<tr><td><code>MessageSent</code></td><td>After response is delivered</td></tr>
+<tr><td><code>SessionStart</code></td><td>When a new session begins</td></tr>
+<tr><td><code>SessionEnd</code></td><td>When a session ends</td></tr>
+<tr><td><code>GatewayStart</code></td><td>When Moltis starts</td></tr>
+<tr><td><code>GatewayStop</code></td><td>When Moltis shuts down</td></tr>
+<tr><td><code>Command</code></td><td>When a slash command is used</td></tr>
+</tbody></table>
+</div>
+<h2 id="prompt-injection-filtering"><a class="header" href="#prompt-injection-filtering">Prompt Injection Filtering</a></h2>
+<p>The <code>BeforeLLMCall</code> and <code>AfterLLMCall</code> hooks provide filtering points for prompt injection defense.</p>
+<h3 id="beforellmcall"><a class="header" href="#beforellmcall">BeforeLLMCall</a></h3>
+<p>Fires before each LLM API call. The payload includes the full message array, provider name, model ID, and iteration count. Use it to:</p>
+<ul>
+<li>Scan prompts for injection patterns before they reach the LLM</li>
+<li>Redact PII or sensitive data from the conversation</li>
+<li>Add safety prefixes to system prompts</li>
+<li>Block requests that match known attack patterns</li>
+</ul>
+<p><strong>Payload fields:</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>session_key</code></td><td>string</td><td>Session identifier</td></tr>
+<tr><td><code>provider</code></td><td>string</td><td>Provider name (e.g. “openai”, “anthropic”)</td></tr>
+<tr><td><code>model</code></td><td>string</td><td>Model ID (e.g. “gpt-5.2-codex”, “qwen2.5-coder-7b-q4_k_m”)</td></tr>
+<tr><td><code>messages</code></td><td>array</td><td>Serialized message array (OpenAI format)</td></tr>
+<tr><td><code>tool_count</code></td><td>number</td><td>Number of tool schemas sent to the LLM</td></tr>
+<tr><td><code>iteration</code></td><td>number</td><td>1-based loop iteration</td></tr>
+</tbody></table>
+</div>
+<h3 id="afterllmcall"><a class="header" href="#afterllmcall">AfterLLMCall</a></h3>
+<p>Fires after the LLM response is received but before tool calls execute. For streaming responses, this fires after the full response is accumulated (text has already been streamed to the UI) but blocking still prevents tool execution.</p>
+<p><strong>Payload fields:</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>session_key</code></td><td>string</td><td>Session identifier</td></tr>
+<tr><td><code>provider</code></td><td>string</td><td>Provider name</td></tr>
+<tr><td><code>model</code></td><td>string</td><td>Model ID</td></tr>
+<tr><td><code>text</code></td><td>string/null</td><td>LLM response text</td></tr>
+<tr><td><code>tool_calls</code></td><td>array</td><td>Tool calls requested by the LLM</td></tr>
+<tr><td><code>input_tokens</code></td><td>number</td><td>Tokens consumed by the prompt</td></tr>
+<tr><td><code>output_tokens</code></td><td>number</td><td>Tokens in the response</td></tr>
+<tr><td><code>iteration</code></td><td>number</td><td>1-based loop iteration</td></tr>
+</tbody></table>
+</div>
+<h3 id="example-block-suspicious-tool-calls"><a class="header" href="#example-block-suspicious-tool-calls">Example: Block Suspicious Tool Calls</a></h3>
+<pre><code class="language-bash">#!/bin/bash
+# filter-injection.sh — subscribe to AfterLLMCall
+payload=$(cat)
+event=$(echo "$payload" | jq -r '.event')
+
+if [ "$event" = "AfterLLMCall" ]; then
+    # Check if tool calls contain suspicious patterns
+    tool_names=$(echo "$payload" | jq -r '.tool_calls[].name')
+
+    for name in $tool_names; do
+        # Block unexpected tool calls that might come from injection
+        case "$name" in
+            exec|bash|shell)
+                text=$(echo "$payload" | jq -r '.text // ""')
+                if echo "$text" | grep -qi "ignore previous\|disregard\|new instructions"; then
+                    echo "Blocked suspicious tool call after potential injection" &gt;&amp;2
+                    exit 1
+                fi
+                ;;
+        esac
+    done
+fi
+
+exit 0
+</code></pre>
+<h3 id="example-external-proxy-filter"><a class="header" href="#example-external-proxy-filter">Example: External Proxy Filter</a></h3>
+<pre><code class="language-bash">#!/bin/bash
+# proxy-filter.sh — subscribe to BeforeLLMCall
+payload=$(cat)
+
+# Send to an external moderation API
+result=$(echo "$payload" | curl -s -X POST \
+  -H "Content-Type: application/json" \
+  -d @- \
+  "$MODERATION_API_URL/check")
+
+# Block if the API flags it
+if echo "$result" | jq -e '.flagged' &gt; /dev/null 2&gt;&amp;1; then
+    reason=$(echo "$result" | jq -r '.reason // "content policy violation"')
+    echo "$reason" &gt;&amp;2
+    exit 1
+fi
+
+exit 0
+</code></pre>
+<h2 id="creating-a-hook"><a class="header" href="#creating-a-hook">Creating a Hook</a></h2>
+<h3 id="1-create-the-hook-directory"><a class="header" href="#1-create-the-hook-directory">1. Create the Hook Directory</a></h3>
+<pre><code class="language-bash">mkdir -p ~/.moltis/hooks/my-hook
+</code></pre>
+<h3 id="2-create-hookmd"><a class="header" href="#2-create-hookmd">2. Create HOOK.md</a></h3>
+<pre><code class="language-markdown">+++
+name = "my-hook"
+description = "Logs all tool calls to a file"
+events = ["BeforeToolCall", "AfterToolCall"]
+command = "./handler.sh"
+timeout = 5
+
+[requires]
+os = ["darwin", "linux"]
+bins = ["jq"]
+env = ["LOG_FILE"]
++++
+
+# My Hook
+
+This hook logs all tool calls for auditing purposes.
+</code></pre>
+<h3 id="3-create-the-handler-script"><a class="header" href="#3-create-the-handler-script">3. Create the Handler Script</a></h3>
+<pre><code class="language-bash">#!/bin/bash
+# handler.sh
+
+# Read event payload from stdin
+payload=$(cat)
+
+# Extract event type
+event=$(echo "$payload" | jq -r '.event')
+
+# Log to file
+echo "$(date -Iseconds) $event: $payload" &gt;&gt; "$LOG_FILE"
+
+# Exit 0 to continue (don't block)
+exit 0
+</code></pre>
+<h3 id="4-make-it-executable"><a class="header" href="#4-make-it-executable">4. Make it Executable</a></h3>
+<pre><code class="language-bash">chmod +x ~/.moltis/hooks/my-hook/handler.sh
+</code></pre>
+<h2 id="shell-hook-protocol"><a class="header" href="#shell-hook-protocol">Shell Hook Protocol</a></h2>
+<p>Hooks communicate via stdin/stdout and exit codes:</p>
+<h3 id="input"><a class="header" href="#input">Input</a></h3>
+<p>The event payload is passed as JSON on stdin:</p>
+<pre><code class="language-json">{
+  "event": "BeforeToolCall",
+  "data": {
+    "tool": "bash",
+    "arguments": {
+      "command": "ls -la"
+    }
+  },
+  "session_id": "abc123",
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+</code></pre>
+<h3 id="output"><a class="header" href="#output">Output</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Exit Code</th><th>Stdout</th><th>Result</th></tr></thead><tbody>
+<tr><td><code>0</code></td><td>(empty)</td><td>Continue normally</td></tr>
+<tr><td><code>0</code></td><td><code>{"action":"modify","data":{...}}</code></td><td>Replace payload data</td></tr>
+<tr><td><code>1</code></td><td>—</td><td>Block (stderr = reason)</td></tr>
+</tbody></table>
+</div>
+<h3 id="example-modify-tool-arguments"><a class="header" href="#example-modify-tool-arguments">Example: Modify Tool Arguments</a></h3>
+<pre><code class="language-bash">#!/bin/bash
+payload=$(cat)
+tool=$(echo "$payload" | jq -r '.data.tool')
+
+if [ "$tool" = "bash" ]; then
+    # Add safety flag to all bash commands
+    modified=$(echo "$payload" | jq '.data.arguments.command = "set -e; " + .data.arguments.command')
+    echo "{\"action\":\"modify\",\"data\":$(echo "$modified" | jq '.data')}"
+fi
+
+exit 0
+</code></pre>
+<h3 id="example-block-dangerous-commands"><a class="header" href="#example-block-dangerous-commands">Example: Block Dangerous Commands</a></h3>
+<pre><code class="language-bash">#!/bin/bash
+payload=$(cat)
+command=$(echo "$payload" | jq -r '.data.arguments.command // ""')
+
+# Block rm -rf /
+if echo "$command" | grep -qE 'rm\s+-rf\s+/'; then
+    echo "Blocked dangerous rm command" &gt;&amp;2
+    exit 1
+fi
+
+exit 0
+</code></pre>
+<h2 id="hook-discovery"><a class="header" href="#hook-discovery">Hook Discovery</a></h2>
+<p>Hooks are discovered from <code>HOOK.md</code> files in these locations (priority order):</p>
+<ol>
+<li><strong>Project-local</strong>: <code>&lt;workspace&gt;/.moltis/hooks/&lt;name&gt;/HOOK.md</code></li>
+<li><strong>User-global</strong>: <code>~/.moltis/hooks/&lt;name&gt;/HOOK.md</code></li>
+</ol>
+<p>Project-local hooks take precedence over global hooks with the same name.</p>
+<h2 id="configuration-in-moltistoml"><a class="header" href="#configuration-in-moltistoml">Configuration in moltis.toml</a></h2>
+<p>You can also define hooks directly in the config file:</p>
+<pre><code class="language-toml">[hooks]
+[[hooks.hooks]]
+name = "audit-log"
+command = "./hooks/audit.sh"
+events = ["BeforeToolCall", "AfterToolCall"]
+timeout = 5
+
+[[hooks.hooks]]
+name = "llm-filter"
+command = "./hooks/filter-injection.sh"
+events = ["BeforeLLMCall", "AfterLLMCall"]
+timeout = 10
+
+[[hooks.hooks]]
+name = "notify-slack"
+command = "./hooks/slack-notify.sh"
+events = ["SessionEnd"]
+env = { SLACK_WEBHOOK_URL = "https://hooks.slack.com/..." }
+</code></pre>
+<h2 id="eligibility-requirements"><a class="header" href="#eligibility-requirements">Eligibility Requirements</a></h2>
+<p>Hooks can declare requirements that must be met:</p>
+<pre><code class="language-toml">[requires]
+os = ["darwin", "linux"]       # Only run on these OSes
+bins = ["jq", "curl"]          # Required binaries in PATH
+env = ["SLACK_WEBHOOK_URL"]    # Required environment variables
+</code></pre>
+<p>If requirements aren’t met, the hook is skipped (not an error).</p>
+<h2 id="circuit-breaker"><a class="header" href="#circuit-breaker">Circuit Breaker</a></h2>
+<p>Hooks that fail repeatedly are automatically disabled:</p>
+<ul>
+<li><strong>Threshold</strong>: 5 consecutive failures</li>
+<li><strong>Cooldown</strong>: 60 seconds</li>
+<li><strong>Recovery</strong>: Auto-re-enabled after cooldown</li>
+</ul>
+<p>This prevents a broken hook from blocking all operations.</p>
+<h2 id="cli-commands"><a class="header" href="#cli-commands">CLI Commands</a></h2>
+<pre><code class="language-bash"># List all discovered hooks
+moltis hooks list
+
+# List only eligible hooks (requirements met)
+moltis hooks list --eligible
+
+# Output as JSON
+moltis hooks list --json
+
+# Show details for a specific hook
+moltis hooks info my-hook
+</code></pre>
+<h2 id="bundled-hooks"><a class="header" href="#bundled-hooks">Bundled Hooks</a></h2>
+<p>Moltis includes several built-in hooks:</p>
+<h3 id="boot-md"><a class="header" href="#boot-md">boot-md</a></h3>
+<p>Reads <code>BOOT.md</code> from the workspace on <code>GatewayStart</code> and injects it into the agent context.</p>
+<p><code>BOOT.md</code> is intended for short, explicit startup tasks (health checks, reminders,
+“send one startup message”, etc.). If the file is missing or empty, nothing is injected.</p>
+<h2 id="workspace-context-files"><a class="header" href="#workspace-context-files">Workspace Context Files</a></h2>
+<p>Moltis supports several workspace markdown files in <code>data_dir</code>.</p>
+<h3 id="toolsmd"><a class="header" href="#toolsmd">TOOLS.md</a></h3>
+<p><code>TOOLS.md</code> is loaded as a workspace context file in the system prompt.</p>
+<p>Best use is to combine:</p>
+<ul>
+<li><strong>Local notes</strong>: environment-specific facts (hosts, device names, channel aliases)</li>
+<li><strong>Policy constraints</strong>: “prefer read-only tools first”, “never run X on startup”, etc.</li>
+</ul>
+<p>If <code>TOOLS.md</code> is empty or missing, it is not injected.</p>
+<h3 id="agentsmd-workspace"><a class="header" href="#agentsmd-workspace">AGENTS.md (workspace)</a></h3>
+<p>Moltis also supports a workspace-level <code>AGENTS.md</code> in <code>data_dir</code>.</p>
+<p>This is separate from project <code>AGENTS.md</code>/<code>CLAUDE.md</code> discovery. Use workspace
+<code>AGENTS.md</code> for global instructions that should apply across projects in this workspace.</p>
+<h3 id="session-memory"><a class="header" href="#session-memory">session-memory</a></h3>
+<p>Saves session context when you use the <code>/new</code> command, preserving important information for future sessions.</p>
+<h3 id="command-logger"><a class="header" href="#command-logger">command-logger</a></h3>
+<p>Logs all <code>Command</code> events to a JSONL file for auditing.</p>
+<h2 id="example-hooks"><a class="header" href="#example-hooks">Example Hooks</a></h2>
+<h3 id="recommended-destructive-command-guard-dcg"><a class="header" href="#recommended-destructive-command-guard-dcg">Recommended: Destructive Command Guard (dcg)</a></h3>
+<p><a href="https://github.com/Dicklesworthstone/destructive_command_guard">dcg</a> is an
+external tool that scans shell commands against 49+ destructive pattern
+categories, including heredoc/inline-script scanning, database, cloud, and
+infrastructure patterns.</p>
+<p><strong>Install:</strong></p>
+<pre><code class="language-bash">cargo install dcg
+</code></pre>
+<p><strong>Hook setup:</strong></p>
+<p>Copy the bundled hook example to your hooks directory:</p>
+<pre><code class="language-bash">cp -r examples/hooks/dcg-guard ~/.moltis/hooks/dcg-guard
+chmod +x ~/.moltis/hooks/dcg-guard/handler.sh
+</code></pre>
+<p>The hook subscribes to <code>BeforeToolCall</code>, extracts exec commands, pipes them
+through dcg, and blocks any command that dcg flags as destructive. See
+<code>examples/hooks/dcg-guard/HOOK.md</code> for details.</p>
+<blockquote>
+<p><strong>Note:</strong> dcg complements but does not replace the built-in dangerous command
+blocklist, sandbox isolation, or the approval system. Use it as an additional
+defense layer with broader pattern coverage.</p>
+</blockquote>
+<h3 id="slack-notification-on-session-end"><a class="header" href="#slack-notification-on-session-end">Slack Notification on Session End</a></h3>
+<pre><code class="language-bash">#!/bin/bash
+# slack-notify.sh
+payload=$(cat)
+session_id=$(echo "$payload" | jq -r '.session_id')
+message_count=$(echo "$payload" | jq -r '.data.message_count')
+
+curl -X POST "$SLACK_WEBHOOK_URL" \
+  -H 'Content-Type: application/json' \
+  -d "{\"text\":\"Session $session_id ended with $message_count messages\"}"
+
+exit 0
+</code></pre>
+<h3 id="redact-secrets-from-tool-output"><a class="header" href="#redact-secrets-from-tool-output">Redact Secrets from Tool Output</a></h3>
+<pre><code class="language-bash">#!/bin/bash
+# redact-secrets.sh
+payload=$(cat)
+
+# Redact common secret patterns
+redacted=$(echo "$payload" | sed -E '
+  s/sk-[a-zA-Z0-9]{32,}/[REDACTED]/g
+  s/ghp_[a-zA-Z0-9]{36}/[REDACTED]/g
+  s/password=[^&amp;\s]+/password=[REDACTED]/g
+')
+
+echo "{\"action\":\"modify\",\"data\":$(echo "$redacted" | jq '.data')}"
+exit 0
+</code></pre>
+<h3 id="block-file-writes-outside-project"><a class="header" href="#block-file-writes-outside-project">Block File Writes Outside Project</a></h3>
+<pre><code class="language-bash">#!/bin/bash
+# sandbox-writes.sh
+payload=$(cat)
+tool=$(echo "$payload" | jq -r '.data.tool')
+
+if [ "$tool" = "write_file" ]; then
+    path=$(echo "$payload" | jq -r '.data.arguments.path')
+
+    # Only allow writes under current project
+    if [[ ! "$path" =~ ^/workspace/ ]]; then
+        echo "File writes only allowed in /workspace" &gt;&amp;2
+        exit 1
+    fi
+fi
+
+exit 0
+</code></pre>
+<h2 id="best-practices"><a class="header" href="#best-practices">Best Practices</a></h2>
+<ol>
+<li><strong>Keep hooks fast</strong> — Set appropriate timeouts (default: 5s)</li>
+<li><strong>Handle errors gracefully</strong> — Use <code>exit 0</code> unless you want to block</li>
+<li><strong>Log for debugging</strong> — Write to a log file, not stdout</li>
+<li><strong>Test locally first</strong> — Pipe sample JSON through your script</li>
+<li><strong>Use jq for JSON</strong> — It’s reliable and fast for parsing</li>
+<li><strong>Layer defenses</strong> — Use <code>BeforeLLMCall</code> for input filtering and <code>AfterLLMCall</code> for output filtering</li>
+</ol>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="memory-comparison.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="local-llm.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="memory-comparison.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="local-llm.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+
+    </div>
+    </body>
+</html>

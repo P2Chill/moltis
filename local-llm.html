@@ -1,0 +1,411 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Local LLMs - Moltis Documentation</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="Documentation for Moltis - Your AI coding assistant">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="highlight-css" href="highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="theme/admonish.css">
+        <link rel="stylesheet" href="theme/custom.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Moltis Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/moltis-org/moltis" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                        <a href="https://github.com/moltis-org/moltis/edit/main/docs/src/src/local-llm.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                            <i id="git-edit-button" class="fa fa-edit"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="local-llm-support"><a class="header" href="#local-llm-support">Local LLM Support</a></h1>
+<p>Moltis can run LLM inference locally on your machine without requiring an API
+key or internet connection. This enables fully offline operation and keeps your
+conversations private.</p>
+<h2 id="backends"><a class="header" href="#backends">Backends</a></h2>
+<p>Moltis supports two backends for local inference:</p>
+<div class="table-wrapper"><table><thead><tr><th>Backend</th><th>Format</th><th>Platform</th><th>GPU Acceleration</th></tr></thead><tbody>
+<tr><td><strong>GGUF</strong> (llama.cpp)</td><td><code>.gguf</code> files</td><td>macOS, Linux, Windows</td><td>Metal (macOS), CUDA (NVIDIA)</td></tr>
+<tr><td><strong>MLX</strong></td><td>MLX model repos</td><td>macOS (Apple Silicon only)</td><td>Apple Silicon neural engine</td></tr>
+</tbody></table>
+</div>
+<h3 id="gguf-llamacpp"><a class="header" href="#gguf-llamacpp">GGUF (llama.cpp)</a></h3>
+<p>GGUF is the primary backend, powered by <a href="https://github.com/ggerganov/llama.cpp">llama.cpp</a>.
+It supports quantized models in the GGUF format, which significantly reduces
+memory requirements while maintaining good quality.</p>
+<p><strong>Advantages:</strong></p>
+<ul>
+<li>Cross-platform (macOS, Linux, Windows)</li>
+<li>Wide model compatibility (any GGUF model)</li>
+<li>GPU acceleration on both NVIDIA (CUDA) and Apple Silicon (Metal)</li>
+<li>Mature and well-tested</li>
+</ul>
+<h3 id="mlx"><a class="header" href="#mlx">MLX</a></h3>
+<p>MLX is Apple’s machine learning framework optimized for Apple Silicon. Models
+from the <a href="https://huggingface.co/mlx-community">mlx-community</a> on HuggingFace
+are specifically optimized for M1/M2/M3/M4 chips.</p>
+<p><strong>Advantages:</strong></p>
+<ul>
+<li>Native Apple Silicon performance</li>
+<li>Efficient unified memory usage</li>
+<li>Lower latency on Macs</li>
+</ul>
+<p><strong>Requirements:</strong></p>
+<ul>
+<li>macOS with Apple Silicon (M1/M2/M3/M4)</li>
+</ul>
+<h2 id="memory-requirements"><a class="header" href="#memory-requirements">Memory Requirements</a></h2>
+<p>Models are organized by memory tiers based on your system RAM:</p>
+<div class="table-wrapper"><table><thead><tr><th>Tier</th><th>RAM</th><th>Recommended Models</th></tr></thead><tbody>
+<tr><td><strong>Tiny</strong></td><td>4GB</td><td>Qwen 2.5 Coder 1.5B, Llama 3.2 1B</td></tr>
+<tr><td><strong>Small</strong></td><td>8GB</td><td>Qwen 2.5 Coder 3B, Llama 3.2 3B</td></tr>
+<tr><td><strong>Medium</strong></td><td>16GB</td><td>Qwen 2.5 Coder 7B, Llama 3.1 8B</td></tr>
+<tr><td><strong>Large</strong></td><td>32GB+</td><td>Qwen 2.5 Coder 14B, DeepSeek Coder V2 Lite</td></tr>
+</tbody></table>
+</div>
+<p>Moltis automatically detects your system memory and suggests appropriate models
+in the UI.</p>
+<h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
+<h3 id="via-web-ui-recommended"><a class="header" href="#via-web-ui-recommended">Via Web UI (Recommended)</a></h3>
+<ol>
+<li>Navigate to <strong>Providers</strong> in the sidebar</li>
+<li>Click <strong>Add Provider</strong></li>
+<li>Select <strong>Local LLM</strong></li>
+<li>Choose a model from the registry or search HuggingFace</li>
+<li>Click <strong>Configure</strong> — the model will download automatically</li>
+</ol>
+<h3 id="via-configuration-file"><a class="header" href="#via-configuration-file">Via Configuration File</a></h3>
+<p>Add to <code>~/.config/moltis/moltis.toml</code>:</p>
+<pre><code class="language-toml">[providers.local-llm]
+models = ["qwen2.5-coder-7b-q4_k_m"]
+</code></pre>
+<p>For custom GGUF files:</p>
+<pre><code class="language-json">{
+  "models": [
+    {
+      "model_id": "my-custom-model",
+      "model_path": "/path/to/model.gguf",
+      "gpu_layers": 99,
+      "backend": "GGUF"
+    }
+  ]
+}
+</code></pre>
+<p>Save this as <code>~/.config/moltis/local-llm.json</code> (the same file managed by the
+Settings UI).</p>
+<h2 id="model-storage"><a class="header" href="#model-storage">Model Storage</a></h2>
+<p>Downloaded models are cached in <code>~/.cache/moltis/models/</code> by default. This
+directory can grow large (several GB per model).</p>
+<h2 id="huggingface-integration"><a class="header" href="#huggingface-integration">HuggingFace Integration</a></h2>
+<p>You can search and download models directly from HuggingFace:</p>
+<ol>
+<li>In the Add Provider dialog, click “Search HuggingFace”</li>
+<li>Enter a search term (e.g., “qwen coder”)</li>
+<li>Select GGUF or MLX backend</li>
+<li>Choose a model from the results</li>
+<li>The model will be downloaded on first use</li>
+</ol>
+<h3 id="finding-gguf-models"><a class="header" href="#finding-gguf-models">Finding GGUF Models</a></h3>
+<p>Look for repositories with “GGUF” in the name on HuggingFace:</p>
+<ul>
+<li><a href="https://huggingface.co/TheBloke">TheBloke</a> — large collection of quantized models</li>
+<li><a href="https://huggingface.co/bartowski">bartowski</a> — Llama 3.x GGUF models</li>
+<li><a href="https://huggingface.co/Qwen">Qwen</a> — official Qwen GGUF models</li>
+</ul>
+<h3 id="finding-mlx-models"><a class="header" href="#finding-mlx-models">Finding MLX Models</a></h3>
+<p>MLX models are available from <a href="https://huggingface.co/mlx-community">mlx-community</a>:</p>
+<ul>
+<li>Pre-converted models optimized for Apple Silicon</li>
+<li>Look for models ending in <code>-4bit</code> or <code>-8bit</code> for quantized versions</li>
+</ul>
+<h2 id="gpu-acceleration"><a class="header" href="#gpu-acceleration">GPU Acceleration</a></h2>
+<h3 id="metal-macos"><a class="header" href="#metal-macos">Metal (macOS)</a></h3>
+<p>Metal acceleration is enabled by default on macOS. The number of GPU layers
+can be configured:</p>
+<pre><code class="language-json">{
+  "models": [
+    {
+      "model_id": "qwen2.5-coder-7b-q4_k_m",
+      "gpu_layers": 99,
+      "backend": "GGUF"
+    }
+  ]
+}
+</code></pre>
+<h3 id="cuda-nvidia"><a class="header" href="#cuda-nvidia">CUDA (NVIDIA)</a></h3>
+<p>Requires building with the <code>local-llm-cuda</code> feature:</p>
+<pre><code class="language-bash">cargo build --release --features local-llm-cuda
+</code></pre>
+<h2 id="limitations"><a class="header" href="#limitations">Limitations</a></h2>
+<p>Local LLM models have some limitations compared to cloud providers:</p>
+<ol>
+<li>
+<p><strong>No tool calling</strong> — Local models don’t support function/tool calling.
+When using a local model, features like file operations, shell commands,
+and memory search are disabled.</p>
+</li>
+<li>
+<p><strong>Slower inference</strong> — Depending on your hardware, local inference may be
+significantly slower than cloud APIs.</p>
+</li>
+<li>
+<p><strong>Quality varies</strong> — Smaller quantized models may produce lower quality
+responses than larger cloud models.</p>
+</li>
+<li>
+<p><strong>Context window</strong> — Local models typically have smaller context windows
+(8K-32K tokens vs 128K+ for cloud models).</p>
+</li>
+</ol>
+<h2 id="chat-templates"><a class="header" href="#chat-templates">Chat Templates</a></h2>
+<p>Different model families use different chat formatting. Moltis automatically
+detects the correct template for registered models:</p>
+<ul>
+<li><strong>ChatML</strong> — Qwen, many instruction-tuned models</li>
+<li><strong>Llama 3</strong> — Meta’s Llama 3.x family</li>
+<li><strong>DeepSeek</strong> — DeepSeek Coder models</li>
+</ul>
+<p>For custom models, the template is auto-detected from the model metadata when
+possible.</p>
+<h2 id="troubleshooting"><a class="header" href="#troubleshooting">Troubleshooting</a></h2>
+<h3 id="model-fails-to-load"><a class="header" href="#model-fails-to-load">Model fails to load</a></h3>
+<ul>
+<li>Check you have enough RAM (see memory tier table above)</li>
+<li>Verify the GGUF file isn’t corrupted (re-download if needed)</li>
+<li>Ensure the model file matches the expected architecture</li>
+</ul>
+<h3 id="slow-inference"><a class="header" href="#slow-inference">Slow inference</a></h3>
+<ul>
+<li>Enable GPU acceleration (Metal on macOS, CUDA on Linux)</li>
+<li>Try a smaller/more quantized model</li>
+<li>Reduce prompt/context length</li>
+</ul>
+<h3 id="out-of-memory"><a class="header" href="#out-of-memory">Out of memory</a></h3>
+<ul>
+<li>Choose a model from a lower memory tier</li>
+<li>Close other applications to free RAM</li>
+<li>Use a more aggressively quantized model (Q4_K_M vs Q8_0)</li>
+</ul>
+<h2 id="feature-flag"><a class="header" href="#feature-flag">Feature Flag</a></h2>
+<p>Local LLM support requires the <code>local-llm</code> feature flag at compile time:</p>
+<pre><code class="language-bash">cargo build --release --features local-llm
+</code></pre>
+<p>This is enabled by default in release builds.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="hooks.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="sandbox.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="hooks.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="sandbox.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+
+    </div>
+    </body>
+</html>

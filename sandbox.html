@@ -1,0 +1,513 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Sandbox - Moltis Documentation</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="Documentation for Moltis - Your AI coding assistant">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="highlight-css" href="highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="theme/admonish.css">
+        <link rel="stylesheet" href="theme/custom.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Moltis Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/moltis-org/moltis" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                        <a href="https://github.com/moltis-org/moltis/edit/main/docs/src/src/sandbox.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                            <i id="git-edit-button" class="fa fa-edit"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="sandbox-backends"><a class="header" href="#sandbox-backends">Sandbox Backends</a></h1>
+<p>Moltis runs LLM-generated commands inside containers to protect your host
+system. The sandbox backend controls which container technology is used.</p>
+<h2 id="backend-selection"><a class="header" href="#backend-selection">Backend Selection</a></h2>
+<p>Configure in <code>moltis.toml</code>:</p>
+<pre><code class="language-toml">[tools.exec.sandbox]
+backend = "auto"          # default — picks the best available
+# backend = "podman"      # force Podman (daemonless, rootless)
+# backend = "docker"      # force Docker
+# backend = "apple-container"  # force Apple Container (macOS only)
+# backend = "wasm"        # force WASM sandbox (Wasmtime + WASI)
+# backend = "restricted-host"  # env clearing + rlimits only
+</code></pre>
+<p>With <code>"auto"</code> (the default), Moltis picks the strongest available backend:</p>
+<div class="table-wrapper"><table><thead><tr><th>Priority</th><th>Backend</th><th>Platform</th><th>Isolation</th></tr></thead><tbody>
+<tr><td>1</td><td>Apple Container</td><td>macOS</td><td>VM (Virtualization.framework)</td></tr>
+<tr><td>2</td><td>Podman</td><td>any</td><td>Linux namespaces / cgroups (daemonless)</td></tr>
+<tr><td>3</td><td>Docker</td><td>any</td><td>Linux namespaces / cgroups</td></tr>
+<tr><td>4</td><td>Restricted Host</td><td>any</td><td>env clearing, rlimits (no filesystem isolation)</td></tr>
+<tr><td>5</td><td>none (host)</td><td>any</td><td>no isolation</td></tr>
+</tbody></table>
+</div>
+<p>The WASM backend (<code>backend = "wasm"</code>) is not in the auto-detect chain because
+it cannot execute arbitrary shell commands — use it explicitly when you want
+WASI-isolated execution.</p>
+<h2 id="apple-container-recommended-on-macos"><a class="header" href="#apple-container-recommended-on-macos">Apple Container (recommended on macOS)</a></h2>
+<p><a href="https://github.com/apple/container">Apple Container</a> runs each sandbox in a
+lightweight virtual machine using Apple’s Virtualization.framework. Every
+container gets its own kernel, so a kernel exploit inside the sandbox cannot
+reach the host — unlike Docker, which shares the host kernel.</p>
+<h3 id="install"><a class="header" href="#install">Install</a></h3>
+<p>Download the signed installer from GitHub:</p>
+<pre><code class="language-bash"># Download the installer package
+gh release download --repo apple/container --pattern "container-installer-signed.pkg" --dir /tmp
+
+# Install (requires admin)
+sudo installer -pkg /tmp/container-installer-signed.pkg -target /
+
+# First-time setup — downloads a default Linux kernel
+container system start
+</code></pre>
+<p>Alternatively, build from source with <code>brew install container</code> (requires
+Xcode 26+).</p>
+<h3 id="verify"><a class="header" href="#verify">Verify</a></h3>
+<pre><code class="language-bash">container --version
+# Run a quick test
+container run --rm ubuntu echo "hello from VM"
+</code></pre>
+<p>Once installed, restart <code>moltis gateway</code> — the startup banner will show
+<code>sandbox: apple-container backend</code>.</p>
+<h2 id="podman"><a class="header" href="#podman">Podman</a></h2>
+<p><a href="https://podman.io/">Podman</a> is a daemonless, rootless container engine that
+is CLI-compatible with Docker. It is preferred over Docker in auto-detection
+because it doesn’t require a background daemon process and runs rootless by
+default for better security.</p>
+<h3 id="install-1"><a class="header" href="#install-1">Install</a></h3>
+<pre><code class="language-bash"># macOS
+brew install podman
+podman machine init &amp;&amp; podman machine start
+
+# Debian/Ubuntu
+sudo apt-get install -y podman
+
+# Fedora/RHEL
+sudo dnf install -y podman
+</code></pre>
+<h3 id="verify-1"><a class="header" href="#verify-1">Verify</a></h3>
+<pre><code class="language-bash">podman --version
+podman run --rm docker.io/library/ubuntu echo "hello from podman"
+</code></pre>
+<p>Once installed, restart <code>moltis gateway</code> — the startup banner will show
+<code>sandbox: podman backend</code>. All Docker hardening flags (see below) apply
+identically to Podman containers.</p>
+<h2 id="docker"><a class="header" href="#docker">Docker</a></h2>
+<p>Docker is supported on macOS, Linux, and Windows. On macOS it runs inside a
+Linux VM managed by Docker Desktop, so it is reasonably isolated but adds more
+overhead than Apple Container.</p>
+<p>Install from https://docs.docker.com/get-docker/</p>
+<h3 id="dockerpodman-hardening"><a class="header" href="#dockerpodman-hardening">Docker/Podman Hardening</a></h3>
+<p>Docker and Podman containers launched by Moltis include the following security
+hardening flags by default:</p>
+<div class="table-wrapper"><table><thead><tr><th>Flag</th><th>Effect</th></tr></thead><tbody>
+<tr><td><code>--cap-drop ALL</code></td><td>Drops all Linux capabilities</td></tr>
+<tr><td><code>--security-opt no-new-privileges</code></td><td>Prevents privilege escalation via setuid/setgid binaries</td></tr>
+<tr><td><code>--tmpfs /tmp:rw,nosuid,size=256m</code></td><td>Writable tmpfs for temp files (noexec on real root)</td></tr>
+<tr><td><code>--tmpfs /run:rw,nosuid,size=64m</code></td><td>Writable tmpfs for runtime files</td></tr>
+<tr><td><code>--read-only</code></td><td>Read-only root filesystem (prebuilt images only)</td></tr>
+</tbody></table>
+</div>
+<p>The <code>--read-only</code> flag is applied only to prebuilt sandbox images (where
+packages are already baked in). Non-prebuilt images need a writable root
+filesystem for <code>apt-get</code> provisioning on first start.</p>
+<h2 id="wasm-sandbox-wasmtime--wasi"><a class="header" href="#wasm-sandbox-wasmtime--wasi">WASM Sandbox (Wasmtime + WASI)</a></h2>
+<p>The WASM sandbox provides real sandboxed execution using
+<a href="https://wasmtime.dev/">Wasmtime</a> with WASI. Commands execute in an isolated
+filesystem tree with fuel metering and epoch-based timeout enforcement.</p>
+<h3 id="how-it-works"><a class="header" href="#how-it-works">How It Works</a></h3>
+<p>The WASM sandbox has two execution tiers:</p>
+<p><strong>Tier 1 — Built-in commands</strong> (~20 common coreutils implemented in Rust):
+<code>echo</code>, <code>cat</code>, <code>ls</code>, <code>mkdir</code>, <code>rm</code>, <code>cp</code>, <code>mv</code>, <code>pwd</code>, <code>env</code>, <code>head</code>, <code>tail</code>,
+<code>wc</code>, <code>sort</code>, <code>touch</code>, <code>which</code>, <code>true</code>, <code>false</code>, <code>test</code>/<code>[</code>, <code>basename</code>,
+<code>dirname</code>.</p>
+<p>These operate on a sandboxed directory tree, translating guest paths (e.g.
+<code>/home/sandbox/file.txt</code>) to host paths under <code>~/.moltis/sandbox/wasm/&lt;id&gt;/</code>.
+Paths outside the sandbox root are rejected.</p>
+<p>Basic shell features are supported: <code>&amp;&amp;</code>, <code>||</code>, <code>;</code> sequences, <code>$VAR</code>
+expansion, quoting via <code>shell-words</code>, and <code>&gt;</code> / <code>&gt;&gt;</code> output redirects.</p>
+<p><strong>Tier 2 — Real WASM module execution</strong>: When the command references a <code>.wasm</code>
+file, it is loaded and run via Wasmtime + WASI preview1 with full isolation:
+preopened directories, fuel metering, epoch interruption, and captured I/O.</p>
+<p><strong>Unknown commands</strong> return exit code 127: “command not found in WASM sandbox”.</p>
+<h3 id="filesystem-isolation"><a class="header" href="#filesystem-isolation">Filesystem Isolation</a></h3>
+<pre><code>~/.moltis/sandbox/wasm/&lt;session-key&gt;/
+  home/        preopened as /home/sandbox (rw)
+  tmp/         preopened as /tmp (rw)
+</code></pre>
+<p>Home persistence is respected:</p>
+<ul>
+<li><code>shared</code>: uses <code>data_dir()/sandbox/home/shared/wasm/</code></li>
+<li><code>session</code>: uses <code>data_dir()/sandbox/wasm/&lt;session-id&gt;/</code></li>
+<li><code>off</code>: per-session, cleaned up on <code>cleanup()</code></li>
+</ul>
+<h3 id="resource-limits"><a class="header" href="#resource-limits">Resource Limits</a></h3>
+<ul>
+<li><strong>Fuel metering</strong>: <code>store.set_fuel(fuel_limit)</code> — limits WASM instruction
+count (Tier 2 only)</li>
+<li><strong>Epoch interruption</strong>: background thread ticks epochs, store traps on
+deadline (Tier 2 only)</li>
+<li><strong>Memory</strong>: <code>wasm_config.memory_reservation(bytes)</code> — Wasmtime memory limits
+(Tier 2 only)</li>
+</ul>
+<h3 id="configuration"><a class="header" href="#configuration">Configuration</a></h3>
+<pre><code class="language-toml">[tools.exec.sandbox]
+backend = "wasm"
+
+# WASM-specific settings
+wasm_fuel_limit = 1000000000       # instruction fuel (default: 1 billion)
+wasm_epoch_interval_ms = 100       # epoch interruption interval (default: 100ms)
+
+[tools.exec.sandbox.resource_limits]
+memory_limit = "512M"    # Wasmtime memory reservation
+</code></pre>
+<h3 id="limitations"><a class="header" href="#limitations">Limitations</a></h3>
+<ul>
+<li>Built-in commands cover common coreutils but not a full shell</li>
+<li>No pipe support yet (planned via busybox.wasm in future)</li>
+<li>No network access from WASM modules</li>
+<li><code>.wasm</code> modules must target WASI preview1</li>
+</ul>
+<h3 id="when-to-use"><a class="header" href="#when-to-use">When to Use</a></h3>
+<p>The WASM sandbox is a good fit when:</p>
+<ul>
+<li>You want filesystem-isolated execution without container overhead</li>
+<li>You need a sandboxed environment on platforms without Docker or Apple
+Container</li>
+<li>You are running <code>.wasm</code> modules and want fuel-metered, time-bounded execution</li>
+</ul>
+<h3 id="compile-time-feature"><a class="header" href="#compile-time-feature">Compile-Time Feature</a></h3>
+<p>The WASM sandbox is gated behind the <code>wasm</code> cargo feature, which is enabled by
+default. To build without Wasmtime (saves ~30 MB binary size):</p>
+<pre><code class="language-bash">cargo build --release --no-default-features --features lightweight
+</code></pre>
+<p>When the feature is disabled and the config requests <code>backend = "wasm"</code>, Moltis
+falls back to <code>restricted-host</code> with a warning.</p>
+<h2 id="restricted-host-sandbox"><a class="header" href="#restricted-host-sandbox">Restricted Host Sandbox</a></h2>
+<p>The restricted-host sandbox provides lightweight isolation by running commands
+on the host via <code>sh -c</code> with environment clearing and <code>ulimit</code> resource
+wrappers. This is the fallback when no container runtime is available.</p>
+<h3 id="how-it-works-1"><a class="header" href="#how-it-works-1">How It Works</a></h3>
+<p>When the restricted-host sandbox runs a command, it:</p>
+<ol>
+<li><strong>Clears the environment</strong> — all inherited environment variables are removed</li>
+<li><strong>Sets a restricted PATH</strong> — only <code>/usr/local/bin:/usr/bin:/bin</code></li>
+<li><strong>Sets HOME to <code>/tmp</code></strong> — prevents access to the user’s home directory</li>
+<li><strong>Applies resource limits</strong> via shell <code>ulimit</code>:
+<ul>
+<li><code>ulimit -u</code> (max processes) from <code>pids_max</code> config (default: 256)</li>
+<li><code>ulimit -n 1024</code> (max open files)</li>
+<li><code>ulimit -t</code> (CPU seconds) from <code>cpu_quota</code> config (default: 300s)</li>
+<li><code>ulimit -v</code> (virtual memory) from <code>memory_limit</code> config (default: 512M)</li>
+</ul>
+</li>
+<li><strong>Enforces a timeout</strong> via <code>tokio::time::timeout</code></li>
+</ol>
+<p>User-specified environment variables from <code>opts.env</code> are re-applied after the
+environment is cleared, so the LLM tool can still pass required variables.</p>
+<h3 id="limitations-1"><a class="header" href="#limitations-1">Limitations</a></h3>
+<ul>
+<li>No filesystem isolation — commands run on the host filesystem</li>
+<li>No network isolation — commands can make network requests</li>
+<li><code>ulimit</code> enforcement is best-effort</li>
+<li>No image building — <code>moltis sandbox build</code> returns immediately</li>
+</ul>
+<p>For production use with untrusted workloads, prefer Apple Container or Docker.</p>
+<h2 id="no-sandbox"><a class="header" href="#no-sandbox">No sandbox</a></h2>
+<p>If no runtime is found (and the <code>wasm</code> feature is disabled), commands execute
+directly on the host. The startup banner will show a warning. This is <strong>not
+recommended</strong> for untrusted workloads.</p>
+<h2 id="failover-chain"><a class="header" href="#failover-chain">Failover Chain</a></h2>
+<p>Moltis wraps the primary sandbox backend with automatic failover:</p>
+<ul>
+<li><strong>Apple Container → Docker → Restricted Host</strong>: if Apple Container enters a
+corrupted state (stale metadata, missing config, VM boot failure), Moltis
+fails over to Docker. If Docker is unavailable, it uses restricted-host.</li>
+<li><strong>Docker → Restricted Host</strong>: if Docker loses its daemon connection during a
+session, Moltis fails over to the restricted-host sandbox.</li>
+</ul>
+<p>Failover is sticky for the lifetime of the gateway process — once triggered,
+all subsequent commands use the fallback backend. Restart the gateway to retry
+the primary backend.</p>
+<p>Failover triggers:</p>
+<div class="table-wrapper"><table><thead><tr><th>Primary</th><th>Triggers</th></tr></thead><tbody>
+<tr><td>Apple Container</td><td><code>config.json missing</code>, <code>VM never booted</code>, <code>NSPOSIXErrorDomain Code=22</code>, service errors</td></tr>
+<tr><td>Docker</td><td><code>cannot connect to the docker daemon</code>, <code>connection refused</code>, <code>is the docker daemon running</code></td></tr>
+</tbody></table>
+</div>
+<h2 id="per-session-overrides"><a class="header" href="#per-session-overrides">Per-session overrides</a></h2>
+<p>The web UI allows toggling sandboxing per session and selecting a custom
+container image. These overrides persist across gateway restarts.</p>
+<h2 id="home-persistence"><a class="header" href="#home-persistence">Home persistence</a></h2>
+<p>By default, <code>/home/sandbox</code> is persisted in a shared host folder so that CLI
+auth/config files survive container recreation. You can change this with
+<code>home_persistence</code>:</p>
+<pre><code class="language-toml">[tools.exec.sandbox]
+home_persistence = "session"   # "off", "session", or "shared" (default)
+# shared_home_dir = "/path/to/shared-home"  # optional, used when mode is "shared"
+</code></pre>
+<ul>
+<li><code>off</code>: no home mount, container home is ephemeral</li>
+<li><code>session</code>: mount a per-session host folder to <code>/home/sandbox</code></li>
+<li><code>shared</code>: mount one shared host folder to <code>/home/sandbox</code> for all sessions
+(defaults to <code>data_dir()/sandbox/home/shared</code>, or <code>shared_home_dir</code> if set)</li>
+</ul>
+<p>Moltis stores persisted homes under <code>data_dir()/sandbox/home/</code>.</p>
+<h2 id="network-policy"><a class="header" href="#network-policy">Network policy</a></h2>
+<p>By default, sandbox containers have no network access (<code>no_network = true</code>).
+For tasks that need filtered internet access, use
+<a href="trusted-network.html">trusted network mode</a> — a proxy-based allowlist that
+lets containers reach approved domains while blocking everything else.</p>
+<pre><code class="language-toml">[tools.exec.sandbox]
+network = "trusted"
+trusted_domains = ["registry.npmjs.org", "github.com"]
+</code></pre>
+<p>See <a href="trusted-network.html">Trusted Network</a> for full configuration and the
+network audit log.</p>
+<blockquote>
+<p><strong>Note</strong>: Home persistence applies to Docker, Apple Container, and WASM
+backends. The restricted-host backend uses <code>HOME=/tmp</code> and does not mount
+persistent storage.</p>
+</blockquote>
+<h2 id="resource-limits-1"><a class="header" href="#resource-limits-1">Resource limits</a></h2>
+<pre><code class="language-toml">[tools.exec.sandbox.resource_limits]
+memory_limit = "512M"
+cpu_quota = 1.0
+pids_max = 256
+</code></pre>
+<p>How resource limits are applied depends on the backend:</p>
+<div class="table-wrapper"><table><thead><tr><th>Limit</th><th>Docker</th><th>Apple Container</th><th>WASM</th><th>Restricted Host</th><th>cgroup (Linux)</th></tr></thead><tbody>
+<tr><td><code>memory_limit</code></td><td><code>--memory</code></td><td><code>--memory</code></td><td>Wasmtime reservation</td><td><code>ulimit -v</code></td><td><code>MemoryMax=</code></td></tr>
+<tr><td><code>cpu_quota</code></td><td><code>--cpus</code></td><td><code>--cpus</code></td><td>epoch timeout</td><td><code>ulimit -t</code> (seconds)</td><td><code>CPUQuota=</code></td></tr>
+<tr><td><code>pids_max</code></td><td><code>--pids-limit</code></td><td><code>--pids-limit</code></td><td>n/a</td><td><code>ulimit -u</code></td><td><code>TasksMax=</code></td></tr>
+</tbody></table>
+</div>
+<h2 id="comparison"><a class="header" href="#comparison">Comparison</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Feature</th><th>Apple Container</th><th>Docker</th><th>WASM</th><th>Restricted Host</th><th>none</th></tr></thead><tbody>
+<tr><td>Filesystem isolation</td><td>✅ VM boundary</td><td>✅ namespaces</td><td>✅ sandboxed tree</td><td>❌ host FS</td><td>❌</td></tr>
+<tr><td>Network isolation</td><td>✅</td><td>✅</td><td>✅ (no network)</td><td>❌</td><td>❌</td></tr>
+<tr><td>Kernel isolation</td><td>✅ separate kernel</td><td>❌ shared kernel</td><td>✅ WASM VM</td><td>❌</td><td>❌</td></tr>
+<tr><td>Environment isolation</td><td>✅</td><td>✅</td><td>✅</td><td>✅ cleared + restricted</td><td>❌</td></tr>
+<tr><td>Resource limits</td><td>✅</td><td>✅</td><td>✅ fuel + epoch</td><td>✅ ulimit</td><td>❌</td></tr>
+<tr><td>Image building</td><td>✅ (via Docker)</td><td>✅</td><td>❌</td><td>❌</td><td>❌</td></tr>
+<tr><td>Shell commands</td><td>✅ full shell</td><td>✅ full shell</td><td>~20 built-ins</td><td>✅ full shell</td><td>✅ full shell</td></tr>
+<tr><td>Platform</td><td>macOS 26+</td><td>any</td><td>any</td><td>any</td><td>any</td></tr>
+<tr><td>Overhead</td><td>low</td><td>medium</td><td>minimal</td><td>minimal</td><td>none</td></tr>
+</tbody></table>
+</div>
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="local-llm.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="trusted-network.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="local-llm.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="trusted-network.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+
+    </div>
+    </body>
+</html>

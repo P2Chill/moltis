@@ -1,0 +1,487 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Memory - Moltis Documentation</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="Documentation for Moltis - Your AI coding assistant">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="highlight-css" href="highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="theme/admonish.css">
+        <link rel="stylesheet" href="theme/custom.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Moltis Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/moltis-org/moltis" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                        <a href="https://github.com/moltis-org/moltis/edit/main/docs/src/src/memory.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                            <i id="git-edit-button" class="fa fa-edit"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="memory-system"><a class="header" href="#memory-system">Memory System</a></h1>
+<p>Moltis provides a powerful memory system that enables the agent to recall past conversations, notes, and context across sessions. This document explains the available backends, features, and configuration options.</p>
+<h2 id="backends"><a class="header" href="#backends">Backends</a></h2>
+<p>Moltis supports two memory backends:</p>
+<div class="table-wrapper"><table><thead><tr><th>Feature</th><th>Built-in</th><th>QMD</th></tr></thead><tbody>
+<tr><td><strong>Search Type</strong></td><td>Hybrid (vector + FTS5 keyword)</td><td>Hybrid (BM25 + vector + LLM reranking)</td></tr>
+<tr><td><strong>Local Embeddings</strong></td><td>GGUF models via llama-cpp-2</td><td>GGUF models</td></tr>
+<tr><td><strong>Remote Embeddings</strong></td><td>OpenAI, Ollama, custom endpoints</td><td>Built-in</td></tr>
+<tr><td><strong>Embedding Cache</strong></td><td>SQLite with LRU eviction</td><td>Built-in</td></tr>
+<tr><td><strong>Batch API</strong></td><td>OpenAI batch (50% cost saving)</td><td>No</td></tr>
+<tr><td><strong>Circuit Breaker</strong></td><td>Fallback chain with auto-recovery</td><td>No</td></tr>
+<tr><td><strong>LLM Reranking</strong></td><td>Optional (configurable)</td><td>Built-in with <code>query</code> command</td></tr>
+<tr><td><strong>File Watching</strong></td><td>Real-time sync via notify</td><td>Built-in</td></tr>
+<tr><td><strong>External Dependency</strong></td><td>None (pure Rust)</td><td>Requires QMD binary (Node.js/Bun)</td></tr>
+<tr><td><strong>Offline Support</strong></td><td>Yes (with local embeddings)</td><td>Yes</td></tr>
+</tbody></table>
+</div>
+<h3 id="built-in-backend"><a class="header" href="#built-in-backend">Built-in Backend</a></h3>
+<p>The default backend uses SQLite for storage with FTS5 for keyword search and optional vector embeddings for semantic search. Key advantages:</p>
+<ul>
+<li><strong>Zero external dependencies</strong>: Everything is embedded in the moltis binary</li>
+<li><strong>Fallback chain</strong>: Automatically switches between embedding providers if one fails</li>
+<li><strong>Batch embedding</strong>: Reduces OpenAI API costs by 50% for large sync operations</li>
+<li><strong>Embedding cache</strong>: Avoids re-embedding unchanged content</li>
+</ul>
+<h3 id="qmd-backend"><a class="header" href="#qmd-backend">QMD Backend</a></h3>
+<p>QMD is an optional external sidecar that provides enhanced search capabilities:</p>
+<ul>
+<li><strong>BM25 keyword search</strong>: Fast, instant results (similar to Elasticsearch)</li>
+<li><strong>Vector search</strong>: Semantic similarity using local GGUF models</li>
+<li><strong>Hybrid search with LLM reranking</strong>: Combines both methods with an LLM pass for optimal relevance</li>
+</ul>
+<p>To use QMD:</p>
+<ol>
+<li>Install QMD separately from <a href="https://github.com/tobi/qmd">github.com/tobi/qmd</a></li>
+<li>Enable it in Settings &gt; Memory &gt; Backend</li>
+</ol>
+<h2 id="features"><a class="header" href="#features">Features</a></h2>
+<h3 id="citations"><a class="header" href="#citations">Citations</a></h3>
+<p>Citations append source file and line number information to search results:</p>
+<pre><code>Some important content from your notes.
+
+Source: memory/notes.md#42
+</code></pre>
+<p><strong>Configuration options:</strong></p>
+<ul>
+<li><code>auto</code> (default): Include citations when results come from multiple files</li>
+<li><code>on</code>: Always include citations</li>
+<li><code>off</code>: Never include citations</li>
+</ul>
+<h3 id="session-export"><a class="header" href="#session-export">Session Export</a></h3>
+<p>When enabled, session transcripts are automatically exported to the memory system for cross-run recall. This allows the agent to remember past conversations even after restarts.</p>
+<p>Exported sessions are:</p>
+<ul>
+<li>Stored in <code>memory/sessions/</code> as markdown files</li>
+<li>Sanitized to remove sensitive tool results and system messages</li>
+<li>Automatically cleaned up based on age/count limits</li>
+</ul>
+<h3 id="llm-reranking"><a class="header" href="#llm-reranking">LLM Reranking</a></h3>
+<p>LLM reranking uses the configured language model to re-score and reorder search results based on semantic relevance to the query. This provides better results than keyword or vector matching alone, at the cost of additional latency.</p>
+<p><strong>How it works:</strong></p>
+<ol>
+<li>Initial search returns candidate results</li>
+<li>LLM evaluates each result’s relevance (0.0-1.0 score)</li>
+<li>Results are reordered by combined score (70% LLM, 30% original)</li>
+</ol>
+<h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
+<p>Memory settings can be configured in <code>moltis.toml</code>:</p>
+<pre><code class="language-toml">[memory]
+# Backend: "builtin" (default) or "qmd"
+backend = "builtin"
+
+# Embedding provider: "local", "ollama", "openai", "custom", or auto-detect
+provider = "local"
+
+# Disable RAG embeddings and force keyword-only search
+disable_rag = false
+
+# Embedding API base URL (host, /v1, or full /embeddings endpoint)
+base_url = "http://localhost:11434/v1"
+
+# Citation mode: "on", "off", or "auto"
+citations = "auto"
+
+# Enable LLM reranking for hybrid search
+llm_reranking = false
+
+# Export sessions to memory for cross-run recall
+session_export = true
+
+# QMD-specific settings (only used when backend = "qmd")
+[memory.qmd]
+command = "qmd"
+max_results = 10
+timeout_ms = 30000
+</code></pre>
+<p>Or via the web UI: <strong>Settings &gt; Memory</strong></p>
+<h2 id="embedding-providers"><a class="header" href="#embedding-providers">Embedding Providers</a></h2>
+<p>The built-in backend supports multiple embedding providers:</p>
+<div class="table-wrapper"><table><thead><tr><th>Provider</th><th>Model</th><th>Dimensions</th><th>Notes</th></tr></thead><tbody>
+<tr><td>Local (GGUF)</td><td>EmbeddingGemma-300M</td><td>768</td><td>Offline, ~300MB download</td></tr>
+<tr><td>Ollama</td><td>nomic-embed-text</td><td>768</td><td>Requires Ollama running</td></tr>
+<tr><td>OpenAI</td><td>text-embedding-3-small</td><td>1536</td><td>Requires API key</td></tr>
+<tr><td>Custom</td><td>Configurable</td><td>Varies</td><td>OpenAI-compatible endpoint</td></tr>
+</tbody></table>
+</div>
+<p>The system auto-detects available providers and creates a fallback chain:</p>
+<ol>
+<li>Try configured provider first</li>
+<li>Fall back to other available providers if it fails</li>
+<li>Use keyword-only search if no embedding provider is available</li>
+</ol>
+<h2 id="memory-directories"><a class="header" href="#memory-directories">Memory Directories</a></h2>
+<p>By default, moltis indexes markdown files from:</p>
+<ul>
+<li><code>~/.moltis/MEMORY.md</code> - Main long-term memory file</li>
+<li><code>~/.moltis/memory/*.md</code> - Additional memory files</li>
+<li><code>~/.moltis/memory/sessions/*.md</code> - Exported session transcripts</li>
+</ul>
+<h2 id="tools"><a class="header" href="#tools">Tools</a></h2>
+<p>The memory system exposes three agent tools:</p>
+<h3 id="memory_search"><a class="header" href="#memory_search">memory_search</a></h3>
+<p>Search memory with a natural language query. Returns relevant chunks ranked
+by hybrid (vector + keyword) similarity.</p>
+<pre><code class="language-json">{
+  "query": "what did we discuss about the API design?",
+  "limit": 5
+}
+</code></pre>
+<h3 id="memory_get"><a class="header" href="#memory_get">memory_get</a></h3>
+<p>Retrieve a specific memory chunk by ID. Useful for reading the full text of a
+result found via <code>memory_search</code>.</p>
+<pre><code class="language-json">{
+  "chunk_id": "memory/notes.md:42"
+}
+</code></pre>
+<h3 id="memory_save"><a class="header" href="#memory_save">memory_save</a></h3>
+<p>Save content to long-term memory files. The agent uses this tool when you ask
+it to remember something (“remember that I prefer dark mode”) or when it
+decides certain information is worth persisting.</p>
+<pre><code class="language-json">{
+  "content": "User prefers dark mode and Vim keybindings.",
+  "file": "MEMORY.md",
+  "append": true
+}
+</code></pre>
+<p><strong>Parameters:</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>content</code></td><td>string</td><td><em>(required)</em></td><td>The content to save</td></tr>
+<tr><td><code>file</code></td><td>string</td><td><code>MEMORY.md</code></td><td>Target file: <code>MEMORY.md</code>, <code>memory.md</code>, or <code>memory/&lt;name&gt;.md</code></td></tr>
+<tr><td><code>append</code></td><td>boolean</td><td><code>true</code></td><td>Append to existing file (<code>true</code>) or overwrite (<code>false</code>)</td></tr>
+</tbody></table>
+</div>
+<p><strong>Path validation:</strong> The tool enforces a strict allowlist of write targets
+to prevent path traversal attacks. Only these patterns are accepted:</p>
+<ul>
+<li><code>MEMORY.md</code> or <code>memory.md</code> (root memory files)</li>
+<li><code>memory/&lt;name&gt;.md</code> (files in the memory subdirectory, one level deep)</li>
+</ul>
+<p>Absolute paths, <code>..</code> traversal, non-<code>.md</code> extensions, spaces in filenames,
+and nested subdirectories (<code>memory/a/b.md</code>) are all rejected. Content is
+limited to 50 KB per write.</p>
+<p><strong>Auto-reindex:</strong> After writing, the memory system automatically re-indexes
+the affected file so the new content is immediately searchable via
+<code>memory_search</code>.</p>
+<h2 id="silent-memory-turn-pre-compaction-flush"><a class="header" href="#silent-memory-turn-pre-compaction-flush">Silent Memory Turn (Pre-Compaction Flush)</a></h2>
+<p>Before compacting a session (summarizing old messages to free context window
+space), Moltis runs a <strong>silent agentic turn</strong> that reviews the conversation
+and saves important information to memory files. This ensures durable memories
+survive compaction.</p>
+<p><strong>How it works:</strong></p>
+<ol>
+<li>When a session approaches the model’s context window limit, the gateway
+triggers compaction</li>
+<li>Before summarizing, a hidden LLM turn runs with a special system prompt
+asking the agent to save noteworthy information</li>
+<li>The agent writes to <code>MEMORY.md</code> and/or <code>memory/YYYY-MM-DD.md</code> using an
+internal <code>write_file</code> tool backed by the same <code>MemoryWriter</code> as
+<code>memory_save</code></li>
+<li>The LLM’s response text is discarded (the user sees nothing)</li>
+<li>Written files are automatically re-indexed for future search</li>
+</ol>
+<p><strong>What gets saved:</strong></p>
+<ul>
+<li>User preferences and working style</li>
+<li>Key decisions and their reasoning</li>
+<li>Project context, architecture choices, and conventions</li>
+<li>Important facts, names, dates, and relationships</li>
+<li>Technical setup details (tools, languages, frameworks)</li>
+</ul>
+<p>This is the same approach used by OpenClaw. See the
+<a href="memory-comparison.html">comparison page</a> for a detailed analysis of both
+systems.</p>
+<h2 id="architecture"><a class="header" href="#architecture">Architecture</a></h2>
+<pre><code>┌──────────────────────────────────────────────────────────────────┐
+│                       Memory Manager                             │
+│               (implements MemoryWriter trait)                     │
+├──────────────────────────────────────────────────────────────────┤
+│                         Read Path                                │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐      │
+│  │   Chunker   │  │   Search    │  │  Session Export     │      │
+│  │ (markdown)  │  │  (hybrid)   │  │  (transcripts)      │      │
+│  └─────────────┘  └─────────────┘  └─────────────────────┘      │
+├──────────────────────────────────────────────────────────────────┤
+│                        Write Path                                │
+│  ┌─────────────────┐  ┌──────────────────┐  ┌────────────────┐  │
+│  │  memory_save    │  │  Silent Turn     │  │  Path          │  │
+│  │  (agent tool)   │  │  (pre-compact)   │  │  Validation    │  │
+│  └─────────────────┘  └──────────────────┘  └────────────────┘  │
+├──────────────────────────────────────────────────────────────────┤
+│                      Storage Backend                             │
+│  ┌────────────────────────┐  ┌────────────────────────┐         │
+│  │   Built-in (SQLite)    │  │   QMD (sidecar)        │         │
+│  │  - FTS5 keyword        │  │  - BM25 keyword        │         │
+│  │  - Vector similarity   │  │  - Vector similarity   │         │
+│  │  - Embedding cache     │  │  - LLM reranking       │         │
+│  └────────────────────────┘  └────────────────────────┘         │
+├──────────────────────────────────────────────────────────────────┤
+│                    Embedding Providers                            │
+│  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌───────────────┐      │
+│  │  Local  │  │ Ollama  │  │ OpenAI  │  │ Batch/Fallback│      │
+│  │  (GGUF) │  │         │  │         │  │               │      │
+│  └─────────┘  └─────────┘  └─────────┘  └───────────────┘      │
+└──────────────────────────────────────────────────────────────────┘
+</code></pre>
+<h2 id="troubleshooting"><a class="header" href="#troubleshooting">Troubleshooting</a></h2>
+<h3 id="memory-not-working"><a class="header" href="#memory-not-working">Memory not working</a></h3>
+<ol>
+<li>Check status in Settings &gt; Memory</li>
+<li>Ensure at least one embedding provider is available:
+<ul>
+<li>Local: Requires <code>local-embeddings</code> feature enabled at build</li>
+<li>Ollama: Must be running at <code>localhost:11434</code></li>
+<li>OpenAI: Requires <code>OPENAI_API_KEY</code> environment variable</li>
+</ul>
+</li>
+</ol>
+<h3 id="search-returns-no-results"><a class="header" href="#search-returns-no-results">Search returns no results</a></h3>
+<ol>
+<li>Check that memory files exist in the expected directories</li>
+<li>Trigger a manual sync by restarting moltis</li>
+<li>Check logs for sync errors</li>
+</ol>
+<h3 id="qmd-not-available"><a class="header" href="#qmd-not-available">QMD not available</a></h3>
+<ol>
+<li>Verify QMD is installed: <code>qmd --version</code></li>
+<li>Check that the path is correct in settings</li>
+<li>Ensure QMD has indexed your collections: <code>qmd stats</code></li>
+</ol>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="mcp.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="memory-comparison.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="mcp.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="memory-comparison.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+
+    </div>
+    </body>
+</html>

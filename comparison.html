@@ -1,0 +1,350 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Comparison - Moltis Documentation</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="Documentation for Moltis - Your AI coding assistant">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="highlight-css" href="highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="theme/admonish.css">
+        <link rel="stylesheet" href="theme/custom.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Moltis Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/moltis-org/moltis" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                        <a href="https://github.com/moltis-org/moltis/edit/main/docs/src/src/comparison.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                            <i id="git-edit-button" class="fa fa-edit"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="comparison"><a class="header" href="#comparison">Comparison</a></h1>
+<p>How Moltis compares to other open-source AI agent frameworks.</p>
+<blockquote>
+<p><strong>Disclaimer:</strong> This comparison reflects publicly available information at the
+time of writing. Projects evolve quickly — check each project’s repository for
+the latest details. Contributions to keep this page accurate are welcome.</p>
+</blockquote>
+<h2 id="at-a-glance"><a class="header" href="#at-a-glance">At a Glance</a></h2>
+<div class="table-wrapper"><table><thead><tr><th></th><th><a href="https://github.com/openclaw/openclaw">OpenClaw</a></th><th><a href="https://github.com/sipeed/picoclaw">PicoClaw</a></th><th><a href="https://github.com/qwibitai/nanoclaw">NanoClaw</a></th><th><a href="https://github.com/zeroclaw-labs/zeroclaw">ZeroClaw</a></th><th><strong>Moltis</strong></th></tr></thead><tbody>
+<tr><td>Language</td><td>TypeScript</td><td>Go</td><td>TypeScript</td><td>Rust</td><td><strong>Rust</strong></td></tr>
+<tr><td>Agent loop</td><td>~430K LoC</td><td>Small</td><td>~500 LoC</td><td>~3.4K LoC</td><td><strong>~5K LoC</strong></td></tr>
+<tr><td>Full codebase</td><td>—</td><td>—</td><td>—</td><td>1,000+ tests</td><td><strong>~200K LoC</strong> (3,100+ tests)</td></tr>
+<tr><td>Runtime</td><td>Node.js + npm</td><td>Single binary</td><td>Node.js</td><td>Single binary (3.4 MB)</td><td><strong>Single binary (44 MB)</strong></td></tr>
+<tr><td>Sandbox</td><td>App-level</td><td>—</td><td>Docker</td><td>Docker</td><td><strong>Docker + Apple Container</strong></td></tr>
+<tr><td>Memory safety</td><td>GC</td><td>GC</td><td>GC</td><td>Ownership</td><td><strong>Ownership, zero <code>unsafe</code>*</strong></td></tr>
+<tr><td>Auth</td><td>Basic</td><td>API keys</td><td>None</td><td>Token + OAuth</td><td><strong>Password + Passkey + API keys</strong></td></tr>
+<tr><td>Voice I/O</td><td>Plugin</td><td>—</td><td>—</td><td>—</td><td><strong>Built-in (15+ providers)</strong></td></tr>
+<tr><td>MCP</td><td>Yes</td><td>—</td><td>—</td><td>—</td><td><strong>Yes (stdio + HTTP/SSE)</strong></td></tr>
+<tr><td>Hooks</td><td>Yes (limited)</td><td>—</td><td>—</td><td>—</td><td><strong>15 event types</strong></td></tr>
+<tr><td>Skills</td><td>Yes (store)</td><td>Yes</td><td>Yes</td><td>Yes</td><td><strong>Yes (+ OpenClaw Store)</strong></td></tr>
+<tr><td>Memory/RAG</td><td>Plugin</td><td>—</td><td>Per-group</td><td>SQLite + FTS</td><td><strong>SQLite + FTS + vector</strong></td></tr>
+</tbody></table>
+</div>
+<p>* <code>unsafe</code> is denied workspace-wide in Moltis. The only exceptions are opt-in
+FFI wrappers behind the <code>local-embeddings</code> feature flag, not part of the core.</p>
+<h2 id="architecture-approach"><a class="header" href="#architecture-approach">Architecture Approach</a></h2>
+<h3 id="openclaw--full-featured-monolith"><a class="header" href="#openclaw--full-featured-monolith">OpenClaw — Full-featured monolith</a></h3>
+<p>OpenClaw is the original and most popular project (~211K stars). It ships as a
+Node.js application with 52+ modules, 45+ npm dependencies, and a large surface
+area. It has the richest ecosystem of third-party skills and integrations, but
+the codebase is difficult to audit end-to-end.</p>
+<h3 id="picoclaw--minimal-go-binary"><a class="header" href="#picoclaw--minimal-go-binary">PicoClaw — Minimal Go binary</a></h3>
+<p>PicoClaw targets extreme resource constraints — $10 SBCs, RISC-V boards, and
+devices with as little as 10 MB of RAM. It boots in under 1 second on 0.6 GHz
+hardware. The trade-off is a narrower feature set: no sandbox isolation, no
+built-in memory/RAG, and limited extensibility.</p>
+<h3 id="nanoclaw--container-first-typescript"><a class="header" href="#nanoclaw--container-first-typescript">NanoClaw — Container-first TypeScript</a></h3>
+<p>NanoClaw strips away OpenClaw’s complexity to deliver a small, readable
+TypeScript codebase with first-class container isolation. Agents run in
+Linux containers with filesystem isolation. It uses Claude Agent SDK for
+sub-agent delegation and per-group CLAUDE.md memory files. The trade-off is
+Node.js as a runtime dependency and a smaller feature surface.</p>
+<h3 id="zeroclaw--lightweight-rust"><a class="header" href="#zeroclaw--lightweight-rust">ZeroClaw — Lightweight Rust</a></h3>
+<p>ZeroClaw compiles to a tiny 3.4 MB binary with &lt;5 MB RAM usage and sub-10ms
+startup. It uses trait-driven architecture with 22+ provider implementations
+and 9+ channel integrations. Memory is backed by SQLite with hybrid vector +
+FTS search. The focus is on minimal footprint and broad platform support.</p>
+<h3 id="moltis--auditable-rust-gateway"><a class="header" href="#moltis--auditable-rust-gateway">Moltis — Auditable Rust gateway</a></h3>
+<p>Moltis prioritizes auditability and defense in depth. The core agent engine
+(runner + provider model) is ~5K lines; the core (excluding the optional web UI)
+is ~196K lines across 46 modular crates, each independently auditable. Key
+differences from ZeroClaw:</p>
+<ul>
+<li><strong>Larger binary (44 MB)</strong> in exchange for built-in voice I/O, browser
+automation, web UI, and MCP support</li>
+<li><strong>Apple Container support</strong> in addition to Docker</li>
+<li><strong>WebAuthn passkey authentication</strong> — not just tokens</li>
+<li><strong>15 lifecycle hook events</strong> with circuit breaker and dry-run mode</li>
+<li><strong>Built-in web UI</strong> with real-time streaming, settings management, and
+session branching</li>
+</ul>
+<h2 id="security-model"><a class="header" href="#security-model">Security Model</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Aspect</th><th>OpenClaw</th><th>PicoClaw</th><th>NanoClaw</th><th>ZeroClaw</th><th><strong>Moltis</strong></th></tr></thead><tbody>
+<tr><td>Code sandbox</td><td>App-level permissions</td><td>None</td><td>Docker containers</td><td>Docker containers</td><td>Docker + Apple Container</td></tr>
+<tr><td>Secret handling</td><td>Environment variables</td><td>Environment variables</td><td>Environment variables</td><td>Encrypted profiles</td><td><code>secrecy::Secret</code>, zeroed on drop</td></tr>
+<tr><td>Auth method</td><td>Basic password</td><td>API keys only</td><td>None (WhatsApp auth)</td><td>Token + OAuth</td><td>Password + Passkey + API keys</td></tr>
+<tr><td>SSRF protection</td><td>Plugin</td><td>—</td><td>—</td><td>DNS validation</td><td>DNS-resolved, blocks loopback/private/link-local/CGNAT</td></tr>
+<tr><td>WebSocket origin</td><td>—</td><td>N/A</td><td>—</td><td>—</td><td>Cross-origin rejection</td></tr>
+<tr><td><code>unsafe</code> code</td><td>N/A (JS)</td><td>N/A (Go)</td><td>N/A (JS)</td><td>Minimal</td><td>Denied workspace-wide*</td></tr>
+<tr><td>Hook gating</td><td>—</td><td>—</td><td>—</td><td>Skills-based</td><td><code>BeforeToolCall</code> inspect/modify/block</td></tr>
+<tr><td>Rate limiting</td><td>—</td><td>—</td><td>—</td><td>—</td><td>Per-IP throttle, strict login limits</td></tr>
+</tbody></table>
+</div>
+<h2 id="performance"><a class="header" href="#performance">Performance</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Metric</th><th>OpenClaw</th><th>PicoClaw</th><th>ZeroClaw</th><th><strong>Moltis</strong></th></tr></thead><tbody>
+<tr><td>Binary / dist size</td><td>~28 MB (node_modules)</td><td>&lt;10 MB</td><td>3.4 MB</td><td>44 MB</td></tr>
+<tr><td>Cold start</td><td>&gt;30s</td><td>&lt;1s</td><td>&lt;10ms</td><td>~1s</td></tr>
+<tr><td>RAM (idle)</td><td>&gt;100 MB</td><td>&lt;10 MB</td><td>&lt;5 MB</td><td>~30 MB</td></tr>
+<tr><td>Min hardware</td><td>Modern desktop</td><td>$10 SBC (RISC-V)</td><td>$10 SBC</td><td>Raspberry Pi 4+</td></tr>
+</tbody></table>
+</div>
+<p>Moltis is larger because it bundles a web UI, voice engine, browser automation,
+and MCP runtime. Use <code>--no-default-features --features lightweight</code> for
+constrained devices.</p>
+<h2 id="when-to-choose-what"><a class="header" href="#when-to-choose-what">When to Choose What</a></h2>
+<p><strong>Choose OpenClaw if</strong> you want the largest ecosystem, maximum third-party
+skills, and don’t mind Node.js as a dependency.</p>
+<p><strong>Choose PicoClaw if</strong> you need to run on extremely constrained hardware
+($10 boards, RISC-V) and can accept a minimal feature set.</p>
+<p><strong>Choose NanoClaw if</strong> you want a small, readable TypeScript codebase with
+container isolation and don’t need voice, MCP, or a web UI.</p>
+<p><strong>Choose ZeroClaw if</strong> you want the smallest possible Rust binary, sub-10ms
+startup, and broad channel support without a web UI.</p>
+<p><strong>Choose Moltis if</strong> you want:</p>
+<ul>
+<li>A single auditable Rust binary with built-in web UI</li>
+<li>Voice I/O with 15+ providers (8 TTS + 7 STT)</li>
+<li>MCP server support (stdio + HTTP/SSE)</li>
+<li>WebAuthn passkey authentication</li>
+<li>Apple Container sandbox support (macOS native)</li>
+<li>15 lifecycle hook events with circuit breaker</li>
+<li>Embeddings-powered long-term memory with hybrid search</li>
+<li>Cron scheduling, browser automation, and Tailscale integration</li>
+</ul>
+<h2 id="links"><a class="header" href="#links">Links</a></h2>
+<ul>
+<li><a href="https://github.com/openclaw/openclaw">OpenClaw</a> — <a href="https://docs.openclaw.ai">Docs</a></li>
+<li><a href="https://github.com/sipeed/picoclaw">PicoClaw</a> — <a href="https://picoclaw.net">Site</a></li>
+<li><a href="https://github.com/qwibitai/nanoclaw">NanoClaw</a></li>
+<li><a href="https://github.com/zeroclaw-labs/zeroclaw">ZeroClaw</a> — <a href="https://zeroclaw.net">Site</a></li>
+<li><a href="https://github.com/moltis-org/moltis">Moltis</a> — <a href="https://docs.moltis.org">Docs</a></li>
+</ul>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="installation.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="configuration.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="installation.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="configuration.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+
+    </div>
+    </body>
+</html>

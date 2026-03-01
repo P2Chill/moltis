@@ -1,0 +1,460 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>SQLite Migrations - Moltis Documentation</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="Documentation for Moltis - Your AI coding assistant">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="highlight-css" href="highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="theme/admonish.css">
+        <link rel="stylesheet" href="theme/custom.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Moltis Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/moltis-org/moltis" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                        <a href="https://github.com/moltis-org/moltis/edit/main/docs/src/src/sqlite-migration.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                            <i id="git-edit-button" class="fa fa-edit"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="sqlite-database-migrations"><a class="header" href="#sqlite-database-migrations">SQLite Database Migrations</a></h1>
+<p>Moltis uses <a href="https://github.com/launchbadge/sqlx">sqlx</a> for database access and its
+built-in migration system for schema management. Each crate owns its migrations,
+keeping schema definitions close to the code that uses them.</p>
+<h2 id="architecture"><a class="header" href="#architecture">Architecture</a></h2>
+<p>Each crate that uses SQLite has its own <code>migrations/</code> directory and exposes a
+<code>run_migrations()</code> function. The gateway orchestrates running all migrations at
+startup in the correct dependency order.</p>
+<pre><code>crates/
+├── projects/
+│   ├── migrations/
+│   │   └── 20240205100000_init.sql   # projects table
+│   └── src/lib.rs                     # run_migrations()
+├── sessions/
+│   ├── migrations/
+│   │   └── 20240205100001_init.sql   # sessions, channel_sessions
+│   └── src/lib.rs                     # run_migrations()
+├── cron/
+│   ├── migrations/
+│   │   └── 20240205100002_init.sql   # cron_jobs, cron_runs
+│   └── src/lib.rs                     # run_migrations()
+├── gateway/
+│   ├── migrations/
+│   │   └── 20240205100003_init.sql   # auth, message_log, channels
+│   └── src/server.rs                  # orchestrates moltis.db migrations
+└── memory/
+    ├── migrations/
+    │   └── 20240205100004_init.sql   # files, chunks, embedding_cache, FTS
+    └── src/lib.rs                     # run_migrations() (separate memory.db)
+</code></pre>
+<h2 id="how-it-works"><a class="header" href="#how-it-works">How It Works</a></h2>
+<h3 id="migration-ownership"><a class="header" href="#migration-ownership">Migration Ownership</a></h3>
+<p>Each crate is autonomous and owns its schema:</p>
+<div class="table-wrapper"><table><thead><tr><th>Crate</th><th>Database</th><th>Tables</th><th>Migration File</th></tr></thead><tbody>
+<tr><td><code>moltis-projects</code></td><td><code>moltis.db</code></td><td><code>projects</code></td><td><code>20240205100000_init.sql</code></td></tr>
+<tr><td><code>moltis-sessions</code></td><td><code>moltis.db</code></td><td><code>sessions</code>, <code>channel_sessions</code></td><td><code>20240205100001_init.sql</code></td></tr>
+<tr><td><code>moltis-cron</code></td><td><code>moltis.db</code></td><td><code>cron_jobs</code>, <code>cron_runs</code></td><td><code>20240205100002_init.sql</code></td></tr>
+<tr><td><code>moltis-gateway</code></td><td><code>moltis.db</code></td><td><code>auth_*</code>, <code>passkeys</code>, <code>api_keys</code>, <code>env_variables</code>, <code>message_log</code>, <code>channels</code></td><td><code>20240205100003_init.sql</code></td></tr>
+<tr><td><code>moltis-memory</code></td><td><code>memory.db</code></td><td><code>files</code>, <code>chunks</code>, <code>embedding_cache</code>, <code>chunks_fts</code></td><td><code>20240205100004_init.sql</code></td></tr>
+</tbody></table>
+</div>
+<h3 id="startup-sequence"><a class="header" href="#startup-sequence">Startup Sequence</a></h3>
+<p>The gateway runs migrations in dependency order:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// server.rs
+moltis_projects::run_migrations(&amp;db_pool).await?;   // 1. projects first
+moltis_sessions::run_migrations(&amp;db_pool).await?;   // 2. sessions (FK → projects)
+moltis_cron::run_migrations(&amp;db_pool).await?;       // 3. cron (independent)
+sqlx::migrate!("./migrations").run(&amp;db_pool).await?; // 4. gateway tables
+<span class="boring">}</span></code></pre></pre>
+<p>Sessions depends on projects due to a foreign key (<code>sessions.project_id</code> references
+<code>projects.id</code>), so projects must migrate first.</p>
+<h3 id="version-tracking"><a class="header" href="#version-tracking">Version Tracking</a></h3>
+<p>sqlx tracks applied migrations in the <code>_sqlx_migrations</code> table:</p>
+<pre><code class="language-sql">SELECT version, description, installed_on, success FROM _sqlx_migrations;
+</code></pre>
+<p>Migrations are identified by their timestamp prefix (e.g., <code>20240205100000</code>), which
+must be globally unique across all crates.</p>
+<h2 id="database-files"><a class="header" href="#database-files">Database Files</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Database</th><th>Location</th><th>Crates</th></tr></thead><tbody>
+<tr><td><code>moltis.db</code></td><td><code>~/.moltis/moltis.db</code></td><td>projects, sessions, cron, gateway</td></tr>
+<tr><td><code>memory.db</code></td><td><code>~/.moltis/memory.db</code></td><td>memory (separate, managed internally)</td></tr>
+</tbody></table>
+</div>
+<h2 id="adding-new-migrations"><a class="header" href="#adding-new-migrations">Adding New Migrations</a></h2>
+<h3 id="adding-a-column-to-an-existing-table"><a class="header" href="#adding-a-column-to-an-existing-table">Adding a Column to an Existing Table</a></h3>
+<ol>
+<li>Create a new migration file in the owning crate:</li>
+</ol>
+<pre><code class="language-bash"># Example: adding tags to sessions
+touch crates/sessions/migrations/20240301120000_add_tags.sql
+</code></pre>
+<ol start="2">
+<li>Write the migration SQL:</li>
+</ol>
+<pre><code class="language-sql">-- 20240301120000_add_tags.sql
+ALTER TABLE sessions ADD COLUMN tags TEXT;
+CREATE INDEX IF NOT EXISTS idx_sessions_tags ON sessions(tags);
+</code></pre>
+<ol start="3">
+<li>Rebuild to embed the migration:</li>
+</ol>
+<pre><code class="language-bash">cargo build
+</code></pre>
+<h3 id="adding-a-new-table-to-an-existing-crate"><a class="header" href="#adding-a-new-table-to-an-existing-crate">Adding a New Table to an Existing Crate</a></h3>
+<ol>
+<li>Create the migration file with a new timestamp:</li>
+</ol>
+<pre><code class="language-bash">touch crates/sessions/migrations/20240302100000_session_bookmarks.sql
+</code></pre>
+<ol start="2">
+<li>Write the CREATE TABLE statement:</li>
+</ol>
+<pre><code class="language-sql">-- 20240302100000_session_bookmarks.sql
+CREATE TABLE IF NOT EXISTS session_bookmarks (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_key TEXT NOT NULL,
+    name       TEXT NOT NULL,
+    message_id INTEGER NOT NULL,
+    created_at INTEGER NOT NULL
+);
+</code></pre>
+<h3 id="adding-tables-to-a-new-crate"><a class="header" href="#adding-tables-to-a-new-crate">Adding Tables to a New Crate</a></h3>
+<ol>
+<li>Create the migrations directory:</li>
+</ol>
+<pre><code class="language-bash">mkdir -p crates/new-feature/migrations
+</code></pre>
+<ol start="2">
+<li>Create the migration file with a globally unique timestamp:</li>
+</ol>
+<pre><code class="language-bash">touch crates/new-feature/migrations/20240401100000_init.sql
+</code></pre>
+<ol start="3">
+<li>Add <code>run_migrations()</code> to the crate’s <code>lib.rs</code>:</li>
+</ol>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub async fn run_migrations(pool: &amp;sqlx::SqlitePool) -&gt; anyhow::Result&lt;()&gt; {
+    sqlx::migrate!("./migrations").run(pool).await?;
+    Ok(())
+}
+<span class="boring">}</span></code></pre></pre>
+<ol start="4">
+<li>Call it from <code>server.rs</code> in the appropriate order:</li>
+</ol>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>moltis_new_feature::run_migrations(&amp;db_pool).await?;
+<span class="boring">}</span></code></pre></pre>
+<h2 id="timestamp-convention"><a class="header" href="#timestamp-convention">Timestamp Convention</a></h2>
+<p>Use <code>YYYYMMDDHHMMSS</code> format for migration filenames:</p>
+<ul>
+<li><code>YYYY</code> - 4-digit year</li>
+<li><code>MM</code> - 2-digit month</li>
+<li><code>DD</code> - 2-digit day</li>
+<li><code>HH</code> - 2-digit hour (24h)</li>
+<li><code>MM</code> - 2-digit minute</li>
+<li><code>SS</code> - 2-digit second</li>
+</ul>
+<p>This ensures global uniqueness across crates. When adding migrations, use the
+current timestamp to avoid collisions.</p>
+<h2 id="sqlite-limitations"><a class="header" href="#sqlite-limitations">SQLite Limitations</a></h2>
+<h3 id="alter-table"><a class="header" href="#alter-table">ALTER TABLE</a></h3>
+<p>SQLite has limited <code>ALTER TABLE</code> support:</p>
+<ul>
+<li><strong>ADD COLUMN</strong>: Supported ✓</li>
+<li><strong>DROP COLUMN</strong>: SQLite 3.35+ only</li>
+<li><strong>Rename column</strong>: Requires table recreation</li>
+<li><strong>Change column type</strong>: Requires table recreation</li>
+</ul>
+<p>For complex schema changes, use the table recreation pattern:</p>
+<pre><code class="language-sql">-- Create new table with desired schema
+CREATE TABLE sessions_new (
+    -- new schema
+);
+
+-- Copy data (map old columns to new)
+INSERT INTO sessions_new SELECT ... FROM sessions;
+
+-- Swap tables
+DROP TABLE sessions;
+ALTER TABLE sessions_new RENAME TO sessions;
+
+-- Recreate indexes
+CREATE INDEX idx_sessions_created_at ON sessions(created_at);
+</code></pre>
+<h3 id="foreign-keys"><a class="header" href="#foreign-keys">Foreign Keys</a></h3>
+<p>SQLite foreign keys are checked at insert/update time, not migration time. Ensure
+migrations run in dependency order (parent table first).</p>
+<h2 id="testing"><a class="header" href="#testing">Testing</a></h2>
+<p>Unit tests use in-memory databases with the crate’s <code>init()</code> method:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[tokio::test]
+async fn test_session_operations() {
+    let pool = SqlitePool::connect("sqlite::memory:").await.unwrap();
+
+    // Create schema for tests (init() retained for this purpose)
+    SqliteSessionMetadata::init(&amp;pool).await.unwrap();
+
+    let meta = SqliteSessionMetadata::new(pool);
+    // ... test code
+}
+<span class="boring">}</span></code></pre></pre>
+<p>The <code>init()</code> methods are retained (marked <code>#[doc(hidden)]</code>) specifically for tests.
+In production, migrations handle schema creation.</p>
+<h2 id="troubleshooting"><a class="header" href="#troubleshooting">Troubleshooting</a></h2>
+<h3 id="failed-to-run-migrations"><a class="header" href="#failed-to-run-migrations">“failed to run migrations”</a></h3>
+<ol>
+<li>Check file permissions on <code>~/.moltis/</code></li>
+<li>Ensure the database file isn’t locked by another process</li>
+<li>Check for syntax errors in migration SQL files</li>
+</ol>
+<h3 id="migration-order-issues"><a class="header" href="#migration-order-issues">Migration Order Issues</a></h3>
+<p>If you see foreign key errors, verify the migration order in <code>server.rs</code>. Parent
+tables must be created before child tables with FK references.</p>
+<h3 id="checking-migration-status"><a class="header" href="#checking-migration-status">Checking Migration Status</a></h3>
+<pre><code class="language-bash">sqlite3 ~/.moltis/moltis.db "SELECT version, description, success FROM _sqlx_migrations ORDER BY version"
+</code></pre>
+<h3 id="resetting-migrations-development-only"><a class="header" href="#resetting-migrations-development-only">Resetting Migrations (Development Only)</a></h3>
+<pre><code class="language-bash"># Backup first!
+rm ~/.moltis/moltis.db
+cargo run  # Creates fresh database with all migrations
+</code></pre>
+<h2 id="best-practices"><a class="header" href="#best-practices">Best Practices</a></h2>
+<h3 id="do"><a class="header" href="#do">DO</a></h3>
+<ul>
+<li>Use timestamp-based version numbers for global uniqueness</li>
+<li>Keep each crate’s migrations in its own directory</li>
+<li>Use <code>IF NOT EXISTS</code> for idempotent initial migrations</li>
+<li>Test migrations on a copy of production data before deploying</li>
+<li>Keep migrations small and focused</li>
+</ul>
+<h3 id="dont"><a class="header" href="#dont">DON’T</a></h3>
+<ul>
+<li>Modify existing migration files after deployment</li>
+<li>Reuse timestamps across crates</li>
+<li>Put multiple crates’ tables in one migration file</li>
+<li>Skip the dependency order in <code>server.rs</code></li>
+</ul>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="streaming.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="metrics-and-tracing.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="streaming.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="metrics-and-tracing.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+
+    </div>
+    </body>
+</html>

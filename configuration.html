@@ -1,0 +1,523 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Configuration - Moltis Documentation</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="Documentation for Moltis - Your AI coding assistant">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="highlight-css" href="highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="theme/admonish.css">
+        <link rel="stylesheet" href="theme/custom.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Moltis Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/moltis-org/moltis" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                        <a href="https://github.com/moltis-org/moltis/edit/main/docs/src/src/configuration.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                            <i id="git-edit-button" class="fa fa-edit"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="configuration"><a class="header" href="#configuration">Configuration</a></h1>
+<p>Moltis is configured through <code>moltis.toml</code>, located in <code>~/.config/moltis/</code> by default.</p>
+<p>On first run, a complete configuration file is generated with sensible defaults. You can edit it to customize behavior.</p>
+<h2 id="configuration-file-location"><a class="header" href="#configuration-file-location">Configuration File Location</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Platform</th><th>Default Path</th></tr></thead><tbody>
+<tr><td>macOS/Linux</td><td><code>~/.config/moltis/moltis.toml</code></td></tr>
+<tr><td>Custom</td><td>Set via <code>--config-dir</code> or <code>MOLTIS_CONFIG_DIR</code></td></tr>
+</tbody></table>
+</div>
+<h2 id="basic-settings"><a class="header" href="#basic-settings">Basic Settings</a></h2>
+<pre><code class="language-toml">[server]
+port = 13131                    # HTTP/WebSocket port
+bind = "0.0.0.0"               # Listen address
+
+[identity]
+name = "Moltis"                 # Agent display name
+
+[tools]
+agent_timeout_secs = 600        # Agent run timeout (seconds, 0 = no timeout)
+agent_max_iterations = 25       # Max tool call iterations per run
+</code></pre>
+<h2 id="llm-providers"><a class="header" href="#llm-providers">LLM Providers</a></h2>
+<p>Configure providers through the web UI or directly in <code>moltis.toml</code>. API keys can be set
+via environment variables (e.g. <code>ANTHROPIC_API_KEY</code>, <code>OPENAI_API_KEY</code>, <code>GEMINI_API_KEY</code>) or
+in the config file.</p>
+<pre><code class="language-toml">[providers]
+offered = ["anthropic", "openai", "gemini"]
+
+[providers.anthropic]
+enabled = true
+
+[providers.openai]
+enabled = true
+models = ["gpt-5.3", "gpt-5.2"]
+stream_transport = "sse"        # "sse", "websocket", or "auto"
+
+[providers.gemini]
+enabled = true
+models = ["gemini-2.5-flash-preview-05-20", "gemini-2.0-flash"]
+
+[providers.local-llm]
+enabled = true
+models = ["qwen2.5-coder-7b-q4_k_m"]
+
+[chat]
+priority_models = ["gpt-5.2"]
+</code></pre>
+<p>See <a href="providers.html">Providers</a> for the full list of supported providers and configuration options.</p>
+<h2 id="sandbox-configuration"><a class="header" href="#sandbox-configuration">Sandbox Configuration</a></h2>
+<p>Commands run inside isolated containers for security:</p>
+<pre><code class="language-toml">[tools.exec.sandbox]
+mode = "all"                    # "off", "non-main", or "all"
+scope = "session"               # "command", "session", or "global"
+workspace_mount = "ro"          # "ro", "rw", or "none"
+home_persistence = "shared"     # "off", "session", or "shared" (default: "shared")
+# shared_home_dir = "/path/to/shared-home"  # Optional path for shared mode
+backend = "auto"                # "auto", "docker", or "apple-container"
+no_network = true
+
+# Packages installed in the sandbox image
+packages = [
+    "curl",
+    "git",
+    "jq",
+    "python3",
+    "python3-pip",
+    "nodejs",
+    "npm",
+    "golang-go",
+]
+</code></pre>
+<div id="admonition-info" class="admonition admonish-info" role="note" aria-labelledby="admonition-info-title">
+<div class="admonition-title">
+<div id="admonition-info-title">
+<p>Info</p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-info"></a>
+</div>
+<div>
+<p>When you modify the packages list and restart, Moltis automatically rebuilds the sandbox image with a new tag.</p>
+</div>
+</div>
+<h2 id="web-search"><a class="header" href="#web-search">Web Search</a></h2>
+<p>Configure the built-in <code>web_search</code> tool:</p>
+<pre><code class="language-toml">[tools.web.search]
+enabled = true
+provider = "brave"               # "brave" or "perplexity"
+max_results = 5                  # 1-10
+timeout_seconds = 30
+cache_ttl_minutes = 15
+duckduckgo_fallback = false      # Default: do not use DuckDuckGo fallback
+# api_key = "..."                # Brave key, or use BRAVE_API_KEY
+
+[tools.web.search.perplexity]
+# api_key = "..."                # Or use PERPLEXITY_API_KEY / OPENROUTER_API_KEY
+# base_url = "..."               # Optional override
+# model = "perplexity/sonar-pro" # Optional override
+</code></pre>
+<p>If no search API key is configured:</p>
+<ul>
+<li>with <code>duckduckgo_fallback = false</code> (default), Moltis returns a clear hint to set <code>BRAVE_API_KEY</code> or <code>PERPLEXITY_API_KEY</code></li>
+<li>with <code>duckduckgo_fallback = true</code>, Moltis attempts DuckDuckGo HTML search, which may hit CAPTCHA/rate limits</li>
+</ul>
+<h2 id="chat-message-queue"><a class="header" href="#chat-message-queue">Chat Message Queue</a></h2>
+<p>When a new message arrives while an agent run is already active, Moltis can either
+replay queued messages one-by-one or merge them into a single follow-up message.</p>
+<pre><code class="language-toml">[chat]
+message_queue_mode = "followup"  # Default: one-by-one replay
+
+# Options:
+#   "followup" - Queue each message and run them sequentially
+#   "collect"  - Merge queued text and run once after the active run
+</code></pre>
+<h2 id="memory-system"><a class="header" href="#memory-system">Memory System</a></h2>
+<p>Long-term memory uses embeddings for semantic search:</p>
+<pre><code class="language-toml">[memory]
+backend = "builtin"             # Or "qmd"
+provider = "openai"             # Or "local", "ollama", "custom"
+model = "text-embedding-3-small"
+citations = "auto"              # "on", "off", or "auto"
+llm_reranking = false
+session_export = false
+</code></pre>
+<h2 id="authentication"><a class="header" href="#authentication">Authentication</a></h2>
+<p>Authentication is <strong>only required when accessing Moltis from a non-localhost address</strong>. When running on <code>localhost</code> or <code>127.0.0.1</code>, no authentication is needed by default.</p>
+<p>When you access Moltis from a network address (e.g., <code>http://192.168.1.100:13131</code>), a one-time setup code is printed to the terminal. Use it to set up a password or passkey.</p>
+<pre><code class="language-toml">[auth]
+disabled = false                # Set true to disable auth entirely
+</code></pre>
+<div id="admonition-warning" class="admonition admonish-warning" role="note" aria-labelledby="admonition-warning-title">
+<div class="admonition-title">
+<div id="admonition-warning-title">
+<p>Warning</p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-warning"></a>
+</div>
+<div>
+<p>Only set <code>disabled = true</code> if Moltis is running on a trusted private network. Never expose an unauthenticated instance to the internet.</p>
+</div>
+</div>
+<h2 id="hooks"><a class="header" href="#hooks">Hooks</a></h2>
+<p>Configure lifecycle hooks:</p>
+<pre><code class="language-toml">[hooks]
+[[hooks.hooks]]
+name = "my-hook"
+command = "./hooks/my-hook.sh"
+events = ["BeforeToolCall", "AfterToolCall"]
+timeout = 5                     # Timeout in seconds
+
+[hooks.hooks.env]
+MY_VAR = "value"               # Environment variables for the hook
+</code></pre>
+<p>See <a href="hooks.html">Hooks</a> for the full hook system documentation.</p>
+<h2 id="mcp-servers"><a class="header" href="#mcp-servers">MCP Servers</a></h2>
+<p>Connect to Model Context Protocol servers:</p>
+<pre><code class="language-toml">[mcp]
+
+[mcp.servers.filesystem]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/allowed"]
+
+[mcp.servers.github]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-github"]
+env = { GITHUB_TOKEN = "ghp_..." }
+</code></pre>
+<h2 id="telegram-integration"><a class="header" href="#telegram-integration">Telegram Integration</a></h2>
+<pre><code class="language-toml">[channels.telegram.my-bot]
+token = "123456:ABC..."
+allowed_users = [123456789]     # Telegram user IDs allowed to chat
+</code></pre>
+<h2 id="discord-integration"><a class="header" href="#discord-integration">Discord Integration</a></h2>
+<pre><code class="language-toml">[channels]
+offered = ["telegram", "discord"]
+
+[channels.discord.my-bot]
+token = "MTIzNDU2Nzg5.example.bot-token"
+dm_policy = "allowlist"
+mention_mode = "mention"
+allowlist = ["your_username"]
+</code></pre>
+<p>See <a href="discord.html">Discord</a> for full configuration reference and setup instructions.</p>
+<h2 id="tls--https"><a class="header" href="#tls--https">TLS / HTTPS</a></h2>
+<pre><code class="language-toml">[tls]
+enabled = true
+cert_path = "~/.config/moltis/cert.pem"
+key_path = "~/.config/moltis/key.pem"
+# If paths don't exist, a self-signed certificate is generated
+
+# Port for the plain-HTTP redirect / CA-download server.
+# Defaults to the server port + 1 when not set.
+# http_redirect_port = 13132
+</code></pre>
+<p>Override via environment variable: <code>MOLTIS_TLS__HTTP_REDIRECT_PORT=8080</code>.</p>
+<h2 id="tailscale-integration"><a class="header" href="#tailscale-integration">Tailscale Integration</a></h2>
+<p>Expose Moltis over your Tailscale network:</p>
+<pre><code class="language-toml">[tailscale]
+mode = "serve"                  # "off", "serve", or "funnel"
+reset_on_exit = true
+</code></pre>
+<h2 id="observability"><a class="header" href="#observability">Observability</a></h2>
+<pre><code class="language-toml">[metrics]
+enabled = true
+prometheus_endpoint = true
+</code></pre>
+<h2 id="process-environment-variables-env"><a class="header" href="#process-environment-variables-env">Process Environment Variables (<code>[env]</code>)</a></h2>
+<p>The <code>[env]</code> section injects variables into the Moltis process at startup.
+This is useful in Docker deployments where passing individual <code>-e</code> flags is
+inconvenient, or when you want API keys stored in the config file rather
+than the host environment.</p>
+<pre><code class="language-toml">[env]
+BRAVE_API_KEY = "your-brave-key"
+OPENROUTER_API_KEY = "sk-or-..."
+ELEVENLABS_API_KEY = "..."
+</code></pre>
+<p><strong>Precedence</strong>: existing process environment variables are never overwritten.
+If <code>BRAVE_API_KEY</code> is already set via <code>docker -e</code> or the host shell, the
+<code>[env]</code> value is skipped. This means <code>docker -e</code> always wins.</p>
+<div id="admonition-settings-ui-vs-env" class="admonition admonish-info" role="note" aria-labelledby="admonition-settings-ui-vs-env-title">
+<div class="admonition-title">
+<div id="admonition-settings-ui-vs-env-title">
+<p>Settings UI vs [env]</p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-settings-ui-vs-env"></a>
+</div>
+<div>
+<p>Environment variables configured through the Settings UI (Settings &gt;
+Environment) are also injected into the Moltis process at startup.
+Precedence: host/<code>docker -e</code> &gt; config <code>[env]</code> &gt; Settings UI.</p>
+</div>
+</div>
+<h2 id="environment-variables"><a class="header" href="#environment-variables">Environment Variables</a></h2>
+<p>All settings can be overridden via environment variables:</p>
+<div class="table-wrapper"><table><thead><tr><th>Variable</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>MOLTIS_CONFIG_DIR</code></td><td>Configuration directory</td></tr>
+<tr><td><code>MOLTIS_DATA_DIR</code></td><td>Data directory</td></tr>
+<tr><td><code>MOLTIS_SERVER__PORT</code></td><td>Server port override</td></tr>
+<tr><td><code>MOLTIS_SERVER__BIND</code></td><td>Server bind address override</td></tr>
+<tr><td><code>MOLTIS_TOOLS__AGENT_TIMEOUT_SECS</code></td><td>Agent run timeout override</td></tr>
+<tr><td><code>MOLTIS_TOOLS__AGENT_MAX_ITERATIONS</code></td><td>Agent loop iteration cap override</td></tr>
+</tbody></table>
+</div>
+<h2 id="cli-flags"><a class="header" href="#cli-flags">CLI Flags</a></h2>
+<pre><code class="language-bash">moltis --config-dir /path/to/config --data-dir /path/to/data
+</code></pre>
+<h2 id="complete-example"><a class="header" href="#complete-example">Complete Example</a></h2>
+<pre><code class="language-toml">[server]
+port = 13131
+bind = "0.0.0.0"
+
+[identity]
+name = "Atlas"
+
+[tools]
+agent_timeout_secs = 600
+agent_max_iterations = 25
+
+[providers]
+offered = ["anthropic", "openai", "gemini"]
+
+[tools.exec.sandbox]
+mode = "all"
+scope = "session"
+workspace_mount = "ro"
+home_persistence = "session"
+# shared_home_dir = "/path/to/shared-home"
+backend = "auto"
+no_network = true
+packages = ["curl", "git", "jq", "python3", "nodejs", "golang-go"]
+
+[memory]
+backend = "builtin"
+provider = "openai"
+model = "text-embedding-3-small"
+
+[auth]
+disabled = false
+
+[hooks]
+[[hooks.hooks]]
+name = "audit-log"
+command = "./hooks/audit.sh"
+events = ["BeforeToolCall"]
+timeout = 5
+</code></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="comparison.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="local-validation.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="comparison.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="local-validation.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+
+    </div>
+    </body>
+</html>

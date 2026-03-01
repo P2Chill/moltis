@@ -1,0 +1,500 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Docker - Moltis Documentation</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="Documentation for Moltis - Your AI coding assistant">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="highlight-css" href="highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="theme/admonish.css">
+        <link rel="stylesheet" href="theme/custom.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Moltis Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/moltis-org/moltis" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                        <a href="https://github.com/moltis-org/moltis/edit/main/docs/src/src/docker.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                            <i id="git-edit-button" class="fa fa-edit"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="running-moltis-in-docker"><a class="header" href="#running-moltis-in-docker">Running Moltis in Docker</a></h1>
+<p>Moltis is available as a multi-architecture Docker image supporting both
+<code>linux/amd64</code> and <code>linux/arm64</code>. The image is published to GitHub Container
+Registry on every release.</p>
+<h2 id="quick-start"><a class="header" href="#quick-start">Quick Start</a></h2>
+<pre><code class="language-bash">docker run -d \
+  --name moltis \
+  -p 13131:13131 \
+  -p 13132:13132 \
+  -p 1455:1455 \
+  -v moltis-config:/home/moltis/.config/moltis \
+  -v moltis-data:/home/moltis/.moltis \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  ghcr.io/moltis-org/moltis:latest
+</code></pre>
+<p>Open https://localhost:13131 in your browser and configure your LLM provider to start chatting.</p>
+<h3 id="ports"><a class="header" href="#ports">Ports</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Port</th><th>Purpose</th></tr></thead><tbody>
+<tr><td>13131</td><td>Gateway (HTTPS) — web UI, API, WebSocket</td></tr>
+<tr><td>13132</td><td>HTTP — CA certificate download for TLS trust</td></tr>
+<tr><td>1455</td><td>OAuth callback — required for OpenAI Codex and other providers with pre-registered redirect URIs</td></tr>
+</tbody></table>
+</div>
+<h3 id="trusting-the-tls-certificate"><a class="header" href="#trusting-the-tls-certificate">Trusting the TLS certificate</a></h3>
+<p>Moltis generates a self-signed CA on first run. Browsers will show a security
+warning until you trust this CA. Port 13132 serves the certificate over plain
+HTTP so you can download it:</p>
+<pre><code class="language-bash"># Download the CA certificate
+curl -o moltis-ca.pem http://localhost:13132/certs/ca.pem
+
+# macOS — add to system Keychain and trust it
+sudo security add-trusted-cert -d -r trustRoot \
+  -k /Library/Keychains/System.keychain moltis-ca.pem
+
+# Linux (Debian/Ubuntu)
+sudo cp moltis-ca.pem /usr/local/share/ca-certificates/moltis-ca.crt
+sudo update-ca-certificates
+</code></pre>
+<p>After trusting the CA, restart your browser. The warning will not appear again
+(the CA persists in the mounted config volume).</p>
+<div id="admonition-note" class="admonition admonish-note" role="note" aria-labelledby="admonition-note-title">
+<div class="admonition-title">
+<div id="admonition-note-title">
+<p>Note</p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-note"></a>
+</div>
+<div>
+<p>When accessing from localhost, no authentication is required. If you access Moltis from a different machine (e.g., over the network), a setup code is printed to the container logs for authentication setup:</p>
+<pre><code class="language-bash">docker logs moltis
+</code></pre>
+</div>
+</div>
+<h2 id="volume-mounts"><a class="header" href="#volume-mounts">Volume Mounts</a></h2>
+<p>Moltis uses two directories that should be persisted:</p>
+<div class="table-wrapper"><table><thead><tr><th>Path</th><th>Contents</th></tr></thead><tbody>
+<tr><td><code>/home/moltis/.config/moltis</code></td><td>Configuration files: <code>moltis.toml</code>, <code>credentials.json</code>, <code>mcp-servers.json</code></td></tr>
+<tr><td><code>/home/moltis/.moltis</code></td><td>Runtime data: databases, sessions, memory files, logs</td></tr>
+</tbody></table>
+</div>
+<p>You can use named volumes (as shown above) or bind mounts to local directories
+for easier access to configuration files:</p>
+<pre><code class="language-bash">docker run -d \
+  --name moltis \
+  -p 13131:13131 \
+  -p 13132:13132 \
+  -p 1455:1455 \
+  -v ./config:/home/moltis/.config/moltis \
+  -v ./data:/home/moltis/.moltis \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  ghcr.io/moltis-org/moltis:latest
+</code></pre>
+<p>With bind mounts, you can edit <code>config/moltis.toml</code> directly on the host.</p>
+<h2 id="docker-socket-sandbox-execution"><a class="header" href="#docker-socket-sandbox-execution">Docker Socket (Sandbox Execution)</a></h2>
+<p>Moltis runs LLM-generated shell commands inside isolated containers for
+security. When Moltis itself runs in a container, it needs access to the host’s
+container runtime to create these sandbox containers.</p>
+<p><strong>Without the socket mount</strong>, sandbox execution is disabled. The agent will
+still work for chat-only interactions, but any tool that runs shell commands
+will fail.</p>
+<pre><code class="language-bash"># Required for sandbox execution
+-v /var/run/docker.sock:/var/run/docker.sock
+</code></pre>
+<h3 id="security-consideration"><a class="header" href="#security-consideration">Security Consideration</a></h3>
+<p>Mounting the Docker socket gives the container full access to the Docker
+daemon. This is equivalent to root access on the host for practical purposes.
+Only run Moltis containers from trusted sources (official images from
+<code>ghcr.io/moltis-org/moltis</code>).</p>
+<p>If you cannot mount the Docker socket, Moltis will run in “no sandbox” mode —
+commands execute directly inside the Moltis container itself, which provides
+no isolation.</p>
+<h2 id="docker-compose"><a class="header" href="#docker-compose">Docker Compose</a></h2>
+<p>See <a href="../examples/docker-compose.yml"><code>examples/docker-compose.yml</code></a> for a
+complete example:</p>
+<pre><code class="language-yaml">services:
+  moltis:
+    image: ghcr.io/moltis-org/moltis:latest
+    container_name: moltis
+    restart: unless-stopped
+    ports:
+      - "13131:13131"
+      - "13132:13132"
+      - "1455:1455"   # OAuth callback (OpenAI Codex, etc.)
+    volumes:
+      - ./config:/home/moltis/.config/moltis
+      - ./data:/home/moltis/.moltis
+      - /var/run/docker.sock:/var/run/docker.sock
+</code></pre>
+<h3 id="coolify-hetznervps"><a class="header" href="#coolify-hetznervps">Coolify (Hetzner/VPS)</a></h3>
+<p>For Coolify service stacks, use
+<a href="../examples/docker-compose.coolify.yml"><code>examples/docker-compose.coolify.yml</code></a>.
+It is preconfigured for reverse-proxy deployments (<code>--no-tls</code>) and includes
+the Docker socket mount for sandboxed command execution.</p>
+<p>Key points:</p>
+<ul>
+<li>Set <code>MOLTIS_PASSWORD</code> in the Coolify UI before first deploy.</li>
+<li>Set <code>SERVICE_FQDN_MOLTIS_13131</code> to your app domain.</li>
+<li>Keep Moltis in <code>--no-tls</code> mode behind Coolify’s reverse proxy. If requests
+are redirected to <code>:13131</code>, check that TLS is disabled in Moltis.</li>
+<li>Keep <code>/var/run/docker.sock:/var/run/docker.sock</code> mounted if you want sandbox
+isolation for exec tools.</li>
+</ul>
+<p>Start with:</p>
+<pre><code class="language-bash">docker compose up -d
+docker compose logs -f moltis  # watch for startup messages
+</code></pre>
+<h2 id="podman-support"><a class="header" href="#podman-support">Podman Support</a></h2>
+<p>Moltis works with Podman using its Docker-compatible API. Mount the Podman
+socket instead of the Docker socket:</p>
+<pre><code class="language-bash"># Podman rootless
+podman run -d \
+  --name moltis \
+  -p 13131:13131 \
+  -p 13132:13132 \
+  -p 1455:1455 \
+  -v moltis-config:/home/moltis/.config/moltis \
+  -v moltis-data:/home/moltis/.moltis \
+  -v /run/user/$(id -u)/podman/podman.sock:/var/run/docker.sock \
+  ghcr.io/moltis-org/moltis:latest
+
+# Podman rootful
+podman run -d \
+  --name moltis \
+  -p 13131:13131 \
+  -p 13132:13132 \
+  -p 1455:1455 \
+  -v moltis-config:/home/moltis/.config/moltis \
+  -v moltis-data:/home/moltis/.moltis \
+  -v /run/podman/podman.sock:/var/run/docker.sock \
+  ghcr.io/moltis-org/moltis:latest
+</code></pre>
+<p>You may need to enable the Podman socket service first:</p>
+<pre><code class="language-bash"># Rootless
+systemctl --user enable --now podman.socket
+
+# Rootful
+sudo systemctl enable --now podman.socket
+</code></pre>
+<h2 id="environment-variables"><a class="header" href="#environment-variables">Environment Variables</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Variable</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>MOLTIS_CONFIG_DIR</code></td><td>Override config directory (default: <code>~/.config/moltis</code>)</td></tr>
+<tr><td><code>MOLTIS_DATA_DIR</code></td><td>Override data directory (default: <code>~/.moltis</code>)</td></tr>
+</tbody></table>
+</div>
+<p>Example:</p>
+<pre><code class="language-bash">docker run -d \
+  --name moltis \
+  -p 13131:13131 \
+  -p 13132:13132 \
+  -p 1455:1455 \
+  -e MOLTIS_CONFIG_DIR=/config \
+  -e MOLTIS_DATA_DIR=/data \
+  -v ./config:/config \
+  -v ./data:/data \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  ghcr.io/moltis-org/moltis:latest
+</code></pre>
+<h3 id="api-keys-and-the-env-section"><a class="header" href="#api-keys-and-the-env-section">API Keys and the <code>[env]</code> Section</a></h3>
+<p>Features like web search (Brave), embeddings, and LLM provider API calls read
+keys from process environment variables (<code>std::env::var</code>). In Docker, there are
+two ways to provide these:</p>
+<p><strong>Option 1: <code>docker -e</code> flags</strong> (takes precedence)</p>
+<pre><code class="language-bash">docker run -d \
+  --name moltis \
+  -e BRAVE_API_KEY=your-key \
+  -e OPENROUTER_API_KEY=sk-or-... \
+  ...
+  ghcr.io/moltis-org/moltis:latest
+</code></pre>
+<p><strong>Option 2: <code>[env]</code> section in <code>moltis.toml</code></strong></p>
+<p>Add an <code>[env]</code> section to your config file. These variables are injected into
+the Moltis process at startup, making them available to all features:</p>
+<pre><code class="language-toml">[env]
+BRAVE_API_KEY = "your-brave-key"
+OPENROUTER_API_KEY = "sk-or-..."
+</code></pre>
+<p>If a variable is set both via <code>docker -e</code> and <code>[env]</code>, the Docker/host
+environment value wins — <code>[env]</code> never overwrites existing variables.</p>
+<div id="admonition-settings-ui-env-vars" class="admonition admonish-info" role="note" aria-labelledby="admonition-settings-ui-env-vars-title">
+<div class="admonition-title">
+<div id="admonition-settings-ui-env-vars-title">
+<p>Settings UI env vars</p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-settings-ui-env-vars"></a>
+</div>
+<div>
+<p>Environment variables set through the Settings UI (Settings &gt; Environment)
+are stored in SQLite. At startup, Moltis injects them into the process
+environment so they are available to all features (search, embeddings,
+provider API calls), not just sandbox commands.</p>
+<p>Precedence order (highest wins):</p>
+<ol>
+<li>Host / <code>docker -e</code> environment variables</li>
+<li>Config file <code>[env]</code> section</li>
+<li>Settings UI environment variables</li>
+</ol>
+</div>
+</div>
+<h2 id="building-locally"><a class="header" href="#building-locally">Building Locally</a></h2>
+<p>To build the Docker image from source:</p>
+<pre><code class="language-bash"># Single architecture (current platform)
+docker build -t moltis:local .
+
+# Multi-architecture (requires buildx)
+docker buildx build --platform linux/amd64,linux/arm64 -t moltis:local .
+</code></pre>
+<h2 id="orbstack"><a class="header" href="#orbstack">OrbStack</a></h2>
+<p>OrbStack on macOS works identically to Docker — use the same socket path
+(<code>/var/run/docker.sock</code>). OrbStack’s lightweight Linux VM provides good
+isolation with lower resource usage than Docker Desktop.</p>
+<h2 id="troubleshooting"><a class="header" href="#troubleshooting">Troubleshooting</a></h2>
+<h3 id="cannot-connect-to-docker-daemon"><a class="header" href="#cannot-connect-to-docker-daemon">“Cannot connect to Docker daemon”</a></h3>
+<p>The Docker socket is not mounted or the Moltis user doesn’t have permission
+to access it. Verify:</p>
+<pre><code class="language-bash">docker exec moltis ls -la /var/run/docker.sock
+</code></pre>
+<h3 id="setup-code-not-appearing-in-logs-for-network-access"><a class="header" href="#setup-code-not-appearing-in-logs-for-network-access">Setup code not appearing in logs (for network access)</a></h3>
+<p>The setup code only appears when accessing from a non-localhost address. If you’re accessing from the same machine via <code>localhost</code>, no setup code is needed. For network access, wait a few seconds for the gateway to start, then check logs:</p>
+<pre><code class="language-bash">docker logs moltis 2&gt;&amp;1 | grep -i setup
+</code></pre>
+<h3 id="oauth-authentication-error-openai-codex"><a class="header" href="#oauth-authentication-error-openai-codex">OAuth authentication error (OpenAI Codex)</a></h3>
+<p>If clicking <strong>Connect</strong> for OpenAI Codex shows “unknown_error” on OpenAI’s
+page, port 1455 is not reachable from your browser. Make sure you published it:</p>
+<pre><code class="language-bash">-p 1455:1455
+</code></pre>
+<p>If you’re running Moltis on a remote server (cloud VM, VPS) and accessing it
+over the network, <code>localhost:1455</code> on the browser side points to your local
+machine — not the server. In that case, authenticate via the CLI instead:</p>
+<pre><code class="language-bash">docker exec -it moltis moltis auth login --provider openai-codex
+</code></pre>
+<p>The CLI opens a browser on the machine where you run the command and handles
+the OAuth callback locally. Tokens are saved to the config volume and picked
+up by the running gateway automatically.</p>
+<h3 id="permission-denied-on-bind-mounts"><a class="header" href="#permission-denied-on-bind-mounts">Permission denied on bind mounts</a></h3>
+<p>When using bind mounts, ensure the directories exist and are writable:</p>
+<pre><code class="language-bash">mkdir -p ./config ./data
+chmod 755 ./config ./data
+</code></pre>
+<p>The container runs as user <code>moltis</code> (UID 1000). If you see permission errors,
+you may need to adjust ownership:</p>
+<pre><code class="language-bash">sudo chown -R 1000:1000 ./config ./data
+</code></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="skills-security.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="cloud-deploy.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="skills-security.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="cloud-deploy.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+
+    </div>
+    </body>
+</html>

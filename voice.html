@@ -1,0 +1,778 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Voice - Moltis Documentation</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="Documentation for Moltis - Your AI coding assistant">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="highlight-css" href="highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="theme/admonish.css">
+        <link rel="stylesheet" href="theme/custom.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Moltis Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/moltis-org/moltis" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                        <a href="https://github.com/moltis-org/moltis/edit/main/docs/src/src/voice.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                            <i id="git-edit-button" class="fa fa-edit"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="voice-services"><a class="header" href="#voice-services">Voice Services</a></h1>
+<p>Moltis provides text-to-speech (TTS) and speech-to-text (STT) capabilities
+through the <code>moltis-voice</code> crate and gateway integration.</p>
+<h2 id="feature-flag"><a class="header" href="#feature-flag">Feature Flag</a></h2>
+<p>Voice services are behind the <code>voice</code> cargo feature, enabled by default:</p>
+<pre><code class="language-toml"># Cargo.toml (gateway crate)
+[features]
+default = ["voice", ...]
+voice = ["dep:moltis-voice"]
+</code></pre>
+<p>To disable voice features at compile time:</p>
+<pre><code class="language-bash">cargo build --no-default-features --features "file-watcher,tailscale,tls,web-ui"
+</code></pre>
+<p>When disabled:</p>
+<ul>
+<li>TTS/STT RPC methods are not registered</li>
+<li>Voice settings section is hidden in the UI</li>
+<li>Microphone button is hidden in the chat interface</li>
+<li><code>voice_enabled: false</code> is set in the gon data</li>
+</ul>
+<h2 id="architecture"><a class="header" href="#architecture">Architecture</a></h2>
+<pre><code>┌─────────────────────────────────────────────────────────────┐
+│                      Voice Crate                            │
+│                   (crates/voice/)                           │
+├─────────────────────────────────────────────────────────────┤
+│  TtsProvider trait         │  SttProvider trait             │
+│  ├─ ElevenLabsTts          │  ├─ WhisperStt (OpenAI)        │
+│  ├─ OpenAiTts              │  ├─ GroqStt (Groq)             │
+│  ├─ GoogleTts              │  ├─ DeepgramStt                │
+│  ├─ PiperTts (local)       │  ├─ GoogleStt                  │
+│  └─ CoquiTts (local)       │  ├─ MistralStt                 │
+│                            │  ├─ VoxtralLocalStt (local)    │
+│                            │  ├─ WhisperCliStt (local)      │
+│                            │  └─ SherpaOnnxStt (local)      │
+└─────────────────────────────────────────────────────────────┘
+                    │
+                    ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Gateway Services                         │
+│                (crates/gateway/src/voice.rs)                │
+├─────────────────────────────────────────────────────────────┤
+│  LiveTtsService            │  LiveSttService                │
+│  (wraps TTS providers)     │  (wraps STT providers)         │
+└─────────────────────────────────────────────────────────────┘
+                    │
+                    ▼
+┌─────────────────────────────────────────────────────────────┐
+│                     RPC Methods                             │
+├─────────────────────────────────────────────────────────────┤
+│  tts.status, tts.providers, tts.enable, tts.disable,        │
+│  tts.convert, tts.setProvider                               │
+│  stt.status, stt.providers, stt.transcribe, stt.setProvider │
+└─────────────────────────────────────────────────────────────┘
+</code></pre>
+<h2 id="text-to-speech-tts"><a class="header" href="#text-to-speech-tts">Text-to-Speech (TTS)</a></h2>
+<h3 id="supported-providers"><a class="header" href="#supported-providers">Supported Providers</a></h3>
+<p>Moltis supports multiple TTS providers across cloud and local backends.</p>
+<div class="table-wrapper"><table><thead><tr><th>Category</th><th>Notes</th></tr></thead><tbody>
+<tr><td>Cloud TTS providers</td><td>Hosted neural voices with low-latency streaming</td></tr>
+<tr><td>Local TTS providers</td><td>Offline/on-device synthesis for privacy-sensitive workflows</td></tr>
+</tbody></table>
+</div>
+<p><em>More voice providers are coming soon.</em></p>
+<h3 id="configuration"><a class="header" href="#configuration">Configuration</a></h3>
+<p>Set API keys via environment variables:</p>
+<pre><code class="language-bash">export ELEVENLABS_API_KEY=your-key-here
+export OPENAI_API_KEY=your-key-here
+</code></pre>
+<p>Or configure in <code>moltis.toml</code>:</p>
+<pre><code class="language-toml">[voice.tts]
+enabled = true
+# provider = "openai"    # Omit to auto-select the first configured provider
+providers = []           # Optional UI allowlist, empty = show all TTS providers
+auto = "off"             # "always", "off", "inbound", "tagged"
+max_text_length = 2000
+
+[voice.tts.elevenlabs]
+api_key = "sk-..."
+voice_id = "21m00Tcm4TlvDq8ikWAM"  # Rachel (default)
+model = "eleven_flash_v2_5"
+stability = 0.5
+similarity_boost = 0.75
+
+[voice.tts.openai]
+# No api_key needed if OpenAI is configured as an LLM provider or OPENAI_API_KEY is set.
+# api_key = "sk-..."
+voice = "alloy"  # alloy, echo, fable, onyx, nova, shimmer
+model = "tts-1"
+speed = 1.0
+
+[voice.tts.google]
+api_key = "..."  # Google Cloud API key
+voice = "en-US-Neural2-D"  # See Google Cloud TTS voices
+language_code = "en-US"
+speaking_rate = 1.0
+
+# Local providers - no API key required
+
+[voice.tts.piper]
+# binary_path = "/usr/local/bin/piper"  # optional, searches PATH
+model_path = "~/.moltis/models/en_US-lessac-medium.onnx"  # required
+# config_path = "~/.moltis/models/en_US-lessac-medium.onnx.json"  # optional
+# speaker_id = 0  # for multi-speaker models
+# length_scale = 1.0  # speaking rate (lower = faster)
+
+[voice.tts.coqui]
+endpoint = "http://localhost:5002"  # Coqui TTS server
+# model = "tts_models/en/ljspeech/tacotron2-DDC"  # optional
+</code></pre>
+<h3 id="local-tts-provider-setup"><a class="header" href="#local-tts-provider-setup">Local TTS Provider Setup</a></h3>
+<h4 id="piper-tts"><a class="header" href="#piper-tts">Piper TTS</a></h4>
+<p>Piper is a fast, local neural text-to-speech system that runs entirely offline.</p>
+<ol>
+<li>
+<p>Install Piper:</p>
+<pre><code class="language-bash"># Via pip
+pip install piper-tts
+
+# Or download pre-built binaries from:
+# https://github.com/rhasspy/piper/releases
+</code></pre>
+</li>
+<li>
+<p>Download a voice model from <a href="https://github.com/rhasspy/piper#voices">Piper Voices</a>:</p>
+<pre><code class="language-bash">mkdir -p ~/.moltis/models
+curl -L -o ~/.moltis/models/en_US-lessac-medium.onnx \
+  https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx
+</code></pre>
+</li>
+<li>
+<p>Configure in <code>moltis.toml</code>:</p>
+<pre><code class="language-toml">[voice.tts]
+provider = "piper"
+
+[voice.tts.piper]
+model_path = "~/.moltis/models/en_US-lessac-medium.onnx"
+</code></pre>
+</li>
+</ol>
+<h4 id="coqui-tts"><a class="header" href="#coqui-tts">Coqui TTS</a></h4>
+<p>Coqui TTS is a high-quality neural TTS with voice cloning capabilities.</p>
+<ol>
+<li>
+<p>Install and start the server:</p>
+<pre><code class="language-bash"># Via pip
+pip install TTS
+tts-server --model_name tts_models/en/ljspeech/tacotron2-DDC
+
+# Or via Docker
+docker run -p 5002:5002 ghcr.io/coqui-ai/tts
+</code></pre>
+</li>
+<li>
+<p>Configure in <code>moltis.toml</code>:</p>
+<pre><code class="language-toml">[voice.tts]
+provider = "coqui"
+
+[voice.tts.coqui]
+endpoint = "http://localhost:5002"
+</code></pre>
+</li>
+</ol>
+<p>Browse available models at <a href="https://github.com/coqui-ai/TTS#available-models">Coqui TTS Models</a>.</p>
+<h3 id="rpc-methods"><a class="header" href="#rpc-methods">RPC Methods</a></h3>
+<h4 id="ttsstatus"><a class="header" href="#ttsstatus"><code>tts.status</code></a></h4>
+<p>Get current TTS status.</p>
+<p><strong>Response:</strong></p>
+<pre><code class="language-json">{
+  "enabled": true,
+  "provider": "elevenlabs",
+  "auto": "off",
+  "maxTextLength": 2000,
+  "configured": true
+}
+</code></pre>
+<h4 id="ttsproviders"><a class="header" href="#ttsproviders"><code>tts.providers</code></a></h4>
+<p>List available TTS providers.</p>
+<p><strong>Response:</strong></p>
+<pre><code class="language-json">[
+  { "id": "elevenlabs", "name": "ElevenLabs", "configured": true },
+  { "id": "openai", "name": "OpenAI", "configured": false }
+]
+</code></pre>
+<h4 id="ttsenable"><a class="header" href="#ttsenable"><code>tts.enable</code></a></h4>
+<p>Enable TTS with optional provider selection.</p>
+<p><strong>Request:</strong></p>
+<pre><code class="language-json">{ "provider": "elevenlabs" }
+</code></pre>
+<p><strong>Response:</strong></p>
+<pre><code class="language-json">{ "enabled": true, "provider": "elevenlabs" }
+</code></pre>
+<h4 id="ttsdisable"><a class="header" href="#ttsdisable"><code>tts.disable</code></a></h4>
+<p>Disable TTS.</p>
+<p><strong>Response:</strong></p>
+<pre><code class="language-json">{ "enabled": false }
+</code></pre>
+<h4 id="ttsconvert"><a class="header" href="#ttsconvert"><code>tts.convert</code></a></h4>
+<p>Convert text to speech.</p>
+<p><strong>Request:</strong></p>
+<pre><code class="language-json">{
+  "text": "Hello, how can I help you today?",
+  "provider": "elevenlabs",
+  "voiceId": "21m00Tcm4TlvDq8ikWAM",
+  "model": "eleven_flash_v2_5",
+  "format": "mp3",
+  "speed": 1.0,
+  "stability": 0.5,
+  "similarityBoost": 0.75
+}
+</code></pre>
+<p><strong>Response:</strong></p>
+<pre><code class="language-json">{
+  "audio": "base64-encoded-audio-data",
+  "format": "mp3",
+  "mimeType": "audio/mpeg",
+  "durationMs": 2500,
+  "size": 45000
+}
+</code></pre>
+<p><strong>Audio Formats:</strong></p>
+<ul>
+<li><code>mp3</code> (default) - Widely compatible</li>
+<li><code>opus</code> / <code>ogg</code> - Good for Telegram voice notes</li>
+<li><code>aac</code> - Apple devices</li>
+<li><code>pcm</code> - Raw audio</li>
+</ul>
+<h4 id="ttssetprovider"><a class="header" href="#ttssetprovider"><code>tts.setProvider</code></a></h4>
+<p>Change the active TTS provider.</p>
+<p><strong>Request:</strong></p>
+<pre><code class="language-json">{ "provider": "openai" }
+</code></pre>
+<h3 id="auto-speak-modes"><a class="header" href="#auto-speak-modes">Auto-Speak Modes</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Mode</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>always</code></td><td>Speak all AI responses</td></tr>
+<tr><td><code>off</code></td><td>Never auto-speak (default)</td></tr>
+<tr><td><code>inbound</code></td><td>Only when user sent voice input</td></tr>
+<tr><td><code>tagged</code></td><td>Only with explicit <code>[[tts]]</code> markup</td></tr>
+</tbody></table>
+</div>
+<h2 id="speech-to-text-stt"><a class="header" href="#speech-to-text-stt">Speech-to-Text (STT)</a></h2>
+<h3 id="supported-providers-1"><a class="header" href="#supported-providers-1">Supported Providers</a></h3>
+<p>Moltis supports multiple STT providers across cloud and local backends.</p>
+<div class="table-wrapper"><table><thead><tr><th>Category</th><th>Notes</th></tr></thead><tbody>
+<tr><td>Cloud STT providers</td><td>Managed transcription APIs with language/model options</td></tr>
+<tr><td>Local STT providers</td><td>Offline transcription through local binaries or services</td></tr>
+</tbody></table>
+</div>
+<p><em>More voice providers are coming soon.</em></p>
+<h3 id="configuration-1"><a class="header" href="#configuration-1">Configuration</a></h3>
+<pre><code class="language-toml">[voice.stt]
+enabled = true
+# provider = "whisper"  # Omit to auto-select the first configured provider
+providers = []          # Optional UI allowlist, empty = show all STT providers
+
+# Cloud providers - API key required
+[voice.stt.whisper]
+# No api_key needed if OpenAI is configured as an LLM provider or OPENAI_API_KEY is set.
+# api_key = "sk-..."
+model = "whisper-1"
+language = "en"     # Optional ISO 639-1 hint
+
+[voice.stt.groq]
+api_key = "gsk_..."
+model = "whisper-large-v3-turbo"  # default
+language = "en"
+
+[voice.stt.deepgram]
+api_key = "..."
+model = "nova-3"  # default
+language = "en"
+smart_format = true
+
+[voice.stt.google]
+api_key = "..."
+language = "en-US"
+# model = "latest_long"  # optional
+
+[voice.stt.mistral]
+api_key = "..."
+model = "voxtral-mini-latest"  # default
+language = "en"
+
+# Local providers - no API key, requires server or binary
+
+# Voxtral local via vLLM server
+[voice.stt.voxtral_local]
+# endpoint = "http://localhost:8000"  # default vLLM endpoint
+# model = "mistralai/Voxtral-Mini-3B-2507"  # optional, server default
+# language = "en"  # optional
+
+[voice.stt.whisper_cli]
+# binary_path = "/usr/local/bin/whisper-cli"  # optional, searches PATH
+model_path = "~/.moltis/models/ggml-base.en.bin"  # required
+language = "en"
+
+[voice.stt.sherpa_onnx]
+# binary_path = "/usr/local/bin/sherpa-onnx-offline"  # optional
+model_dir = "~/.moltis/models/sherpa-onnx-whisper-tiny.en"  # required
+language = "en"
+</code></pre>
+<h3 id="local-provider-setup"><a class="header" href="#local-provider-setup">Local Provider Setup</a></h3>
+<h4 id="voxtral-via-vllm"><a class="header" href="#voxtral-via-vllm">Voxtral via vLLM</a></h4>
+<p>Voxtral is an open-weights model from Mistral AI that can run locally using vLLM.
+It supports 13 languages with fast transcription.</p>
+<p><strong>Requirements:</strong></p>
+<ul>
+<li>Python 3.10+</li>
+<li>CUDA-capable GPU with ~9.5GB VRAM (or CPU with more memory)</li>
+<li>vLLM with audio support</li>
+</ul>
+<p><strong>Setup:</strong></p>
+<ol>
+<li>
+<p>Install vLLM with audio support:</p>
+<pre><code class="language-bash">pip install "vllm[audio]"
+</code></pre>
+</li>
+<li>
+<p>Start the vLLM server:</p>
+<pre><code class="language-bash">vllm serve mistralai/Voxtral-Mini-3B-2507 \
+  --tokenizer_mode mistral \
+  --config_format mistral \
+  --load_format mistral
+</code></pre>
+<p>The server exposes an OpenAI-compatible endpoint at <code>http://localhost:8000</code>.</p>
+</li>
+<li>
+<p>Configure in <code>moltis.toml</code>:</p>
+<pre><code class="language-toml">[voice.stt]
+provider = "voxtral-local"
+
+[voice.stt.voxtral_local]
+# Default endpoint works if vLLM is running locally
+# endpoint = "http://localhost:8000"
+</code></pre>
+</li>
+</ol>
+<p><strong>Supported Languages:</strong>
+English, French, German, Spanish, Portuguese, Italian, Dutch, Polish, Swedish,
+Norwegian, Danish, Finnish, Arabic</p>
+<p><strong>Note:</strong> Unlike the embedded local providers (whisper.cpp, sherpa-onnx), this
+requires running vLLM as a separate server process. The model is downloaded
+automatically on first vLLM startup.</p>
+<h4 id="whispercpp"><a class="header" href="#whispercpp">whisper.cpp</a></h4>
+<ol>
+<li>
+<p>Install the binary:</p>
+<pre><code class="language-bash"># macOS
+brew install whisper-cpp
+
+# From source: https://github.com/ggerganov/whisper.cpp
+</code></pre>
+</li>
+<li>
+<p>Download a model from <a href="https://huggingface.co/ggerganov/whisper.cpp">Hugging Face</a>:</p>
+<pre><code class="language-bash">mkdir -p ~/.moltis/models
+curl -L -o ~/.moltis/models/ggml-base.en.bin \
+  https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin
+</code></pre>
+</li>
+<li>
+<p>Configure in <code>moltis.toml</code>:</p>
+<pre><code class="language-toml">[voice.stt]
+provider = "whisper-cli"
+
+[voice.stt.whisper_cli]
+model_path = "~/.moltis/models/ggml-base.en.bin"
+</code></pre>
+</li>
+</ol>
+<h4 id="sherpa-onnx"><a class="header" href="#sherpa-onnx">sherpa-onnx</a></h4>
+<ol>
+<li>
+<p>Install following the <a href="https://k2-fsa.github.io/sherpa/onnx/install.html">official docs</a></p>
+</li>
+<li>
+<p>Download a model from the <a href="https://k2-fsa.github.io/sherpa/onnx/pretrained_models/index.html">model list</a></p>
+</li>
+<li>
+<p>Configure in <code>moltis.toml</code>:</p>
+<pre><code class="language-toml">[voice.stt]
+provider = "sherpa-onnx"
+
+[voice.stt.sherpa_onnx]
+model_dir = "~/.moltis/models/sherpa-onnx-whisper-tiny.en"
+</code></pre>
+</li>
+</ol>
+<h3 id="rpc-methods-1"><a class="header" href="#rpc-methods-1">RPC Methods</a></h3>
+<h4 id="sttstatus"><a class="header" href="#sttstatus"><code>stt.status</code></a></h4>
+<p>Get current STT status.</p>
+<p><strong>Response:</strong></p>
+<pre><code class="language-json">{
+  "enabled": true,
+  "provider": "whisper",
+  "configured": true
+}
+</code></pre>
+<h4 id="sttproviders"><a class="header" href="#sttproviders"><code>stt.providers</code></a></h4>
+<p>List available STT providers.</p>
+<p><strong>Response:</strong></p>
+<pre><code class="language-json">[
+  { "id": "whisper", "name": "OpenAI Whisper", "configured": true },
+  { "id": "groq", "name": "Groq", "configured": false },
+  { "id": "deepgram", "name": "Deepgram", "configured": false },
+  { "id": "google", "name": "Google Cloud", "configured": false },
+  { "id": "mistral", "name": "Mistral AI", "configured": false },
+  { "id": "voxtral-local", "name": "Voxtral (Local)", "configured": false },
+  { "id": "whisper-cli", "name": "whisper.cpp", "configured": false },
+  { "id": "sherpa-onnx", "name": "sherpa-onnx", "configured": false }
+]
+</code></pre>
+<h4 id="stttranscribe"><a class="header" href="#stttranscribe"><code>stt.transcribe</code></a></h4>
+<p>Transcribe audio to text.</p>
+<p><strong>Request:</strong></p>
+<pre><code class="language-json">{
+  "audio": "base64-encoded-audio-data",
+  "format": "mp3",
+  "language": "en",
+  "prompt": "Technical discussion about Rust programming"
+}
+</code></pre>
+<p><strong>Response:</strong></p>
+<pre><code class="language-json">{
+  "text": "Hello, how are you today?",
+  "language": "en",
+  "confidence": null,
+  "durationSeconds": 2.5,
+  "words": [
+    { "word": "Hello", "start": 0.0, "end": 0.5 },
+    { "word": "how", "start": 0.6, "end": 0.8 },
+    { "word": "are", "start": 0.9, "end": 1.0 },
+    { "word": "you", "start": 1.1, "end": 1.3 },
+    { "word": "today", "start": 1.4, "end": 1.8 }
+  ]
+}
+</code></pre>
+<p><strong>Parameters:</strong></p>
+<ul>
+<li><code>audio</code> (required): Base64-encoded audio data</li>
+<li><code>format</code>: Audio format (<code>mp3</code>, <code>opus</code>, <code>ogg</code>, <code>aac</code>, <code>pcm</code>)</li>
+<li><code>language</code>: ISO 639-1 code to improve accuracy</li>
+<li><code>prompt</code>: Context hint (terminology, topic)</li>
+</ul>
+<h4 id="sttsetprovider"><a class="header" href="#sttsetprovider"><code>stt.setProvider</code></a></h4>
+<p>Change the active STT provider.</p>
+<p><strong>Request:</strong></p>
+<pre><code class="language-json">{ "provider": "groq" }
+</code></pre>
+<p>Valid provider IDs: <code>whisper</code>, <code>groq</code>, <code>deepgram</code>, <code>google</code>, <code>mistral</code>, <code>voxtral-local</code>, <code>whisper-cli</code>, <code>sherpa-onnx</code></p>
+<h2 id="code-structure"><a class="header" href="#code-structure">Code Structure</a></h2>
+<h3 id="voice-crate-cratesvoice"><a class="header" href="#voice-crate-cratesvoice">Voice Crate (<code>crates/voice/</code>)</a></h3>
+<pre><code>src/
+├── lib.rs           # Crate entry, re-exports
+├── config.rs        # VoiceConfig, TtsConfig, SttConfig
+├── tts/
+│   ├── mod.rs       # TtsProvider trait, AudioFormat, types
+│   ├── elevenlabs.rs # ElevenLabs implementation
+│   ├── openai.rs    # OpenAI TTS implementation
+│   ├── google.rs    # Google Cloud TTS implementation
+│   ├── piper.rs     # Piper local TTS implementation
+│   └── coqui.rs     # Coqui TTS server implementation
+└── stt/
+    ├── mod.rs          # SttProvider trait, Transcript types
+    ├── whisper.rs      # OpenAI Whisper implementation
+    ├── groq.rs         # Groq Whisper implementation
+    ├── deepgram.rs     # Deepgram implementation
+    ├── google.rs       # Google Cloud Speech-to-Text
+    ├── mistral.rs      # Mistral AI Voxtral cloud implementation
+    ├── voxtral_local.rs # Voxtral via local vLLM server
+    ├── cli_utils.rs    # Shared utilities for CLI providers
+    ├── whisper_cli.rs  # whisper.cpp CLI wrapper
+    └── sherpa_onnx.rs  # sherpa-onnx CLI wrapper
+</code></pre>
+<h3 id="key-traits"><a class="header" href="#key-traits">Key Traits</a></h3>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>/// Text-to-Speech provider trait
+#[async_trait]
+pub trait TtsProvider: Send + Sync {
+    fn id(&amp;self) -&gt; &amp;'static str;
+    fn name(&amp;self) -&gt; &amp;'static str;
+    fn is_configured(&amp;self) -&gt; bool;
+    async fn voices(&amp;self) -&gt; Result&lt;Vec&lt;Voice&gt;&gt;;
+    async fn synthesize(&amp;self, request: SynthesizeRequest) -&gt; Result&lt;AudioOutput&gt;;
+}
+
+/// Speech-to-Text provider trait
+#[async_trait]
+pub trait SttProvider: Send + Sync {
+    fn id(&amp;self) -&gt; &amp;'static str;
+    fn name(&amp;self) -&gt; &amp;'static str;
+    fn is_configured(&amp;self) -&gt; bool;
+    async fn transcribe(&amp;self, request: TranscribeRequest) -&gt; Result&lt;Transcript&gt;;
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="gateway-integration-cratesgatewaysrcvoicers"><a class="header" href="#gateway-integration-cratesgatewaysrcvoicers">Gateway Integration (<code>crates/gateway/src/voice.rs</code>)</a></h3>
+<ul>
+<li><code>LiveTtsService</code>: Wraps TTS providers, implements <code>TtsService</code> trait</li>
+<li><code>LiveSttService</code>: Wraps STT providers, implements <code>SttService</code> trait</li>
+<li><code>NoopSttService</code>: No-op for when STT is not configured</li>
+</ul>
+<h2 id="security"><a class="header" href="#security">Security</a></h2>
+<ul>
+<li>API keys are stored using <code>secrecy::Secret&lt;String&gt;</code> to prevent accidental logging</li>
+<li>Debug output redacts all secret values</li>
+<li>Keys can be set via environment variables or config file</li>
+</ul>
+<h2 id="adding-new-providers"><a class="header" href="#adding-new-providers">Adding New Providers</a></h2>
+<h3 id="tts-provider"><a class="header" href="#tts-provider">TTS Provider</a></h3>
+<ol>
+<li>Create <code>crates/voice/src/tts/newprovider.rs</code></li>
+<li>Implement <code>TtsProvider</code> trait</li>
+<li>Re-export from <code>crates/voice/src/tts/mod.rs</code></li>
+<li>Add to <code>LiveTtsService</code> in gateway</li>
+</ol>
+<h3 id="stt-provider"><a class="header" href="#stt-provider">STT Provider</a></h3>
+<ol>
+<li>Create <code>crates/voice/src/stt/newprovider.rs</code></li>
+<li>Implement <code>SttProvider</code> trait</li>
+<li>Re-export from <code>crates/voice/src/stt/mod.rs</code></li>
+<li>Add to <code>LiveSttService</code> in gateway</li>
+</ol>
+<h2 id="web-ui-integration"><a class="header" href="#web-ui-integration">Web UI Integration</a></h2>
+<p>The voice feature integrates with the web UI:</p>
+<ul>
+<li><strong>Microphone button</strong>: Record voice input in the chat interface</li>
+<li><strong>Settings page</strong>: Configure and enable/disable voice providers</li>
+<li><strong>Auto-detection</strong>: API keys are detected from environment variables and LLM provider configs</li>
+<li><strong>Toggle switches</strong>: Enable/disable providers without removing configuration</li>
+<li><strong>Setup instructions</strong>: Step-by-step guides for local provider installation</li>
+</ul>
+<h2 id="future-enhancements"><a class="header" href="#future-enhancements">Future Enhancements</a></h2>
+<ul>
+<li><strong>Streaming TTS</strong>: Chunked audio delivery for lower latency</li>
+<li><strong>VoiceWake</strong>: Wake word detection and continuous listening</li>
+<li><strong>Audio playback</strong>: Play TTS responses directly in the chat</li>
+<li><strong>Channel Integration</strong>: Auto-transcribe Telegram voice messages</li>
+<li><strong>Per-Agent Voices</strong>: Different voices for different agents</li>
+</ul>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="trusted-network.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="discord.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="trusted-network.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="discord.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+
+    </div>
+    </body>
+</html>
