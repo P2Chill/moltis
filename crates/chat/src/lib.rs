@@ -727,12 +727,11 @@ fn explicit_reply_medium_override(text: &str) -> Option<ReplyMedium> {
     let lower = text.to_lowercase();
     let voice_markers = [
         "talk to me",
-        "say it",
-        "say this",
-        "speak",
-        "voice message",
+        "speak to me",
         "respond with voice",
         "reply with voice",
+        "reply in voice",
+        "use voice",
         "audio reply",
     ];
     if voice_markers.iter().any(|m| lower.contains(m)) {

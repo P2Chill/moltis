@@ -48,7 +48,7 @@ export function selectModel(m) {
 	applyModelOverrides(m.id);
 }
 
-function applyModelOverrides(modelId) {
+export function applyModelOverrides(modelId) {
 	var overrideKey = modelId.split("::").pop();
 	sendRpc("tools.model_overrides.get", {}).then((res) => {
 		if (!res?.ok) return;

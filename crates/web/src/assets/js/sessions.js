@@ -31,6 +31,7 @@ import { currentPrefix, navigate, sessionPath } from "./router.js";
 import { settingsPath } from "./routes.js";
 import { updateSandboxImageUI, updateSandboxUI } from "./sandbox.js";
 import * as S from "./state.js";
+import { applyModelOverrides } from "./models.js";
 import { modelStore } from "./stores/model-store.js";
 import { projectStore } from "./stores/project-store.js";
 import {
@@ -390,8 +391,14 @@ function restoreSessionState(entry, projectId) {
 	S.setSessionExecMode(effectiveSandboxRoute ? "sandbox" : "host");
 	S.setSessionExecPromptSymbol(effectiveSandboxRoute || S.hostExecIsRoot ? "#" : "$");
 	updateCommandInputUI();
-	restoreMcpToggle(!entry.mcpDisabled);
-	restoreThinkToggle(entry.thinking_enabled === true);
+	// Apply model overrides to sync MCP/think/sandbox from config.
+	// This ensures per-model settings are authoritative over stale session metadata.
+	if (entry.model) {
+		applyModelOverrides(entry.model);
+	} else {
+		restoreMcpToggle(!entry.mcpDisabled);
+		restoreThinkToggle(entry.thinking_enabled === true);
+	}
 	updateChatSessionHeader();
 }
 

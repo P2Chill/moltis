@@ -366,6 +366,12 @@ fn build_system_prompt_full(
     append_memory_section(&mut prompt, memory_text, &tool_schemas);
     let model_id = runtime_context.and_then(|ctx| ctx.host.model.as_deref());
     append_available_tools_section(&mut prompt, native_tools, &tool_schemas);
+    // When lazy tools is active (discover_tools present), tell the model about it.
+    if tool_schemas.iter().any(|s| s.get("name").and_then(|n| n.as_str()) == Some("discover_tools")) {
+        prompt.push_str(
+            "**Important: You have many more tools available beyond those listed above.              When you need a capability not shown here (e.g. MCP integrations, browser,              calendar, arr, sonarr, radarr, etc.), call `discover_tools` with relevant              keywords IMMEDIATELY — do not tell the user you lack the tool.              Always try discover_tools before saying you cannot do something.**\n\n"
+        );
+    }
     append_tool_call_guidance(&mut prompt, native_tools, &tool_schemas, model_id);
     append_guidelines_section(&mut prompt, include_tools);
     append_runtime_datetime_tail(&mut prompt, runtime_context);
