@@ -213,6 +213,7 @@ Configure providers through the web UI or directly in configuration files.</p>
 <h3 id="local"><a class="header" href="#local">Local</a></h3>
 <div class="table-wrapper"><table><thead><tr><th>Provider</th><th>Config Name</th><th>Notes</th></tr></thead><tbody>
 <tr><td><strong>Ollama</strong></td><td><code>ollama</code></td><td>Local or remote Ollama instance</td></tr>
+<tr><td><strong>LM Studio</strong></td><td><code>lmstudio</code></td><td>Local LM Studio or any OpenAI-compatible server</td></tr>
 <tr><td><strong>Local LLM</strong></td><td><code>local-llm</code></td><td>Runs GGUF models directly on your machine</td></tr>
 </tbody></table>
 </div>
@@ -358,6 +359,13 @@ CLI:</p>
 <pre><code class="language-toml">[providers.ollama]
 enabled = true
 # base_url = "http://127.0.0.1:11434/v1"  # Override for remote Ollama
+</code></pre>
+<h3 id="lm-studio"><a class="header" href="#lm-studio">LM Studio</a></h3>
+<p>LM Studio auto-detects when running at <code>http://127.0.0.1:1234</code>. No API key needed.
+Also works with llama.cpp or any OpenAI-compatible local server.</p>
+<pre><code class="language-toml">[providers.lmstudio]
+enabled = true
+# base_url = "http://127.0.0.1:1234/v1"  # Override for different port/host
 </code></pre>
 <h3 id="local-llm"><a class="header" href="#local-llm">Local LLM</a></h3>
 <p>Local LLM runs GGUF models directly on your machine.</p>

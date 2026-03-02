@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Tool Registry - Moltis Documentation</title>
+        <title>Channels - Moltis Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -149,7 +149,7 @@
                         <a href="https://github.com/moltis-org/moltis" title="Git repository" aria-label="Git repository">
                             <i id="git-repository-button" class="fa fa-github"></i>
                         </a>
-                        <a href="https://github.com/moltis-org/moltis/edit/main/docs/src/src/tool-registry.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                        <a href="https://github.com/moltis-org/moltis/edit/main/docs/src/src/channels.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
                             <i id="git-edit-button" class="fa fa-edit"></i>
                         </a>
 
@@ -183,68 +183,83 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="tool-registry"><a class="header" href="#tool-registry">Tool Registry</a></h1>
-<p>The tool registry manages all tools available to the agent during a
-conversation. It tracks where each tool comes from and supports filtering by
-source.</p>
-<h2 id="tool-sources"><a class="header" href="#tool-sources">Tool Sources</a></h2>
-<p>Every registered tool has a <code>ToolSource</code> that identifies its origin:</p>
-<ul>
-<li><strong><code>Builtin</code></strong> — tools shipped with the binary (exec, web_fetch, etc.)</li>
-<li><strong><code>Mcp { server }</code></strong> — tools provided by an MCP server, tagged with the
-server name</li>
-</ul>
-<p>This replaces the previous convention of identifying MCP tools by their
-<code>mcp__</code> name prefix, providing type-safe filtering instead of string matching.</p>
-<h2 id="registration"><a class="header" href="#registration">Registration</a></h2>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>// Built-in tool
-registry.register(Box::new(MyTool::new()));
+                        <h1 id="channels"><a class="header" href="#channels">Channels</a></h1>
+<p>Moltis connects to messaging platforms through <strong>channels</strong>. Each channel type
+has a distinct inbound mode, determining how it receives messages, and a set of
+capabilities that control what features are available.</p>
+<h2 id="supported-channels"><a class="header" href="#supported-channels">Supported Channels</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Channel</th><th>Inbound Mode</th><th>Public URL Required</th><th>Key Capabilities</th></tr></thead><tbody>
+<tr><td>Telegram</td><td>Polling</td><td>No</td><td>Streaming, voice ingest, reactions, OTP, location</td></tr>
+<tr><td>Discord</td><td>Gateway (WebSocket)</td><td>No</td><td>Streaming, interactive messages, threads, reactions</td></tr>
+<tr><td>Microsoft Teams</td><td>Webhook</td><td>Yes</td><td>Streaming, interactive messages, threads</td></tr>
+<tr><td>WhatsApp</td><td>Gateway (WebSocket)</td><td>No</td><td>Streaming, voice ingest, OTP, pairing, location</td></tr>
+<tr><td>Slack</td><td>Socket Mode</td><td>No</td><td>Streaming, interactive messages, threads, reactions</td></tr>
+</tbody></table>
+</div>
+<h2 id="inbound-modes"><a class="header" href="#inbound-modes">Inbound Modes</a></h2>
+<h3 id="polling"><a class="header" href="#polling">Polling</a></h3>
+<p>The bot periodically fetches new messages from the platform API. No public URL
+or open port is needed. Used by Telegram.</p>
+<h3 id="gateway--websocket"><a class="header" href="#gateway--websocket">Gateway / WebSocket</a></h3>
+<p>The bot opens a persistent outbound WebSocket connection to the platform and
+receives events in real time. No public URL needed. Used by Discord and
+WhatsApp.</p>
+<h3 id="socket-mode"><a class="header" href="#socket-mode">Socket Mode</a></h3>
+<p>Similar to a gateway connection, but uses the platform’s Socket Mode protocol.
+No public URL needed. Used by Slack.</p>
+<h3 id="webhook"><a class="header" href="#webhook">Webhook</a></h3>
+<p>The platform sends HTTP POST requests to a publicly reachable endpoint on your
+server. You must configure the messaging endpoint URL in the platform’s
+settings. Used by Microsoft Teams.</p>
+<h3 id="none-send-only"><a class="header" href="#none-send-only">None (Send-Only)</a></h3>
+<p>For channels that only send outbound messages and do not receive inbound
+traffic. No channels currently use this mode, but it is available for future
+integrations (e.g. email, SMS).</p>
+<h2 id="capabilities-reference"><a class="header" href="#capabilities-reference">Capabilities Reference</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Capability</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>supports_outbound</code></td><td>Can send messages to users</td></tr>
+<tr><td><code>supports_streaming</code></td><td>Can stream partial responses (typing/editing)</td></tr>
+<tr><td><code>supports_interactive</code></td><td>Can send interactive components (buttons, menus)</td></tr>
+<tr><td><code>supports_threads</code></td><td>Can reply in threads</td></tr>
+<tr><td><code>supports_voice_ingest</code></td><td>Can receive and transcribe voice messages</td></tr>
+<tr><td><code>supports_pairing</code></td><td>Requires device pairing (QR code)</td></tr>
+<tr><td><code>supports_otp</code></td><td>Supports OTP-based sender approval</td></tr>
+<tr><td><code>supports_reactions</code></td><td>Can add/remove emoji reactions</td></tr>
+<tr><td><code>supports_location</code></td><td>Can receive and process location data</td></tr>
+</tbody></table>
+</div>
+<h2 id="setup"><a class="header" href="#setup">Setup</a></h2>
+<p>Each channel is configured in <code>moltis.toml</code> under <code>[channels]</code>:</p>
+<pre><code class="language-toml">[channels.telegram.my_bot]
+token = "123456:ABC-DEF..."
+dm_policy = "allowlist"
+allowlist = ["alice", "bob"]
 
-// MCP tool — tagged with server name
-registry.register_mcp(Box::new(adapter), "github".to_string());
-<span class="boring">}</span></code></pre></pre>
-<h2 id="filtering"><a class="header" href="#filtering">Filtering</a></h2>
-<p>When MCP tools are disabled for a session, the registry can produce a filtered
-copy:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>// Type-safe: filters by ToolSource::Mcp variant
-let no_mcp = registry.clone_without_mcp();
+[channels.msteams.my_teams_bot]
+app_id = "..."
+app_password = "..."
 
-// Remove all MCP tools in-place (used during sync)
-let removed_count = registry.unregister_mcp();
-<span class="boring">}</span></code></pre></pre>
-<h2 id="schema-output"><a class="header" href="#schema-output">Schema Output</a></h2>
-<p><code>list_schemas()</code> includes source metadata in every tool schema:</p>
-<pre><code class="language-json">{
-  "name": "exec",
-  "description": "Execute a command",
-  "parameters": { ... },
-  "source": "builtin"
-}
+[channels.discord.my_discord_bot]
+token = "..."
+
+[channels.slack.my_slack_bot]
+bot_token = "xoxb-..."
+app_token = "xapp-..."
+
+[channels.whatsapp.my_wa]
+dm_policy = "open"
 </code></pre>
-<pre><code class="language-json">{
-  "name": "mcp__github__search",
-  "description": "Search GitHub",
-  "parameters": { ... },
-  "source": "mcp",
-  "mcpServer": "github"
-}
-</code></pre>
-<p>The <code>source</code> and <code>mcpServer</code> fields are available to the UI for rendering
-tools grouped by origin.</p>
+<p>See the web UI’s <strong>Channels</strong> tab for guided setup with each platform.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="metrics-and-tracing.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="voice.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="agent-presets.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="discord.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -254,11 +269,11 @@ tools grouped by origin.</p>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="metrics-and-tracing.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="voice.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="agent-presets.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="discord.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Tool Registry - Moltis Documentation</title>
+        <title>Agent Presets - Moltis Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -149,7 +149,7 @@
                         <a href="https://github.com/moltis-org/moltis" title="Git repository" aria-label="Git repository">
                             <i id="git-repository-button" class="fa fa-github"></i>
                         </a>
-                        <a href="https://github.com/moltis-org/moltis/edit/main/docs/src/src/tool-registry.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                        <a href="https://github.com/moltis-org/moltis/edit/main/docs/src/src/agent-presets.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
                             <i id="git-edit-button" class="fa fa-edit"></i>
                         </a>
 
@@ -183,68 +183,124 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="tool-registry"><a class="header" href="#tool-registry">Tool Registry</a></h1>
-<p>The tool registry manages all tools available to the agent during a
-conversation. It tracks where each tool comes from and supports filtering by
-source.</p>
-<h2 id="tool-sources"><a class="header" href="#tool-sources">Tool Sources</a></h2>
-<p>Every registered tool has a <code>ToolSource</code> that identifies its origin:</p>
+                        <h1 id="agent-presets"><a class="header" href="#agent-presets">Agent Presets</a></h1>
+<p>Agent presets let <code>spawn_agent</code> run sub-agents with role-specific configuration.
+Use them to control model cost, tool access, session visibility, and behavior.</p>
+<h2 id="quick-start"><a class="header" href="#quick-start">Quick Start</a></h2>
+<pre><code class="language-toml">[agents.presets.researcher]
+identity.name = "scout"
+identity.emoji = "🔍"
+identity.theme = "thorough and methodical"
+model = "anthropic/claude-haiku-3-5-20241022"
+tools.allow = ["read_file", "glob", "grep", "web_search", "web_fetch"]
+tools.deny = ["exec", "write_file"]
+system_prompt_suffix = "Gather facts and report clearly."
+
+[agents.presets.coordinator]
+identity.name = "orchestrator"
+delegate_only = true
+tools.allow = ["spawn_agent", "sessions_list", "sessions_history", "sessions_send", "task_list"]
+sessions.can_send = true
+</code></pre>
+<p>Then call <code>spawn_agent</code> with a preset:</p>
+<pre><code class="language-json">{
+  "task": "Find all auth-related code paths",
+  "preset": "researcher"
+}
+</code></pre>
+<h2 id="config-fields"><a class="header" href="#config-fields">Config Fields</a></h2>
+<p>Top-level:</p>
 <ul>
-<li><strong><code>Builtin</code></strong> — tools shipped with the binary (exec, web_fetch, etc.)</li>
-<li><strong><code>Mcp { server }</code></strong> — tools provided by an MCP server, tagged with the
-server name</li>
+<li><code>[agents] default_preset</code> (optional preset name)</li>
+<li><code>[agents] presets</code> (map of named presets)</li>
 </ul>
-<p>This replaces the previous convention of identifying MCP tools by their
-<code>mcp__</code> name prefix, providing type-safe filtering instead of string matching.</p>
-<h2 id="registration"><a class="header" href="#registration">Registration</a></h2>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>// Built-in tool
-registry.register(Box::new(MyTool::new()));
-
-// MCP tool — tagged with server name
-registry.register_mcp(Box::new(adapter), "github".to_string());
-<span class="boring">}</span></code></pre></pre>
-<h2 id="filtering"><a class="header" href="#filtering">Filtering</a></h2>
-<p>When MCP tools are disabled for a session, the registry can produce a filtered
-copy:</p>
-<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>// Type-safe: filters by ToolSource::Mcp variant
-let no_mcp = registry.clone_without_mcp();
-
-// Remove all MCP tools in-place (used during sync)
-let removed_count = registry.unregister_mcp();
-<span class="boring">}</span></code></pre></pre>
-<h2 id="schema-output"><a class="header" href="#schema-output">Schema Output</a></h2>
-<p><code>list_schemas()</code> includes source metadata in every tool schema:</p>
-<pre><code class="language-json">{
-  "name": "exec",
-  "description": "Execute a command",
-  "parameters": { ... },
-  "source": "builtin"
-}
+<p>Per preset (<code>[agents.presets.&lt;name&gt;]</code>):</p>
+<ul>
+<li><code>identity.name</code>, <code>identity.emoji</code>, <code>identity.theme</code></li>
+<li><code>model</code></li>
+<li><code>tools.allow</code>, <code>tools.deny</code></li>
+<li><code>system_prompt_suffix</code></li>
+<li><code>max_iterations</code>, <code>timeout_secs</code></li>
+<li><code>sessions.*</code> access policy</li>
+<li><code>memory.scope</code>, <code>memory.max_lines</code></li>
+<li><code>delegate_only</code></li>
+</ul>
+<h2 id="tool-policy-behavior"><a class="header" href="#tool-policy-behavior">Tool Policy Behavior</a></h2>
+<ul>
+<li>If <code>tools.allow</code> is empty, all tools start as allowed.</li>
+<li>If <code>tools.allow</code> is non-empty, only those tools are allowed.</li>
+<li><code>tools.deny</code> is applied after allow-list filtering.</li>
+<li>For normal sub-agents, <code>spawn_agent</code> is always removed to avoid recursive runaway spawning.</li>
+<li>For <code>delegate_only = true</code>, the registry is restricted to delegation/session tools:
+<code>spawn_agent</code>, <code>sessions_list</code>, <code>sessions_history</code>, <code>sessions_send</code>, <code>task_list</code>.</li>
+</ul>
+<h2 id="session-access-policy"><a class="header" href="#session-access-policy">Session Access Policy</a></h2>
+<p><code>sessions</code> policy controls what a preset can see/send across sessions:</p>
+<ul>
+<li><code>key_prefix</code>: optional session-key prefix filter</li>
+<li><code>allowed_keys</code>: explicit allow-list</li>
+<li><code>can_send</code>: allow/disallow <code>sessions_send</code></li>
+<li><code>cross_agent</code>: permit cross-agent session access</li>
+</ul>
+<p>See <a href="session-tools.html">Session Tools</a> for full details.</p>
+<h2 id="per-agent-memory"><a class="header" href="#per-agent-memory">Per-Agent Memory</a></h2>
+<p>Each preset can have persistent memory loaded from a <code>MEMORY.md</code> file at spawn
+time. The memory content is injected into the sub-agent system prompt.</p>
+<ul>
+<li><code>memory.scope</code> determines where the file is stored:
+<ul>
+<li><code>user</code> (default): <code>~/.moltis/agent-memory/&lt;preset&gt;/MEMORY.md</code></li>
+<li><code>project</code>: <code>.moltis/agent-memory/&lt;preset&gt;/MEMORY.md</code></li>
+<li><code>local</code>: <code>.moltis/agent-memory-local/&lt;preset&gt;/MEMORY.md</code></li>
+</ul>
+</li>
+<li><code>memory.max_lines</code> limits how much is injected (default: 200).</li>
+</ul>
+<p>The directory is created automatically so agents can write to it.</p>
+<pre><code class="language-toml">[agents.presets.researcher.memory]
+scope = "project"
+max_lines = 100
 </code></pre>
-<pre><code class="language-json">{
-  "name": "mcp__github__search",
-  "description": "Search GitHub",
-  "parameters": { ... },
-  "source": "mcp",
-  "mcpServer": "github"
-}
+<h2 id="model-selection-order"><a class="header" href="#model-selection-order">Model Selection Order</a></h2>
+<p>When <code>spawn_agent</code> runs, model choice is:</p>
+<ol>
+<li>Explicit <code>model</code> parameter in tool call</li>
+<li>Preset <code>model</code></li>
+<li>Parent/default provider model</li>
+</ol>
+<h2 id="markdown-agent-definitions"><a class="header" href="#markdown-agent-definitions">Markdown Agent Definitions</a></h2>
+<p>Presets can also be defined as markdown files with YAML frontmatter, discovered from:</p>
+<ul>
+<li><code>~/.moltis/agents/*.md</code> (user-global)</li>
+<li><code>.moltis/agents/*.md</code> (project-local)</li>
+</ul>
+<p>Project-local files override user-global files with the same <code>name</code>.
+TOML presets always take precedence over markdown definitions.</p>
+<p>Example <code>~/.moltis/agents/reviewer.md</code>:</p>
+<pre><code class="language-markdown">---
+name: reviewer
+tools: Read, Grep, Glob
+model: sonnet
+emoji: 🔍
+theme: focused and efficient
+max_iterations: 20
+timeout_secs: 60
+---
+You are a code reviewer. Focus on correctness and security.
 </code></pre>
-<p>The <code>source</code> and <code>mcpServer</code> fields are available to the UI for rendering
-tools grouped by origin.</p>
+<p>Frontmatter fields: <code>name</code> (required), <code>tools</code>, <code>deny_tools</code>, <code>model</code>, <code>emoji</code>,
+<code>theme</code>, <code>delegate_only</code>, <code>max_iterations</code>, <code>timeout_secs</code>.
+The markdown body becomes <code>system_prompt_suffix</code>.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="metrics-and-tracing.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="tool-registry.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="agent-presets.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="session-tools.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -254,11 +310,11 @@ tools grouped by origin.</p>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="metrics-and-tracing.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="tool-registry.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="agent-presets.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="session-tools.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
