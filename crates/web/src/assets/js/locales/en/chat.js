@@ -9,6 +9,8 @@ export default {
 	micStopAndSend: "Click to stop and send",
 	voiceTranscribing: "Transcribing...",
 	voiceTranscribingMessage: "Transcribing voice...",
+	vadTooltip: "Conversation mode (VAD)",
+	vadStopTooltip: "Click to stop conversation mode",
 
 	// ── Slash commands ───────────────────────────────────────
 	slashClear: "Clear conversation history",

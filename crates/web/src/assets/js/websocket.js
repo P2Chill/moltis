@@ -764,7 +764,7 @@ function handleChatError(p, isActive, isChatPage, eventSession) {
 	moveFirstQueuedToChat();
 }
 
-function handleChatAborted(p, isActive, isChatPage, eventSession) {
+function handleChatAborted(_p, isActive, isChatPage, eventSession) {
 	clearPendingToolCallEndsForSession(eventSession);
 	setSessionReplying(eventSession, false);
 	setSessionActiveRunId(eventSession, null);

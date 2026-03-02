@@ -9,6 +9,8 @@ export default {
 	micStopAndSend: "点击停止并发送",
 	voiceTranscribing: "转录中...",
 	voiceTranscribingMessage: "正在转录语音...",
+	vadTooltip: "对话模式 (VAD)",
+	vadStopTooltip: "点击停止对话模式",
 
 	// ── Slash commands ───────────────────────────────────────
 	slashClear: "清除对话历史",
