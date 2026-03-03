@@ -8009,15 +8009,16 @@ fn format_tool_end_message(
             if trimmed.is_empty() {
                 return None;
             }
-            // Take first 8 lines, max 500 chars.
-            let lines: Vec<&str> = trimmed.lines().take(8).collect();
-            let mut out = lines.join("\n");
-            if out.len() > 500 {
-                out.truncate(500);
-                out.push_str("...");
-            } else if trimmed.lines().count() > 8 {
-                out.push_str("\n...");
+            // Take first line only, max 80 chars.
+            let first_line = trimmed.lines().next().unwrap_or("").trim();
+            if first_line.is_empty() {
+                return None;
             }
+            let out = if first_line.len() > 80 {
+                format!("{}...", truncate_at_char_boundary(first_line, 80))
+            } else {
+                first_line.to_string()
+            };
             Some(out)
         })
     };
