@@ -775,10 +775,10 @@ pub struct ServerConfig {
     /// Defaults to 1000. Increase for busy servers, decrease for memory-constrained devices.
     #[serde(default = "default_log_buffer_size")]
     pub log_buffer_size: usize,
-    /// Optional GitHub repository URL used by the update checker.
+    /// URL of the releases manifest (`releases.json`) used by the update checker.
     ///
-    /// When unset, Moltis falls back to the package repository metadata.
-    pub update_repository_url: Option<String>,
+    /// Defaults to `https://www.moltis.org/releases.json` when unset.
+    pub update_releases_url: Option<String>,
 }
 
 fn default_log_buffer_size() -> usize {
@@ -793,7 +793,7 @@ impl Default for ServerConfig {
             http_request_logs: false,
             ws_request_logs: false,
             log_buffer_size: default_log_buffer_size(),
-            update_repository_url: None,
+            update_releases_url: None,
         }
     }
 }
@@ -2111,6 +2111,8 @@ pub struct ProviderEntry {
     pub api_key: Option<Secret<String>>,
 
     /// Override the base URL.
+    /// Accepts legacy `url` as an alias for compatibility.
+    #[serde(alias = "url")]
     pub base_url: Option<String>,
 
     /// Preferred model IDs for this provider.
@@ -2640,6 +2642,19 @@ memory = 300
         );
         let parsed: ProviderEntry = toml::from_str(&toml_str).unwrap();
         assert_eq!(parsed.tool_mode, ToolMode::Text);
+    }
+
+    #[test]
+    fn provider_entry_url_alias_maps_to_base_url() {
+        let entry: ProviderEntry = toml::from_str(
+            r#"
+enabled = true
+url = "http://192.168.0.9:11434"
+"#,
+        )
+        .unwrap();
+
+        assert_eq!(entry.base_url.as_deref(), Some("http://192.168.0.9:11434"));
     }
 
     #[test]

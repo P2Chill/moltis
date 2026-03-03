@@ -39,7 +39,7 @@ export function isReady() {
  * @param {HTMLElement} containerEl
  */
 export function highlightCodeBlocks(containerEl) {
-	if (!highlighter || !containerEl) return;
+	if (!(highlighter && containerEl)) return;
 	var codeEls = containerEl.querySelectorAll("pre code[data-lang]");
 	for (var codeEl of codeEls) {
 		if (codeEl.querySelector(".shiki") || codeEl.classList.contains("shiki")) continue;
