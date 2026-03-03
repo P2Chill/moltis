@@ -21,7 +21,7 @@ pub fn build_commands() -> Vec<CreateCommand> {
         CreateCommand::new("clear").description("Clear the current session history"),
         CreateCommand::new("compact").description("Summarize the current session"),
         CreateCommand::new("context").description("Show session info (model, tokens, plugins)"),
-        CreateCommand::new("model").description("List or switch the AI model"),
+        CreateCommand::new("model").description("List or switch the AI model").add_option(CreateCommandOption::new(CommandOptionType::String, "model", "Model number or name").required(false)),
         CreateCommand::new("sessions").description("List or switch chat sessions"),
         CreateCommand::new("agent").description("List or switch agents"),
         CreateCommand::new("help").description("Show available commands"),
