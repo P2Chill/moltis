@@ -281,15 +281,23 @@ impl ChannelEventSink for GatewayChannelEventSink {
             // If neither exists, assign the first registered model so the session
             // behaves the same as the web UI (which always sends an explicit model).
             if let Some(ref model) = meta.model {
-                params["model"] = serde_json::json!(model);
-
-                // Notify the user which model was assigned from the channel config
-                // on the first message of a new session (no model set yet).
+                // Only apply channel default if the session has no model set yet.
+                // If the user switched models via /model, respect that choice.
                 let session_has_model = if let Some(ref sm) = state.services.session_metadata {
                     sm.get(&session_key).await.and_then(|e| e.model).is_some()
                 } else {
                     false
                 };
+                if session_has_model {
+                    // Session already has a model — forward it instead of channel default.
+                    if let Some(ref sm) = state.services.session_metadata {
+                        if let Some(session_model) = sm.get(&session_key).await.and_then(|e| e.model) {
+                            params["model"] = serde_json::json!(session_model);
+                        }
+                    }
+                } else {
+                    params["model"] = serde_json::json!(model);
+                }
                 if !session_has_model {
                     // Persist channel model on the session.
                     let _ = state
@@ -764,13 +772,21 @@ impl ChannelEventSink for GatewayChannelEventSink {
 
         // Forward the channel's default model if configured
         if let Some(ref model) = meta.model {
-            params["model"] = serde_json::json!(model);
-
+            // Only apply channel default if the session has no model set yet.
             let session_has_model = if let Some(ref sm) = state.services.session_metadata {
                 sm.get(&session_key).await.and_then(|e| e.model).is_some()
             } else {
                 false
             };
+            if session_has_model {
+                if let Some(ref sm) = state.services.session_metadata {
+                    if let Some(session_model) = sm.get(&session_key).await.and_then(|e| e.model) {
+                        params["model"] = serde_json::json!(session_model);
+                    }
+                }
+            } else {
+                params["model"] = serde_json::json!(model);
+            }
             if !session_has_model {
                 let _ = state
                     .services
