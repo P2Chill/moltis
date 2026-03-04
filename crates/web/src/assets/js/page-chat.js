@@ -13,7 +13,7 @@ import {
 	initMediaDrop,
 	teardownMediaDrop,
 } from "./media-drop.js";
-import { bindModelComboEvents, setSessionModel } from "./models.js";
+import { bindModelComboEvents, setSessionModel, openModelDropdown } from "./models.js";
 import { registerPrefix, sessionPath } from "./router.js";
 import { routes } from "./routes.js";
 import { bindSandboxImageEvents, bindSandboxToggleEvents, updateSandboxImageUI, updateSandboxUI } from "./sandbox.js";
@@ -884,31 +884,24 @@ function handleSlashCommand(cmdName, cmdArgs) {
 
 function handleModelCommand(args) {
 	var parts = args.trim().split(/\s+/).filter(Boolean);
-	// /model with no args — list providers
-	// /model <provider> — list models for provider
-	// /model <provider> <model> — switch to model
+
+	// No args — open the model picker dropdown (handles search, all providers)
+	if (parts.length === 0) {
+		openModelDropdown();
+		return;
+	}
+
 	if (!S.activeSessionKey) { chatAddMsg("error", "No active session.", true); return; }
+
+	// With args: /model <provider> [model] — need model list to resolve
 	sendRpc("models.list", {}).then((res) => {
 		if (!res?.ok || !Array.isArray(res.payload)) {
 			chatAddMsg("error", "Could not load model list.", true);
 			return;
 		}
 		var models = res.payload;
-		// Build unique ordered provider list
 		var providers = [];
 		models.forEach((m) => { if (m.provider && !providers.includes(m.provider)) providers.push(m.provider); });
-
-		if (parts.length === 0) {
-			// List providers
-			var html = "<strong>Providers:</strong><br>";
-			providers.forEach((p, i) => {
-				var count = models.filter((m) => m.provider === p).length;
-				html += `${i + 1}. ${p} (${count} models)<br>`;
-			});
-			html += "<br><em>Use <code>/model &lt;provider&gt;</code> to list, <code>/model &lt;provider&gt; &lt;model&gt;</code> to switch.</em>";
-			chatAddMsg("system", html, true);
-			return;
-		}
 
 		// Resolve provider
 		var provArg = parts[0];
@@ -916,7 +909,7 @@ function handleModelCommand(args) {
 		var provName = isNaN(provIdx)
 			? providers.find((p) => p.toLowerCase().includes(provArg.toLowerCase()))
 			: providers[provIdx - 1];
-		if (!provName) { chatAddMsg("error", `Provider '${provArg}' not found.`, true); return; }
+		if (!provName) { chatAddMsg("error", `Provider '${provArg}' not found. Use /model to open picker.`, true); return; }
 
 		var provModels = models.filter((m) => m.provider === provName);
 
@@ -925,10 +918,11 @@ function handleModelCommand(args) {
 			var currentId = S.selectedModelId;
 			var html = `<strong>${provName} models:</strong><br>`;
 			provModels.forEach((m, i) => {
-				var marker = m.id === currentId ? " ✓" : "";
+				var marker = m.id === currentId ? " \u2713" : "";
 				html += `${i + 1}. ${m.displayName || m.id}${marker}<br>`;
 			});
-			chatAddMsg("system", html, true);
+			var el = chatAddMsg("system", html, true);
+			if (el) el.classList.add("system-list");
 			return;
 		}
 

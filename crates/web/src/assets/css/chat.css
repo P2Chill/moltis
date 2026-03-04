@@ -782,3 +782,15 @@ body.has-user-avatar #messages .msg.user:not(.session-loading)::after {
   object-fit: cover;
   flex-shrink: 0;
 }
+
+.msg.system.system-list {
+  background: color-mix(in srgb, var(--surface2) 85%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border-strong) 65%, transparent);
+  border-radius: var(--radius);
+  max-width: min(88%, 520px);
+  padding: 8px 14px;
+  white-space: normal;
+  display: block;
+  align-self: flex-start;
+  line-height: 1.7;
+}
