@@ -889,11 +889,11 @@ function handleModelCommand(args) {
 	// /model <provider> <model> — switch to model
 	if (!S.activeSessionKey) { chatAddMsg("error", "No active session."); return; }
 	sendRpc("models.list", {}).then((res) => {
-		if (!res?.ok || !Array.isArray(res.result)) {
+		if (!res?.ok || !Array.isArray(res.payload)) {
 			chatAddMsg("error", "Could not load model list.");
 			return;
 		}
-		var models = res.result;
+		var models = res.payload;
 		// Build unique ordered provider list
 		var providers = [];
 		models.forEach((m) => { if (m.provider && !providers.includes(m.provider)) providers.push(m.provider); });
