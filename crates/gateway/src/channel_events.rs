@@ -281,15 +281,23 @@ impl ChannelEventSink for GatewayChannelEventSink {
             // If neither exists, assign the first registered model so the session
             // behaves the same as the web UI (which always sends an explicit model).
             if let Some(ref model) = meta.model {
-                params["model"] = serde_json::json!(model);
-
-                // Notify the user which model was assigned from the channel config
-                // on the first message of a new session (no model set yet).
+                // Only apply channel default if the session has no model set yet.
+                // If the user switched models via /model, respect that choice.
                 let session_has_model = if let Some(ref sm) = state.services.session_metadata {
                     sm.get(&session_key).await.and_then(|e| e.model).is_some()
                 } else {
                     false
                 };
+                if session_has_model {
+                    // Session already has a model — forward it instead of channel default.
+                    if let Some(ref sm) = state.services.session_metadata {
+                        if let Some(session_model) = sm.get(&session_key).await.and_then(|e| e.model) {
+                            params["model"] = serde_json::json!(session_model);
+                        }
+                    }
+                } else {
+                    params["model"] = serde_json::json!(model);
+                }
                 if !session_has_model {
                     // Persist channel model on the session.
                     let _ = state
@@ -764,13 +772,21 @@ impl ChannelEventSink for GatewayChannelEventSink {
 
         // Forward the channel's default model if configured
         if let Some(ref model) = meta.model {
-            params["model"] = serde_json::json!(model);
-
+            // Only apply channel default if the session has no model set yet.
             let session_has_model = if let Some(ref sm) = state.services.session_metadata {
                 sm.get(&session_key).await.and_then(|e| e.model).is_some()
             } else {
                 false
             };
+            if session_has_model {
+                if let Some(ref sm) = state.services.session_metadata {
+                    if let Some(session_model) = sm.get(&session_key).await.and_then(|e| e.model) {
+                        params["model"] = serde_json::json!(session_model);
+                    }
+                }
+            } else {
+                params["model"] = serde_json::json!(model);
+            }
             if !session_has_model {
                 let _ = state
                     .services
@@ -1340,17 +1356,85 @@ impl ChannelEventSink for GatewayChannelEventSink {
                         Some(provider),
                     ))
                 } else {
-                    // Switch mode — arg is a 1-based global index.
-                    let n: usize = args
-                        .parse()
-                        .map_err(|_| ChannelError::invalid_input("usage: /model [number]"))?;
-                    if n == 0 || n > models.len() {
-                        return Err(ChannelError::invalid_input(format!(
-                            "invalid model number. Use 1–{}.",
-                            models.len()
-                        )));
+                    // 2-step: /model <provider> [model]
+                    // provider and model can each be a 1-based index or a name fragment.
+                    let mut parts = args.splitn(2, char::is_whitespace);
+                    let provider_arg = parts.next().unwrap_or("").trim();
+                    let model_arg = parts.next().map(|s| s.trim()).unwrap_or("").to_string();
+
+                    // Build ordered unique provider list.
+                    let mut providers: Vec<String> = models
+                        .iter()
+                        .filter_map(|m| {
+                            m.get("provider").and_then(|v| v.as_str()).map(String::from)
+                        })
+                        .collect();
+                    providers.dedup();
+
+                    // Resolve provider_arg: numeric index OR case-insensitive substring.
+                    let provider_name: String = if let Ok(n) = provider_arg.parse::<usize>() {
+                        if n == 0 || n > providers.len() {
+                            return Err(ChannelError::invalid_input(format!(
+                                "provider {} not found. Use /model to list providers.",
+                                n
+                            )));
+                        }
+                        providers[n - 1].clone()
+                    } else {
+                        let lower = provider_arg.to_lowercase();
+                        providers
+                            .iter()
+                            .find(|p| p.to_lowercase().contains(&lower))
+                            .cloned()
+                            .ok_or_else(|| {
+                                ChannelError::invalid_input(format!(
+                                    "provider '{provider_arg}' not found. Use /model to list."
+                                ))
+                            })?
+                    };
+
+                    // No model arg — list models for this provider.
+                    if model_arg.is_empty() {
+                        return Ok(format_model_list(
+                            models,
+                            current_model.as_deref(),
+                            Some(&provider_name),
+                        ));
                     }
-                    let chosen = &models[n - 1];
+
+                    // Resolve model_arg within provider.
+                    let provider_models: Vec<&serde_json::Value> = models
+                        .iter()
+                        .filter(|m| {
+                            m.get("provider").and_then(|v| v.as_str()) == Some(&provider_name)
+                        })
+                        .collect();
+
+                    let chosen: &serde_json::Value = if let Ok(n) = model_arg.parse::<usize>() {
+                        if n == 0 || n > provider_models.len() {
+                            return Err(ChannelError::invalid_input(format!(
+                                "model {} not found in {provider_name}. Use /model {provider_arg} to list.",
+                                n
+                            )));
+                        }
+                        provider_models[n - 1]
+                    } else {
+                        let lower = model_arg.to_lowercase();
+                        provider_models
+                            .iter()
+                            .find(|m| {
+                                let id = m.get("id").and_then(|v| v.as_str()).unwrap_or("");
+                                let name = m.get("displayName").and_then(|v| v.as_str()).unwrap_or("");
+                                id.to_lowercase().contains(&lower) || name.to_lowercase().contains(&lower)
+                            })
+                            .copied()
+                            .ok_or_else(|| {
+                                ChannelError::invalid_input(format!(
+                                    "model '{model_arg}' not found in {provider_name}. Use /model {provider_arg} to list."
+                                ))
+                            })?
+                    };
+
                     let model_id = chosen
                         .get("id")
                         .and_then(|v| v.as_str())

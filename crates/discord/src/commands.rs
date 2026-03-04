@@ -21,7 +21,7 @@ pub fn build_commands() -> Vec<CreateCommand> {
         CreateCommand::new("clear").description("Clear the current session history"),
         CreateCommand::new("compact").description("Summarize the current session"),
         CreateCommand::new("context").description("Show session info (model, tokens, plugins)"),
-        CreateCommand::new("model").description("List or switch the AI model").add_option(CreateCommandOption::new(CommandOptionType::String, "model", "Model number or name").required(false)),
+        CreateCommand::new("model").description("List or switch the AI model").add_option(CreateCommandOption::new(CommandOptionType::String, "provider", "Provider number or name").required(false)).add_option(CreateCommandOption::new(CommandOptionType::String, "model", "Model number or name within provider").required(false)),
         CreateCommand::new("sessions").description("List or switch chat sessions"),
         CreateCommand::new("agent").description("List or switch agents"),
         CreateCommand::new("help").description("Show available commands"),
@@ -92,13 +92,15 @@ pub async fn handle_interaction(
         message_id: None,
     };
 
-    // Extract optional "toggle" argument from slash commands (e.g. /think on).
-    let args = command
+    // Build args by joining all option values (supports /model <provider> <model>).
+    let args: String = command
         .data
         .options
-        .first()
-        .and_then(|opt| opt.value.as_str())
-        .unwrap_or("");
+        .iter()
+        .filter_map(|opt| opt.value.as_str())
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ");
     let full_command = if args.is_empty() {
         command.data.name.clone()
     } else {
