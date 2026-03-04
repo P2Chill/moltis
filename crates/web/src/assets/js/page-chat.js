@@ -900,13 +900,13 @@ function handleModelCommand(args) {
 
 		if (parts.length === 0) {
 			// List providers
-			var lines = ["**Providers:**"];
+			var html = "<strong>Providers:</strong><br>";
 			providers.forEach((p, i) => {
 				var count = models.filter((m) => m.provider === p).length;
-				lines.push(`${i + 1}. ${p} (${count} models)`);
+				html += `${i + 1}. ${p} (${count} models)<br>`;
 			});
-			lines.push("\nUse `/model <provider>` to list models, `/model <provider> <model>` to switch.");
-			chatAddMsg("system", renderMarkdown(lines.join("\n")), true);
+			html += "<br><em>Use <code>/model &lt;provider&gt;</code> to list, <code>/model &lt;provider&gt; &lt;model&gt;</code> to switch.</em>";
+			chatAddMsg("system", html, true);
 			return;
 		}
 
@@ -923,12 +923,12 @@ function handleModelCommand(args) {
 		if (parts.length === 1) {
 			// List models for this provider
 			var currentId = S.selectedModelId;
-			var lines = [`**${provName} models:**`];
+			var html = `<strong>${provName} models:</strong><br>`;
 			provModels.forEach((m, i) => {
 				var marker = m.id === currentId ? " ✓" : "";
-				lines.push(`${i + 1}. ${m.displayName || m.id}${marker}`);
+				html += `${i + 1}. ${m.displayName || m.id}${marker}<br>`;
 			});
-			chatAddMsg("system", renderMarkdown(lines.join("\n")), true);
+			chatAddMsg("system", html, true);
 			return;
 		}
 
