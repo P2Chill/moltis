@@ -877,7 +877,7 @@ function handleSlashCommand(cmdName, cmdArgs) {
 		return;
 	}
 	if (cmdName === "agent") {
-		chatAddMsg("system", "Use the agent selector in the toolbar to switch agents.");
+		chatAddMsg("system", "Use the agent selector in the toolbar to switch agents.", true);
 		return;
 	}
 }
@@ -887,10 +887,10 @@ function handleModelCommand(args) {
 	// /model with no args — list providers
 	// /model <provider> — list models for provider
 	// /model <provider> <model> — switch to model
-	if (!S.activeSessionKey) { chatAddMsg("error", "No active session."); return; }
+	if (!S.activeSessionKey) { chatAddMsg("error", "No active session.", true); return; }
 	sendRpc("models.list", {}).then((res) => {
 		if (!res?.ok || !Array.isArray(res.payload)) {
-			chatAddMsg("error", "Could not load model list.");
+			chatAddMsg("error", "Could not load model list.", true);
 			return;
 		}
 		var models = res.payload;
@@ -906,7 +906,7 @@ function handleModelCommand(args) {
 				lines.push(`${i + 1}. ${p} (${count} models)`);
 			});
 			lines.push("\nUse `/model <provider>` to list models, `/model <provider> <model>` to switch.");
-			chatAddMsg("system", renderMarkdown(lines.join("\n")));
+			chatAddMsg("system", renderMarkdown(lines.join("\n")), true);
 			return;
 		}
 
@@ -916,7 +916,7 @@ function handleModelCommand(args) {
 		var provName = isNaN(provIdx)
 			? providers.find((p) => p.toLowerCase().includes(provArg.toLowerCase()))
 			: providers[provIdx - 1];
-		if (!provName) { chatAddMsg("error", `Provider '${provArg}' not found.`); return; }
+		if (!provName) { chatAddMsg("error", `Provider '${provArg}' not found.`, true); return; }
 
 		var provModels = models.filter((m) => m.provider === provName);
 
@@ -928,7 +928,7 @@ function handleModelCommand(args) {
 				var marker = m.id === currentId ? " ✓" : "";
 				lines.push(`${i + 1}. ${m.displayName || m.id}${marker}`);
 			});
-			chatAddMsg("system", renderMarkdown(lines.join("\n")));
+			chatAddMsg("system", renderMarkdown(lines.join("\n")), true);
 			return;
 		}
 
@@ -938,13 +938,13 @@ function handleModelCommand(args) {
 		var chosen = isNaN(modelIdx)
 			? provModels.find((m) => (m.id + " " + (m.displayName || "")).toLowerCase().includes(modelArg.toLowerCase()))
 			: provModels[modelIdx - 1];
-		if (!chosen) { chatAddMsg("error", `Model '${modelArg}' not found in ${provName}.`); return; }
+		if (!chosen) { chatAddMsg("error", `Model '${modelArg}' not found in ${provName}.`, true); return; }
 
 		sendRpc("sessions.patch", { key: S.activeSessionKey, model: chosen.id }).then((r) => {
 			if (r?.ok) {
-				chatAddMsg("system", renderMarkdown(`Model switched to **${chosen.displayName || chosen.id}**`));
+				chatAddMsg("system", renderMarkdown(`Model switched to **${chosen.displayName || chosen.id}**`), true);
 			} else {
-				chatAddMsg("error", r?.error?.message || "Failed to switch model.");
+				chatAddMsg("error", r?.error?.message || "Failed to switch model.", true);
 			}
 		});
 	});
