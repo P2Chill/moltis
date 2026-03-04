@@ -767,6 +767,18 @@ impl ChannelStreamOutbound for DiscordOutbound {
 /// Toolcall: toolname
 /// ```output```
 /// ```
+/// Choose a code fence delimiter that doesn't appear in the content.
+/// Uses ``` normally; if content contains ```, uses ```` instead; and so on.
+fn safe_fence(content: &str) -> &'static str {
+    if !content.contains("```") {
+        "```"
+    } else if !content.contains("````") {
+        "````"
+    } else {
+        "`````"
+    }
+}
+
 fn build_log_message(
     reasoning: &str,
     message: &str,
@@ -776,18 +788,21 @@ fn build_log_message(
 
     let thinking = reasoning.trim();
     if !thinking.is_empty() {
-        parts.push(format!("**Thinking**\n```\n{thinking}\n```"));
+        let f = safe_fence(thinking);
+        parts.push(format!("**Thinking**\n{f}\n{thinking}\n{f}"));
     }
 
     let msg = message.trim();
     if !msg.is_empty() {
-        parts.push(format!("**Message**\n```\n{msg}\n```"));
+        let f = safe_fence(msg);
+        parts.push(format!("**Message**\n{f}\n{msg}\n{f}"));
     }
 
     for (name, output) in tool_outputs {
         let out = output.trim();
         if !out.is_empty() {
-            parts.push(format!("**Toolcall: {name}**\n```\n{out}\n```"));
+            let f = safe_fence(out);
+            parts.push(format!("**Toolcall: {name}**\n{f}\n{out}\n{f}"));
         }
     }
 
@@ -795,26 +810,83 @@ fn build_log_message(
 }
 
 /// Split a log message into Discord-safe chunks (≤ DISCORD_MAX_MESSAGE_LEN).
+/// Tracks open code fences and closes/reopens them at split boundaries.
 fn split_log_message(msg: &str) -> Vec<String> {
     if msg.len() <= DISCORD_MAX_MESSAGE_LEN {
         return vec![msg.to_string()];
     }
-    let mut chunks = Vec::new();
+
+    let mut chunks: Vec<String> = Vec::new();
     let mut remaining = msg;
+    // Track whether we're inside a code fence and which delimiter is open.
+    let mut open_fence: Option<String> = None;
+
     while !remaining.is_empty() {
-        let chunk_end = if remaining.len() <= DISCORD_MAX_MESSAGE_LEN {
-            remaining.len()
+        if remaining.len() <= DISCORD_MAX_MESSAGE_LEN {
+            // Last chunk — just append, we don't need to split.
+            let chunk = if let Some(ref f) = open_fence {
+                format!("{remaining}\n{f}")
+            } else {
+                remaining.to_string()
+            };
+            chunks.push(chunk);
+            break;
+        }
+
+        // Find a split point within the limit.
+        let limit = DISCORD_MAX_MESSAGE_LEN
+            // Reserve room for closing/opening fence overhead (up to ~20 chars).
+            .saturating_sub(20);
+        let split_at = remaining[..limit]
+            .rfind('\n')
+            .map(|p| p + 1)
+            .unwrap_or(truncate_at_char_boundary(remaining, limit).len());
+
+        let slice = &remaining[..split_at];
+
+        // Count fence openings/closings in this slice to track state.
+        // We check for the delimiters we use: ````` ```` ```
+        for line in slice.lines() {
+            let t = line.trim();
+            for delim in &["`````", "````", "```"] {
+                if t.starts_with(delim) {
+                    match open_fence {
+                        Some(ref f) if f == *delim => {
+                            open_fence = None;
+                        }
+                        None => {
+                            open_fence = Some(delim.to_string());
+                        }
+                        _ => {}
+                    }
+                    break;
+                }
+            }
+        }
+
+        // Build the chunk: if we're mid-fence, close it here and reopen next.
+        let chunk = if let Some(ref f) = open_fence {
+            format!("{slice}\n{f}")
         } else {
-            // Try to break at a newline boundary.
-            let limit = DISCORD_MAX_MESSAGE_LEN;
-            remaining[..limit]
-                .rfind('\n')
-                .map(|p| p + 1)
-                .unwrap_or(truncate_at_char_boundary(remaining, limit).len())
+            slice.to_string()
         };
-        chunks.push(remaining[..chunk_end].to_string());
-        remaining = &remaining[chunk_end..];
+        chunks.push(chunk);
+
+        // Reopen the fence at the start of the next chunk if needed.
+        remaining = &remaining[split_at..];
+        if let Some(ref f) = open_fence {
+            let prefix = format!("{f}\n");
+            // We need to prepend — build a new String for remaining.
+            // Since remaining is a slice of msg we can't mutate it,
+            // so we collect the rest into an owned string and continue.
+            let rest = format!("{prefix}{remaining}");
+            // Recurse on the rest (now owns the fence prefix).
+            let mut tail = split_log_message(&rest);
+            chunks.append(&mut tail);
+            return chunks;
+        }
     }
+
     chunks
 }
 
