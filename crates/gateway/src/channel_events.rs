@@ -1827,7 +1827,8 @@ fn format_model_list(
     provider_filter: Option<&str>,
 ) -> String {
     let mut lines = Vec::new();
-    for (i, m) in models.iter().enumerate() {
+    let mut n = 0usize;
+    for m in models.iter() {
         let id = m.get("id").and_then(|v| v.as_str()).unwrap_or("?");
         let provider = m.get("provider").and_then(|v| v.as_str()).unwrap_or("");
         let display = m.get("displayName").and_then(|v| v.as_str()).unwrap_or(id);
@@ -1836,12 +1837,13 @@ fn format_model_list(
         {
             continue;
         }
+        n += 1;
         let marker = if current_model == Some(id) {
             " *"
         } else {
             ""
         };
-        lines.push(format!("{}. {} [{}]{}", i + 1, display, provider, marker));
+        lines.push(format!("{}. {} [{}]{}", n, display, provider, marker));
     }
     lines.join("\n")
 }
