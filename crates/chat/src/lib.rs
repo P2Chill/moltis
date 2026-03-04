@@ -7825,6 +7825,106 @@ fn format_tool_result_message(
 }
 
 /// Format a human-readable tool execution message.
+/// Extract just the filename from a path (no directory, keep extension).
+fn file_basename(path: &str) -> String {
+    let name = path.rsplit('/').next().unwrap_or(path);
+    if name.is_empty() { path.to_string() } else { name.to_string() }
+}
+
+/// Parsed MCP tool descriptor.
+struct McpTool {
+    emoji: &'static str,
+    server_label: String,
+    present_verb: &'static str,
+    past_verb: &'static str,
+    /// Which argument key holds the "main" arg to display.
+    arg_key: Option<&'static str>,
+}
+
+impl McpTool {
+    fn key_arg(&self, arguments: &Value) -> String {
+        let raw = self.arg_key
+            .and_then(|k| arguments.get(k).and_then(|v| v.as_str()))
+            .unwrap_or("");
+        if raw.is_empty() {
+            return String::new();
+        }
+        // For paths, show just the filename.
+        let display = if raw.contains('/') || raw.contains('\\') {
+            file_basename(raw)
+        } else if raw.len() > 50 {
+            format!("{}...", &raw[..50])
+        } else {
+            raw.to_string()
+        };
+        display
+    }
+}
+
+/// Parse an MCP tool name (dot or double-underscore separated) into a descriptor.
+/// Returns None for non-MCP tool names.
+fn parse_mcp_tool(tool_name: &str) -> Option<McpTool> {
+    // Normalise separators: mcp__server__tool -> mcp.server.tool
+    let normalised = tool_name.replace("__", ".");
+    let parts: Vec<&str> = normalised.splitn(3, '.').collect();
+    if parts.len() < 2 || parts[0] != "mcp" {
+        return None;
+    }
+    let server = parts[1]; // e.g. "ssh", "desktop-commander", "playwright"
+    let action = parts.get(2).copied().unwrap_or(""); // e.g. "runRemoteCommand"
+
+    // Derive verb + key arg from action name.
+    let action_lower = action.to_lowercase();
+    let (present_verb, past_verb, arg_key): (&'static str, &'static str, Option<&'static str>) =
+        if action_lower.contains("read") || action_lower.contains("get") {
+            ("Reading", "Read", Some("path").or(Some("file_path")))
+        } else if action_lower.contains("write") || action_lower.contains("create") {
+            ("Writing", "Wrote", Some("path").or(Some("file_path")))
+        } else if action_lower.contains("edit") {
+            ("Editing", "Edited", Some("path").or(Some("file_path")))
+        } else if action_lower.contains("list") || action_lower.contains("ls") {
+            ("Listing", "Listed", Some("path"))
+        } else if action_lower.contains("search") || action_lower.contains("find") {
+            ("Searching", "Searched", Some("query").or(Some("pattern")))
+        } else if action_lower.contains("run") || action_lower.contains("exec") || action_lower.contains("start") || action_lower.contains("process") {
+            ("Running", "Ran", Some("command"))
+        } else if action_lower.contains("navigate") {
+            ("Navigating", "Navigated", Some("url"))
+        } else if action_lower.contains("screenshot") {
+            ("Screenshotting", "Screenshotted", None)
+        } else if action_lower.contains("query") || action_lower.contains("ask") {
+            ("Querying", "Queried", Some("query"))
+        } else if action_lower.contains("move") || action_lower.contains("rename") {
+            ("Moving", "Moved", Some("source").or(Some("path")))
+        } else if action_lower.contains("delete") || action_lower.contains("remove") {
+            ("Deleting", "Deleted", Some("path"))
+        } else {
+            ("Running", "Ran", None)
+        };
+
+    // Resolve arg_key: try the preferred key, fall back to second option if needed.
+    // (The .or() above is a compile-time constant chain, so arg_key is already the first Some.)
+
+    let (emoji, server_label) = match server {
+        "ssh" | "mcp-ssh" => ("🔌", "SSH"),
+        "desktop-commander" => ("🗂️", "Desktop"),
+        "playwright" => ("🎭", "Playwright"),
+        "context7" => ("📚", "Context7"),
+        "brave-search" | "brave_search" => ("🔍", "Brave"),
+        "perplexity" => ("🔍", "Perplexity"),
+        "filesystem" => ("🗂️", "Files"),
+        _ => ("🔧", server),
+    };
+
+    Some(McpTool {
+        emoji,
+        server_label: server_label.to_string(),
+        present_verb,
+        past_verb,
+        arg_key,
+    })
+}
+
 fn format_tool_status_message(tool_name: &str, arguments: &Value) -> String {
     match tool_name {
         "browser" => {
@@ -7860,18 +7960,39 @@ fn format_tool_status_message(tool_name: &str, arguments: &Value) -> String {
                 _ => format!("🌐 Browser: {}", action),
             }
         },
+        "Read" => {
+            let path = arguments.get("file_path").and_then(|v| v.as_str()).unwrap_or("");
+            format!("📖 Reading {}", file_basename(path))
+        },
+        "Write" => {
+            let path = arguments.get("file_path").and_then(|v| v.as_str()).unwrap_or("");
+            format!("✏️ Writing {}", file_basename(path))
+        },
+        "Edit" | "MultiEdit" => {
+            let path = arguments.get("file_path").and_then(|v| v.as_str()).unwrap_or("");
+            format!("✏️ Editing {}", file_basename(path))
+        },
+        "Glob" => {
+            let pat = arguments.get("pattern").and_then(|v| v.as_str()).unwrap_or("*");
+            format!("🔎 Globbing {pat}")
+        },
+        "Grep" => {
+            let pat = arguments.get("pattern").and_then(|v| v.as_str()).unwrap_or("");
+            let display = if pat.len() > 40 { &pat[..40] } else { pat };
+            format!("🔎 Searching: {display}")
+        },
         "exec" => {
             let command = arguments.get("command").and_then(|v| v.as_str());
             if let Some(cmd) = command {
-                let display_cmd = if cmd.len() > 150 {
-                    format!("{}...", truncate_at_char_boundary(cmd, 150))
+                let display_cmd = if cmd.len() > 60 {
+                    format!("{}...", truncate_at_char_boundary(cmd, 60))
                 } else {
                     cmd.to_string()
                 };
                 let (emoji, verb) = classify_exec_command(cmd);
                 format!("{emoji} {verb}: `{display_cmd}`")
             } else {
-                "💻 Executing command...".to_string()
+                "▶️ Running...".to_string()
             }
         },
         "web_fetch" => {
@@ -7913,7 +8034,14 @@ fn format_tool_status_message(tool_name: &str, arguments: &Value) -> String {
         },
         "memory_search" => "🧠 Searching memory...".to_string(),
         "memory_store" => "🧠 Storing to memory...".to_string(),
-        _ => format!("🔧 {}", tool_name),
+        _ => {
+            // Handle MCP tools: mcp.server.tool or mcp__server__tool
+            if let Some(mcp) = parse_mcp_tool(tool_name) {
+                format!("{} {} {}: {}", mcp.emoji, mcp.present_verb, mcp.server_label, mcp.key_arg(arguments))
+            } else {
+                format!("🔧 {tool_name}")
+            }
+        },
     }
 }
 
@@ -7923,18 +8051,38 @@ fn format_tool_end_message(
     tool_name: &str,
     arguments: &Value,
     success: bool,
-    result: Option<&Value>,
+    _result: Option<&Value>,
     error: Option<&str>,
 ) -> String {
     let fail_prefix = if success { "" } else { "❌ " };
 
-    // Build the action line (past tense).
     let action = match tool_name {
+        "Read" => {
+            let path = arguments.get("file_path").and_then(|v| v.as_str()).unwrap_or("");
+            format!("📖 Read {}", file_basename(path))
+        },
+        "Write" => {
+            let path = arguments.get("file_path").and_then(|v| v.as_str()).unwrap_or("");
+            format!("✏️ Wrote {}", file_basename(path))
+        },
+        "Edit" | "MultiEdit" => {
+            let path = arguments.get("file_path").and_then(|v| v.as_str()).unwrap_or("");
+            format!("✏️ Edited {}", file_basename(path))
+        },
+        "Glob" => {
+            let pat = arguments.get("pattern").and_then(|v| v.as_str()).unwrap_or("*");
+            format!("🔎 Globbed {pat}")
+        },
+        "Grep" => {
+            let pat = arguments.get("pattern").and_then(|v| v.as_str()).unwrap_or("");
+            let display = if pat.len() > 40 { &pat[..40] } else { pat };
+            format!("🔎 Searched: {display}")
+        },
         "exec" => {
             let command = arguments.get("command").and_then(|v| v.as_str());
             if let Some(cmd) = command {
-                let display_cmd = if cmd.len() > 150 {
-                    format!("{}...", truncate_at_char_boundary(cmd, 150))
+                let display_cmd = if cmd.len() > 60 {
+                    format!("{}...", truncate_at_char_boundary(cmd, 60))
                 } else {
                     cmd.to_string()
                 };
@@ -7942,7 +8090,7 @@ fn format_tool_end_message(
                 let past_verb = classify_exec_command_past(cmd);
                 format!("{emoji} {past_verb}: `{display_cmd}`")
             } else {
-                "💻 Ran command".to_string()
+                "▶️ Ran".to_string()
             }
         },
         "browser" => {
@@ -7986,47 +8134,31 @@ fn format_tool_end_message(
         },
         "memory_search" => "🧠 Searched memory".to_string(),
         "memory_store" => "🧠 Stored to memory".to_string(),
-        _ => format!("🔧 {tool_name}"),
-    };
-
-    // Extract output snippet (up to ~300 chars, ~5 lines).
-    let snippet = if !success {
-        error.map(|e| {
-            let short = if e.len() > 300 { &e[..300] } else { e };
-            short.to_string()
-        })
-    } else {
-        result.and_then(|r| {
-            // Try common output fields: exec returns stdout/stderr,
-            // process returns output, other tools use text/result.
-            let raw = r.get("stdout")
-                .and_then(|v| v.as_str())
-                .or_else(|| r.get("output").and_then(|v| v.as_str()))
-                .or_else(|| r.get("text").and_then(|v| v.as_str()))
-                .or_else(|| r.get("result").and_then(|v| v.as_str()))
-                .unwrap_or("");
-            let trimmed = raw.trim();
-            if trimmed.is_empty() {
-                return None;
-            }
-            // Take first line only, max 80 chars.
-            let first_line = trimmed.lines().next().unwrap_or("").trim();
-            if first_line.is_empty() {
-                return None;
-            }
-            let out = if first_line.len() > 80 {
-                format!("{}...", truncate_at_char_boundary(first_line, 80))
+        _ => {
+            if let Some(mcp) = parse_mcp_tool(tool_name) {
+                format!("{} {} {}: {}", mcp.emoji, mcp.past_verb, mcp.server_label, mcp.key_arg(arguments))
             } else {
-                first_line.to_string()
-            };
-            Some(out)
-        })
+                format!("🔧 {tool_name}")
+            }
+        },
     };
 
-    match snippet {
-        Some(s) if !s.is_empty() => format!("{fail_prefix}{action}\n```\n{s}\n```"),
-        _ => format!("{fail_prefix}{action}"),
+    // On failure, append a short error line.
+    if !success {
+        if let Some(e) = error {
+            let first = e.trim().lines().next().unwrap_or("").trim();
+            let short = if first.len() > 80 {
+                format!("{}...", truncate_at_char_boundary(first, 80))
+            } else {
+                first.to_string()
+            };
+            if !short.is_empty() {
+                return format!("{fail_prefix}{action}\n```\n{short}\n```");
+            }
+        }
     }
+
+    format!("{fail_prefix}{action}")
 }
 
 /// Classify an exec command into (emoji, present-tense verb) based on the first command word.
