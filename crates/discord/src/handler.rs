@@ -452,6 +452,13 @@ impl EventHandler for Handler {
             inferred_kind = ChannelMessageKind::Location;
         }
 
+        // Prefix the message with the sender's name so Sparky always knows who is talking.
+        let name_prefix = sender_name
+            .as_deref()
+            .or(username.as_deref())
+            .unwrap_or("User");
+        let text = format!("{name_prefix}: {text}");
+
         // Fetch recent channel history for context when bot is @mentioned in a guild.
         let text = if is_guild && bot_mentioned && config.context_messages > 0 {
             let prior = fetch_channel_context(
