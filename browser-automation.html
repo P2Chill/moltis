@@ -241,6 +241,9 @@ navigation_timeout_ms = 30000  # Page load timeout
 # Sandbox image (browser sandbox mode follows session sandbox mode)
 sandbox_image = "browserless/chrome"  # Container image for sandboxed sessions
 # allowed_domains = ["example.com", "*.trusted.org"]  # Restrict navigation
+
+# Container connectivity (for Moltis-in-Docker setups)
+# container_host = "127.0.0.1"  # Default; change when Moltis runs inside Docker
 </code></pre>
 <h3 id="memory-based-pool-limits"><a class="header" href="#memory-based-pool-limits">Memory-Based Pool Limits</a></h3>
 <p>By default, browser instances are limited by system memory rather than a fixed count:</p>
@@ -442,6 +445,20 @@ sandbox_image = "browserless/chrome"  # Container image for sandboxed sessions
 <li>The container image is pulled automatically on first use</li>
 <li>Session sandbox mode must be enabled (<code>[tools.exec.sandbox] mode = "all"</code>)</li>
 </ul>
+<h3 id="moltis-inside-docker-sibling-containers"><a class="header" href="#moltis-inside-docker-sibling-containers">Moltis Inside Docker (Sibling Containers)</a></h3>
+<p>When Moltis itself runs inside a Docker container, the browser container is
+launched as a sibling via the host’s Docker socket. By default Moltis connects
+to the browser at <code>127.0.0.1</code>, which points to the Moltis container’s own
+loopback — not the host where the browser port is mapped.</p>
+<p>Set <code>container_host</code> so Moltis can reach the browser container through the
+host’s port mapping:</p>
+<pre><code class="language-toml">[tools.browser]
+container_host = "host.docker.internal"   # macOS / Windows Docker Desktop
+# container_host = "172.17.0.1"           # Linux Docker bridge gateway IP
+</code></pre>
+<p>On Linux, <code>host.docker.internal</code> is not available by default. Use the Docker
+bridge gateway IP (typically <code>172.17.0.1</code>) or add <code>--add-host=host.docker.internal:host-gateway</code>
+to the Moltis container’s <code>docker run</code> command.</p>
 <h3 id="exec-tool-scripts"><a class="header" href="#exec-tool-scripts">Exec Tool Scripts</a></h3>
 <p>If agents need to run browser automation <strong>scripts</strong> (Puppeteer, Playwright,
 Selenium) inside the command sandbox, Chromium is included in the default

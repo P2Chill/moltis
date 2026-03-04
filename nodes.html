@@ -1,0 +1,364 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Multi-Node - Moltis Documentation</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="Documentation for Moltis - Your AI coding assistant">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="highlight-css" href="highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="theme/admonish.css">
+        <link rel="stylesheet" href="theme/custom.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Moltis Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/moltis-org/moltis" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                        <a href="https://github.com/moltis-org/moltis/edit/main/docs/src/src/nodes.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                            <i id="git-edit-button" class="fa fa-edit"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="multi-node"><a class="header" href="#multi-node">Multi-Node</a></h1>
+<p>Moltis can distribute work across multiple machines. A <strong>node</strong> is a remote
+device that connects to your gateway and executes commands on your behalf.
+This lets the AI agent run shell commands on a Linux server, query a Raspberry
+Pi, or leverage a GPU machine — all from a single chat session.</p>
+<h2 id="how-it-works"><a class="header" href="#how-it-works">How It Works</a></h2>
+<pre><code>┌──────────────┐    WebSocket     ┌─────────────────┐
+│  Your laptop │◄────────────────►│  Moltis gateway  │
+│  (browser)   │                  │  (moltis)        │
+└──────────────┘                  └────────┬─────────┘
+                                           │ WebSocket
+                                  ┌────────▼─────────┐
+                                  │  Remote machine   │
+                                  │  (moltis node)    │
+                                  └──────────────────┘
+</code></pre>
+<ol>
+<li>The gateway runs on your primary machine (or a server).</li>
+<li>On the remote machine, run <code>moltis node add</code> to register it with the gateway.</li>
+<li>The gateway authenticates the node using a <strong>device token</strong> from the pairing flow.</li>
+<li>Once connected, the agent can execute commands on the node, query its
+telemetry, and discover its LLM providers.</li>
+</ol>
+<p>Nodes are <strong>stateless from the gateway’s perspective</strong> — they connect and
+disconnect freely. There is no start/stop lifecycle managed by the gateway;
+a node is available when its process is running and connected.</p>
+<h2 id="pairing-a-node"><a class="header" href="#pairing-a-node">Pairing a Node</a></h2>
+<p>Before a node can connect, it must be paired with the gateway.</p>
+<ol>
+<li>Open the <strong>Nodes</strong> page in the web UI (Settings → Nodes).</li>
+<li>Click <strong>Generate Token</strong> to create a device token.</li>
+<li>Copy the connection command shown in the UI.</li>
+<li>Run it on the remote machine.</li>
+</ol>
+<p>The pairing flow produces a device token that authenticates the node on every
+connection. Tokens can be revoked from the Nodes page at any time.</p>
+<h2 id="adding-a-node"><a class="header" href="#adding-a-node">Adding a Node</a></h2>
+<p>On the remote machine, register it as a node:</p>
+<pre><code class="language-bash">moltis node add --host ws://your-gateway:9090/ws --token &lt;device-token&gt; --name "Build Server"
+</code></pre>
+<p>This saves the connection parameters to <code>~/.moltis/node.json</code> and installs an
+OS service that starts on boot and reconnects on failure:</p>
+<div class="table-wrapper"><table><thead><tr><th>Platform</th><th>Service file</th></tr></thead><tbody>
+<tr><td>macOS</td><td><code>~/Library/LaunchAgents/org.moltis.node.plist</code></td></tr>
+<tr><td>Linux</td><td><code>~/.config/systemd/user/moltis-node.service</code></td></tr>
+</tbody></table>
+</div>
+<p>Options:</p>
+<div class="table-wrapper"><table><thead><tr><th>Flag</th><th>Description</th><th>Default</th></tr></thead><tbody>
+<tr><td><code>--host</code></td><td>Gateway WebSocket URL</td><td>(required)</td></tr>
+<tr><td><code>--token</code></td><td>Device token from pairing</td><td>(required)</td></tr>
+<tr><td><code>--name</code></td><td>Display name shown in the UI</td><td>none</td></tr>
+<tr><td><code>--node-id</code></td><td>Custom node identifier</td><td>random UUID</td></tr>
+<tr><td><code>--working-dir</code></td><td>Working directory for commands</td><td><code>$HOME</code></td></tr>
+<tr><td><code>--timeout</code></td><td>Max command timeout in seconds</td><td><code>300</code></td></tr>
+<tr><td><code>--foreground</code></td><td>Run in the terminal instead of installing a service</td><td>off</td></tr>
+</tbody></table>
+</div>
+<p>You can also set <code>MOLTIS_GATEWAY_URL</code> and <code>MOLTIS_DEVICE_TOKEN</code> as
+environment variables instead of passing <code>--host</code> and <code>--token</code>.</p>
+<h3 id="foreground-mode"><a class="header" href="#foreground-mode">Foreground mode</a></h3>
+<p>For debugging or one-off use, pass <code>--foreground</code> to run the node in the
+current terminal session instead of installing a service:</p>
+<pre><code class="language-bash">moltis node add --host ws://your-gateway:9090/ws --token &lt;device-token&gt; --foreground
+</code></pre>
+<p>Press <code>Ctrl+C</code> to disconnect.</p>
+<h2 id="removing-a-node"><a class="header" href="#removing-a-node">Removing a Node</a></h2>
+<p>To disconnect this machine and remove the background service:</p>
+<pre><code class="language-bash">moltis node remove
+</code></pre>
+<p>This stops the service, removes the service file, and deletes the saved
+configuration from <code>~/.moltis/node.json</code>.</p>
+<h2 id="checking-status"><a class="header" href="#checking-status">Checking Status</a></h2>
+<pre><code class="language-bash">moltis node status
+</code></pre>
+<p>Shows the gateway URL, display name, and whether the background service is
+running.</p>
+<h2 id="logs"><a class="header" href="#logs">Logs</a></h2>
+<pre><code class="language-bash">moltis node logs
+# Tail the log:
+tail -f $(moltis node logs)
+</code></pre>
+<h2 id="selecting-a-node-in-chat"><a class="header" href="#selecting-a-node-in-chat">Selecting a Node in Chat</a></h2>
+<p>Once a node is connected, you can target it from a chat session:</p>
+<ul>
+<li><strong>UI dropdown</strong>: The chat toolbar shows a node selector next to the model
+picker. Select a node to route all <code>exec</code> commands to it. Select “Local” to
+revert to local execution.</li>
+<li><strong>Agent tools</strong>: The agent can call <code>nodes_list</code>, <code>nodes_describe</code>, and
+<code>nodes_select</code> to programmatically pick a node based on capabilities or
+telemetry.</li>
+</ul>
+<p>The node assignment is per-session and persists across page reloads.</p>
+<h2 id="node-telemetry"><a class="header" href="#node-telemetry">Node Telemetry</a></h2>
+<p>Connected nodes report system telemetry every 30 seconds:</p>
+<ul>
+<li>CPU count and usage</li>
+<li>Memory total and available</li>
+<li>Disk total and available (root partition)</li>
+<li>System uptime</li>
+<li>Installed runtimes (Python, Node.js, Ruby, Go, Rust, Java)</li>
+<li>Available LLM providers (Ollama models, API key presence)</li>
+</ul>
+<p>This data is visible on the Nodes page and available to the agent via the
+<code>nodes_describe</code> tool.</p>
+<h2 id="cli-reference"><a class="header" href="#cli-reference">CLI Reference</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Command</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>moltis node generate-token</code></td><td>Generate a device token and print the <code>add</code> command</td></tr>
+<tr><td><code>moltis node list</code></td><td>List all connected nodes</td></tr>
+<tr><td><code>moltis node add --host &lt;url&gt; --token &lt;tok&gt;</code></td><td>Join this machine to a gateway as a node</td></tr>
+<tr><td><code>moltis node add ... --foreground</code></td><td>Run in the terminal instead of installing a service</td></tr>
+<tr><td><code>moltis node remove</code></td><td>Disconnect this machine and remove the service</td></tr>
+<tr><td><code>moltis node status</code></td><td>Show connection info and service status</td></tr>
+<tr><td><code>moltis node logs</code></td><td>Print log file path</td></tr>
+</tbody></table>
+</div>
+<h2 id="security"><a class="header" href="#security">Security</a></h2>
+<ul>
+<li><strong>Device tokens</strong> are SHA-256 hashed before storage. The raw token is shown
+once during pairing and never stored on the gateway.</li>
+<li><strong>Environment filtering</strong>: When the gateway forwards commands to a node, only
+safe environment variables are forwarded (<code>TERM</code>, <code>LANG</code>, <code>LC_*</code>). Secrets
+like API keys, <code>DYLD_*</code>, and <code>LD_PRELOAD</code> are always blocked.</li>
+<li><strong>Token revocation</strong>: Revoke a device token from the Nodes page at any time.
+The node will be disconnected on its next reconnect attempt.</li>
+</ul>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="openclaw-import.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="service.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="openclaw-import.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="service.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+
+    </div>
+    </body>
+</html>
