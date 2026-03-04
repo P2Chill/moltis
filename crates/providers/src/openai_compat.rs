@@ -161,7 +161,7 @@ pub fn to_openai_tools(tools: &[serde_json::Value]) -> Vec<serde_json::Value> {
                     name: name.clone(),
                     description,
                     parameters: params,
-                    strict: true,
+                    strict: false,
                 },
             };
 
@@ -207,7 +207,7 @@ pub fn to_responses_api_tools(tools: &[serde_json::Value]) -> Vec<serde_json::Va
                 name: name.clone(),
                 description,
                 parameters: params,
-                strict: true,
+                strict: false,
             };
 
             trace!(tool_name = %name, "converted tool to Responses API format");
