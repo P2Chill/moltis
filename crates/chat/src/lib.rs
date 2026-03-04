@@ -2992,9 +2992,7 @@ impl ChatService for LiveChatService {
             let reg = self.providers.read().await;
             let primary = if let Some(id) = model_id {
                 reg.get(id).ok_or_else(|| {
-                    let available: Vec<_> =
-                        reg.list_models().iter().map(|m| m.id.clone()).collect();
-                    format!("model '{}' not found. available: {:?}", id, available)
+                    format!("model '{}' not found. Use /model to select a valid model.", id)
                 })?
             } else if !stream_only {
                 reg.first_with_tools()

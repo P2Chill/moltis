@@ -66,8 +66,6 @@ fn is_channel_control_command_name(cmd: &str) -> bool {
             | "context"
             | "model"
             | "sandbox"
-            | "mcp"
-            | "think"
             | "sessions"
             | "agent"
             | "help"
@@ -262,6 +260,39 @@ impl ChannelEventSink for GatewayChannelEventSink {
             // user activity as a heuristic and mark prior session history seen.
             state.services.session.mark_seen(&session_key).await;
 
+            // If the message is a thread reply, fetch prior thread messages
+            // for context injection so the LLM sees the conversation history.
+            let thread_context = if let Some(ref thread_id) = reply_to.message_id
+                && let Some(ref reg) = state.services.channel_registry
+            {
+                match reg
+                    .fetch_thread_messages(&reply_to.account_id, &reply_to.chat_id, thread_id, 20)
+                    .await
+                {
+                    Ok(msgs) if !msgs.is_empty() => {
+                        let history: Vec<serde_json::Value> = msgs
+                            .iter()
+                            .map(|m| {
+                                serde_json::json!({
+                                    "role": if m.is_bot { "assistant" } else { "user" },
+                                    "text": m.text,
+                                    "sender_id": m.sender_id,
+                                    "timestamp": m.timestamp,
+                                })
+                            })
+                            .collect();
+                        Some(history)
+                    },
+                    Ok(_) => None,
+                    Err(e) => {
+                        debug!("failed to fetch thread context: {e}");
+                        None
+                    },
+                }
+            } else {
+                None
+            };
+
             let chat = state.chat().await;
             let mut params = serde_json::json!({
                 "text": effective_text,
@@ -271,6 +302,11 @@ impl ChannelEventSink for GatewayChannelEventSink {
                 // starts executing this message (after semaphore acquire).
                 "_channel_reply_target": &reply_to,
             });
+
+            // Attach thread context if available.
+            if let Some(thread_history) = thread_context {
+                params["_thread_context"] = serde_json::json!(thread_history);
+            }
             // Thread saved voice audio filename so chat.rs persists the audio path.
             if let Some(ref audio_filename) = meta.audio_filename {
                 params["_audio_filename"] = serde_json::json!(audio_filename);
@@ -281,24 +317,15 @@ impl ChannelEventSink for GatewayChannelEventSink {
             // If neither exists, assign the first registered model so the session
             // behaves the same as the web UI (which always sends an explicit model).
             if let Some(ref model) = meta.model {
-                // Only apply channel default if the session has no model set yet.
-                // If the user switched models via /model, respect that choice.
+                // Only inject the channel default model if the session has no model yet.
+                // If the user has already set a model via /model, respect that override.
                 let session_has_model = if let Some(ref sm) = state.services.session_metadata {
                     sm.get(&session_key).await.and_then(|e| e.model).is_some()
                 } else {
                     false
                 };
-                if session_has_model {
-                    // Session already has a model — forward it instead of channel default.
-                    if let Some(ref sm) = state.services.session_metadata {
-                        if let Some(session_model) = sm.get(&session_key).await.and_then(|e| e.model) {
-                            params["model"] = serde_json::json!(session_model);
-                        }
-                    }
-                } else {
-                    params["model"] = serde_json::json!(model);
-                }
                 if !session_has_model {
+                    params["model"] = serde_json::json!(model);
                     // Persist channel model on the session.
                     let _ = state
                         .services
@@ -526,6 +553,34 @@ impl ChannelEventSink for GatewayChannelEventSink {
                 .unwrap_or(false),
             Err(_) => false,
         }
+    }
+
+    async fn dispatch_interaction(
+        &self,
+        callback_data: &str,
+        reply_to: ChannelReplyTarget,
+    ) -> ChannelResult<String> {
+        // Map callback_data prefixes to slash-command text, following the same
+        // convention used by Telegram's handle_callback_query.
+        let cmd_text = if let Some(n) = callback_data.strip_prefix("sessions_switch:") {
+            format!("sessions {n}")
+        } else if let Some(n) = callback_data.strip_prefix("agent_switch:") {
+            format!("agent {n}")
+        } else if let Some(n) = callback_data.strip_prefix("model_switch:") {
+            format!("model {n}")
+        } else if let Some(val) = callback_data.strip_prefix("sandbox_toggle:") {
+            format!("sandbox {val}")
+        } else if let Some(n) = callback_data.strip_prefix("sandbox_image:") {
+            format!("sandbox image {n}")
+        } else if let Some(provider) = callback_data.strip_prefix("model_provider:") {
+            format!("model provider:{provider}")
+        } else {
+            return Err(ChannelError::invalid_input(format!(
+                "unknown interaction callback: {callback_data}"
+            )));
+        };
+
+        self.dispatch_command(&cmd_text, reply_to).await
     }
 
     async fn update_location(
@@ -772,22 +827,13 @@ impl ChannelEventSink for GatewayChannelEventSink {
 
         // Forward the channel's default model if configured
         if let Some(ref model) = meta.model {
-            // Only apply channel default if the session has no model set yet.
             let session_has_model = if let Some(ref sm) = state.services.session_metadata {
                 sm.get(&session_key).await.and_then(|e| e.model).is_some()
             } else {
                 false
             };
-            if session_has_model {
-                if let Some(ref sm) = state.services.session_metadata {
-                    if let Some(session_model) = sm.get(&session_key).await.and_then(|e| e.model) {
-                        params["model"] = serde_json::json!(session_model);
-                    }
-                }
-            } else {
-                params["model"] = serde_json::json!(model);
-            }
             if !session_has_model {
+                params["model"] = serde_json::json!(model);
                 let _ = state
                     .services
                     .session
@@ -1356,17 +1402,89 @@ impl ChannelEventSink for GatewayChannelEventSink {
                         Some(provider),
                     ))
                 } else {
-                    // Switch mode — arg is a 1-based global index.
-                    let n: usize = args
-                        .parse()
-                        .map_err(|_| ChannelError::invalid_input("usage: /model [number]"))?;
-                    if n == 0 || n > models.len() {
-                        return Err(ChannelError::invalid_input(format!(
-                            "invalid model number. Use 1–{}.",
-                            models.len()
-                        )));
+                    // 1 or 2 args:
+                    //   /model <provider>          -- list models for that provider
+                    //   /model <provider> <model>  -- switch to that model
+                    // Provider and model can be a 1-based index or a name/fragment.
+                    let mut parts = args.splitn(2, char::is_whitespace);
+                    let provider_arg = parts.next().unwrap_or("").trim();
+                    let model_arg = parts.next().map(|s| s.trim()).unwrap_or("").to_string();
+
+                    // Build unique provider list (same order as the listing output).
+                    let mut providers: Vec<String> = models
+                        .iter()
+                        .filter_map(|m| {
+                            m.get("provider").and_then(|v| v.as_str()).map(String::from)
+                        })
+                        .collect::<Vec<_>>();
+                    providers.dedup();
+
+                    // Resolve provider_arg to a provider name.
+                    let provider_name: String = if let Ok(n) = provider_arg.parse::<usize>() {
+                        if n == 0 || n > providers.len() {
+                            return Err(ChannelError::invalid_input(format!(
+                                "provider {} not found. Use /model to list providers.",
+                                n
+                            )));
+                        }
+                        providers[n - 1].clone()
+                    } else {
+                        let lower = provider_arg.to_lowercase();
+                        providers
+                            .iter()
+                            .find(|p| p.to_lowercase().contains(&lower))
+                            .cloned()
+                            .ok_or_else(|| {
+                                ChannelError::invalid_input(format!(
+                                    "provider '{}' not found. Use /model to list providers.",
+                                    provider_arg
+                                ))
+                            })?
+                    };
+
+                    // No model arg -- list models for this provider.
+                    if model_arg.is_empty() {
+                        return Ok(format_model_list(
+                            models,
+                            current_model.as_deref(),
+                            Some(&provider_name),
+                        ));
                     }
-                    let chosen = &models[n - 1];
+
+                    // Resolve model_arg within the provider.
+                    let provider_models: Vec<&serde_json::Value> = models
+                        .iter()
+                        .filter(|m| {
+                            m.get("provider").and_then(|v| v.as_str()) == Some(&provider_name)
+                        })
+                        .collect();
+
+                    let chosen: &serde_json::Value = if let Ok(n) = model_arg.parse::<usize>() {
+                        if n == 0 || n > provider_models.len() {
+                            return Err(ChannelError::invalid_input(format!(
+                                "model {} not found in {provider_name}. Use /model {provider_arg} to list.",
+                                n
+                            )));
+                        }
+                        provider_models[n - 1]
+                    } else {
+                        let lower = model_arg.to_lowercase();
+                        provider_models
+                            .iter()
+                            .find(|m| {
+                                let id = m.get("id").and_then(|v| v.as_str()).unwrap_or("");
+                                let name = m.get("displayName").and_then(|v| v.as_str()).unwrap_or("");
+                                id.to_lowercase().contains(&lower) || name.to_lowercase().contains(&lower)
+                            })
+                            .copied()
+                            .ok_or_else(|| {
+                                ChannelError::invalid_input(format!(
+                                    "model '{}' not found in {provider_name}. Use /model {provider_arg} to list.",
+                                    model_arg
+                                ))
+                            })?
+                    };
+
                     let model_id = chosen
                         .get("id")
                         .and_then(|v| v.as_str())
@@ -1563,100 +1681,6 @@ impl ChannelEventSink for GatewayChannelEventSink {
                     Err(ChannelError::invalid_input(
                         "usage: /sandbox [on|off|image N]",
                     ))
-                }
-            },
-            "mcp" => {
-                let entry = session_metadata.get(&session_key).await;
-                let currently_disabled = entry
-                    .as_ref()
-                    .and_then(|e| e.mcp_disabled)
-                    .unwrap_or(false);
-
-                if args.is_empty() {
-                    let status = if currently_disabled { "disabled" } else { "enabled" };
-                    Ok(format!("MCP tools are currently **{status}**. Use `/mcp on` or `/mcp off` to toggle."))
-                } else {
-                    let new_val = match args {
-                        "on" => false,   // mcp on = mcp_disabled false
-                        "off" => true,   // mcp off = mcp_disabled true
-                        _ => return Err(ChannelError::invalid_input("usage: /mcp [on|off]")),
-                    };
-                    let patch_res = state
-                        .services
-                        .session
-                        .patch(serde_json::json!({
-                            "key": &session_key,
-                            "mcpDisabled": new_val,
-                        }))
-                        .await
-                        .map_err(ChannelError::unavailable)?;
-                    let version = patch_res
-                        .get("version")
-                        .and_then(|v| v.as_u64())
-                        .unwrap_or(0);
-                    broadcast(
-                        state,
-                        "session",
-                        serde_json::json!({
-                            "kind": "patched",
-                            "sessionKey": &session_key,
-                            "version": version,
-                        }),
-                        BroadcastOpts {
-                            drop_if_slow: true,
-                            ..Default::default()
-                        },
-                    )
-                    .await;
-                    let label = if new_val { "disabled" } else { "enabled" };
-                    Ok(format!("MCP tools **{label}**."))
-                }
-            },
-            "think" => {
-                let entry = session_metadata.get(&session_key).await;
-                let currently_enabled = entry
-                    .as_ref()
-                    .and_then(|e| e.thinking_enabled)
-                    .unwrap_or(false);
-
-                if args.is_empty() {
-                    let status = if currently_enabled { "enabled" } else { "disabled" };
-                    Ok(format!("Extended thinking is currently **{status}**. Use `/think on` or `/think off` to toggle."))
-                } else {
-                    let new_val = match args {
-                        "on" => true,
-                        "off" => false,
-                        _ => return Err(ChannelError::invalid_input("usage: /think [on|off]")),
-                    };
-                    let patch_res = state
-                        .services
-                        .session
-                        .patch(serde_json::json!({
-                            "key": &session_key,
-                            "thinkingEnabled": new_val,
-                        }))
-                        .await
-                        .map_err(ChannelError::unavailable)?;
-                    let version = patch_res
-                        .get("version")
-                        .and_then(|v| v.as_u64())
-                        .unwrap_or(0);
-                    broadcast(
-                        state,
-                        "session",
-                        serde_json::json!({
-                            "kind": "patched",
-                            "sessionKey": &session_key,
-                            "version": version,
-                        }),
-                        BroadcastOpts {
-                            drop_if_slow: true,
-                            ..Default::default()
-                        },
-                    )
-                    .await;
-                    let label = if new_val { "enabled" } else { "disabled" };
-                    Ok(format!("Extended thinking **{label}**."))
                 }
             },
             "sh" => {
