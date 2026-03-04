@@ -34,6 +34,11 @@ var slashCommands = [
 	{ name: "clear", description: "Clear conversation history" },
 	{ name: "compact", description: "Summarize conversation to save tokens" },
 	{ name: "context", description: "Show session context and project info" },
+	{ name: "model", description: "List providers, or: /model <provider> [model]" },
+	{ name: "agent", description: "List or switch agents" },
+	{ name: "sandbox", description: "Toggle sandbox mode" },
+	{ name: "think", description: "Toggle extended thinking" },
+	{ name: "mcp", description: "Toggle MCP tools" },
 	{ name: "sh", description: "Enter command mode (/sh off or Esc to exit)" },
 ];
 var slashMenuEl = null;
@@ -850,7 +855,99 @@ function handleSlashCommand(cmdName, cmdArgs) {
 			renderMarkdown(`**Command:** mode enabled (${commandModeSummary()}) · exit with /sh off or Esc`),
 			true,
 		);
+		return;
 	}
+	if (cmdName === "sandbox") {
+		var newSandbox = !S.sessionSandboxEnabled;
+		sendRpc("sessions.patch", { key: S.activeSessionKey, sandboxEnabled: newSandbox }).then((r) => {
+			if (r?.ok) updateSandboxUI(newSandbox);
+		});
+		return;
+	}
+	if (cmdName === "mcp") {
+		toggleMcp();
+		return;
+	}
+	if (cmdName === "think") {
+		toggleThink();
+		return;
+	}
+	if (cmdName === "model") {
+		handleModelCommand(cmdArgs || "");
+		return;
+	}
+	if (cmdName === "agent") {
+		chatAddMsg("system", "Use the agent selector in the toolbar to switch agents.");
+		return;
+	}
+}
+
+function handleModelCommand(args) {
+	var parts = args.trim().split(/\s+/).filter(Boolean);
+	// /model with no args — list providers
+	// /model <provider> — list models for provider
+	// /model <provider> <model> — switch to model
+	if (!S.activeSessionKey) { chatAddMsg("error", "No active session."); return; }
+	sendRpc("models.list", {}).then((res) => {
+		if (!res?.ok || !Array.isArray(res.result)) {
+			chatAddMsg("error", "Could not load model list.");
+			return;
+		}
+		var models = res.result;
+		// Build unique ordered provider list
+		var providers = [];
+		models.forEach((m) => { if (m.provider && !providers.includes(m.provider)) providers.push(m.provider); });
+
+		if (parts.length === 0) {
+			// List providers
+			var lines = ["**Providers:**"];
+			providers.forEach((p, i) => {
+				var count = models.filter((m) => m.provider === p).length;
+				lines.push(`${i + 1}. ${p} (${count} models)`);
+			});
+			lines.push("\nUse `/model <provider>` to list models, `/model <provider> <model>` to switch.");
+			chatAddMsg("system", renderMarkdown(lines.join("\n")));
+			return;
+		}
+
+		// Resolve provider
+		var provArg = parts[0];
+		var provIdx = parseInt(provArg, 10);
+		var provName = isNaN(provIdx)
+			? providers.find((p) => p.toLowerCase().includes(provArg.toLowerCase()))
+			: providers[provIdx - 1];
+		if (!provName) { chatAddMsg("error", `Provider '${provArg}' not found.`); return; }
+
+		var provModels = models.filter((m) => m.provider === provName);
+
+		if (parts.length === 1) {
+			// List models for this provider
+			var currentId = S.selectedModelId;
+			var lines = [`**${provName} models:**`];
+			provModels.forEach((m, i) => {
+				var marker = m.id === currentId ? " ✓" : "";
+				lines.push(`${i + 1}. ${m.displayName || m.id}${marker}`);
+			});
+			chatAddMsg("system", renderMarkdown(lines.join("\n")));
+			return;
+		}
+
+		// Resolve model
+		var modelArg = parts[1];
+		var modelIdx = parseInt(modelArg, 10);
+		var chosen = isNaN(modelIdx)
+			? provModels.find((m) => (m.id + " " + (m.displayName || "")).toLowerCase().includes(modelArg.toLowerCase()))
+			: provModels[modelIdx - 1];
+		if (!chosen) { chatAddMsg("error", `Model '${modelArg}' not found in ${provName}.`); return; }
+
+		sendRpc("sessions.patch", { key: S.activeSessionKey, model: chosen.id }).then((r) => {
+			if (r?.ok) {
+				chatAddMsg("system", renderMarkdown(`Model switched to **${chosen.displayName || chosen.id}**`));
+			} else {
+				chatAddMsg("error", r?.error?.message || "Failed to switch model.");
+			}
+		});
+	});
 }
 
 // ── Build chat params (text-only or multimodal) ─────────
