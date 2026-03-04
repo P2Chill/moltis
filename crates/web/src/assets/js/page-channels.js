@@ -875,6 +875,7 @@ function EditChannelModal() {
 	var editWebhookSecret = useSignal("");
 	var editAckReaction = useSignal("");
 	var editDedicatedChannels = useSignal("");
+	var editLogChannelId = useSignal("");
 	useEffect(() => {
 		editModel.value = ch?.config?.model || "";
 		allowlistItems.value = ch?.config?.allowlist || [];
@@ -882,6 +883,7 @@ function EditChannelModal() {
 		editWebhookSecret.value = ch?.config?.webhook_secret || "";
 		editAckReaction.value = ch?.config?.ack_reaction || "";
 		editDedicatedChannels.value = (ch?.config?.dedicated_channels || []).join(", ");
+		editLogChannelId.value = ch?.config?.log_channel_id || "";
 	}, [ch]);
 	if (!ch) return null;
 	var cfg = ch.config || {};
@@ -928,6 +930,9 @@ function EditChannelModal() {
 				.split(",")
 				.map(s => s.trim())
 				.filter(Boolean);
+			var logChVal = editLogChannelId.value.trim();
+			if (logChVal) updateConfig.log_channel_id = logChVal;
+			else updateConfig.log_channel_id = null;
 		}
 		return updateConfig;
 	}
@@ -1021,6 +1026,10 @@ function EditChannelModal() {
         <input type="text" class="channel-input" placeholder="Channel IDs, comma-separated"
           value=${editDedicatedChannels.value}
           onInput=${(e) => { editDedicatedChannels.value = e.target.value; }} />
+        <label class="text-xs text-[var(--muted)]">Log Channel ID (verbose output: thinking + message + tools)</label>
+        <input type="text" class="channel-input" placeholder="Discord channel ID (leave empty to disable)"
+          value=${editLogChannelId.value}
+          onInput=${(e) => { editLogChannelId.value = e.target.value; }} />
       `
 			}
       <label class="text-xs text-[var(--muted)]">Default Model</label>

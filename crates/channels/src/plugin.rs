@@ -426,6 +426,17 @@ pub enum StreamEvent {
         /// Updated status message (short: name + emoji).
         message: String,
     },
+    /// Reasoning/thinking text delta (for log channel accumulation).
+    ReasoningDelta(String),
+    /// Full tool output for verbose log channel.
+    ToolOutput {
+        /// Unique tool call ID.
+        tool_id: String,
+        /// Tool name (e.g. "Read", "exec").
+        name: String,
+        /// Full serialized output (may be large).
+        full_output: String,
+    },
 }
 
 /// Receiver end of a stream channel.

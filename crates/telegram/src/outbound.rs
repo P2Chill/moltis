@@ -889,7 +889,9 @@ impl ChannelStreamOutbound for TelegramOutbound {
                         },
                         // Tool status events are handled by Discord; ignore here.
                         StreamEvent::ToolStatusStart { .. }
-                        | StreamEvent::ToolStatusEnd { .. } => {},
+                        | StreamEvent::ToolStatusEnd { .. }
+                        | StreamEvent::ReasoningDelta(_)
+                        | StreamEvent::ToolOutput { .. } => {},
                     }
                 }
                 _ = typing_interval.tick() => {

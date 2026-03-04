@@ -91,6 +91,11 @@ pub struct DiscordAccountConfig {
 
     /// Cooldown in seconds after 3 failed OTP attempts (default: 300).
     pub otp_cooldown_secs: u64,
+
+    /// Discord channel ID for verbose interaction logs (thinking + message + tool outputs).
+    /// When set, every Discord interaction posts a structured log to this channel.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub log_channel_id: Option<String>,
 }
 
 impl std::fmt::Debug for DiscordAccountConfig {
@@ -111,6 +116,7 @@ impl std::fmt::Debug for DiscordAccountConfig {
             .field("status", &self.status)
             .field("otp_self_approval", &self.otp_self_approval)
             .field("otp_cooldown_secs", &self.otp_cooldown_secs)
+            .field("log_channel_id", &self.log_channel_id)
             .finish()
     }
 }
@@ -134,6 +140,7 @@ impl Default for DiscordAccountConfig {
             status: None,
             otp_self_approval: true,
             otp_cooldown_secs: 300,
+            log_channel_id: None,
         }
     }
 }

@@ -285,6 +285,16 @@ impl DiscordOutbound {
         }
     }
 
+    /// Resolve the log channel ID for an account, if configured.
+    fn resolve_log_channel_id(&self, account_id: &str) -> Option<ChannelId> {
+        let accounts = self.accounts.read().unwrap_or_else(|e| e.into_inner());
+        let id_str = accounts
+            .get(account_id)
+            .and_then(|s| s.config.log_channel_id.as_deref())
+            .map(str::to_string)?;
+        id_str.parse::<u64>().ok().map(ChannelId::new)
+    }
+
     /// Remove the ack reaction from the original message after the bot's
     /// response is complete.
     ///
@@ -614,7 +624,10 @@ impl ChannelStreamOutbound for DiscordOutbound {
         // Send typing indicator.
         let _ = channel_id.broadcast_typing(&http).await;
 
+        let log_channel_id = self.resolve_log_channel_id(account_id);
         let mut accumulated = String::new();
+        let mut accumulated_reasoning = String::new();
+        let mut tool_outputs: Vec<(String, String)> = Vec::new(); // (name, full_output)
         let mut tool_status_messages: std::collections::HashMap<String, MessageId> = std::collections::HashMap::new();
         let mut typing_interval = tokio::time::interval(TYPING_REFRESH_INTERVAL);
         typing_interval.tick().await; // consume the immediate first tick
@@ -659,6 +672,12 @@ impl ChannelStreamOutbound for DiscordOutbound {
                                     );
                                 }
                             }
+                        },
+                        StreamEvent::ReasoningDelta(delta) => {
+                            accumulated_reasoning.push_str(&delta);
+                        },
+                        StreamEvent::ToolOutput { name, full_output, .. } => {
+                            tool_outputs.push((name, full_output));
                         },
                         StreamEvent::Done => break,
                         StreamEvent::Error(err) => {
@@ -708,6 +727,16 @@ impl ChannelStreamOutbound for DiscordOutbound {
         self.remove_ack_reaction(account_id, &http, channel_id, reply_to)
             .await;
 
+        // Post verbose log to log channel if configured.
+        if let Some(log_ch) = log_channel_id {
+            let log = build_log_message(&accumulated_reasoning, &accumulated, &tool_outputs);
+            if !log.is_empty() {
+                for chunk in split_log_message(&log) {
+                    let _ = send_discord_text(&http, log_ch, &chunk).await;
+                }
+            }
+        }
+
         info!(
             account_id,
             chat_id = to,
@@ -721,6 +750,72 @@ impl ChannelStreamOutbound for DiscordOutbound {
     async fn is_stream_enabled(&self, _account_id: &str) -> bool {
         true
     }
+}
+
+// ── Log channel helpers ─────────────────────────────────────────────
+
+/// Build the verbose log message posted to the log channel after a Discord turn.
+///
+/// Format:
+/// ```
+/// Thinking
+/// ```thoughts```
+///
+/// Message
+/// ```response```
+///
+/// Toolcall: toolname
+/// ```output```
+/// ```
+fn build_log_message(
+    reasoning: &str,
+    message: &str,
+    tool_outputs: &[(String, String)],
+) -> String {
+    let mut parts: Vec<String> = Vec::new();
+
+    let thinking = reasoning.trim();
+    if !thinking.is_empty() {
+        parts.push(format!("**Thinking**\n```\n{thinking}\n```"));
+    }
+
+    let msg = message.trim();
+    if !msg.is_empty() {
+        parts.push(format!("**Message**\n```\n{msg}\n```"));
+    }
+
+    for (name, output) in tool_outputs {
+        let out = output.trim();
+        if !out.is_empty() {
+            parts.push(format!("**Toolcall: {name}**\n```\n{out}\n```"));
+        }
+    }
+
+    parts.join("\n\n")
+}
+
+/// Split a log message into Discord-safe chunks (≤ DISCORD_MAX_MESSAGE_LEN).
+fn split_log_message(msg: &str) -> Vec<String> {
+    if msg.len() <= DISCORD_MAX_MESSAGE_LEN {
+        return vec![msg.to_string()];
+    }
+    let mut chunks = Vec::new();
+    let mut remaining = msg;
+    while !remaining.is_empty() {
+        let chunk_end = if remaining.len() <= DISCORD_MAX_MESSAGE_LEN {
+            remaining.len()
+        } else {
+            // Try to break at a newline boundary.
+            let limit = DISCORD_MAX_MESSAGE_LEN;
+            remaining[..limit]
+                .rfind('\n')
+                .map(|p| p + 1)
+                .unwrap_or(truncate_at_char_boundary(remaining, limit).len())
+        };
+        chunks.push(remaining[..chunk_end].to_string());
+        remaining = &remaining[chunk_end..];
+    }
+    chunks
 }
 
 // ── Tests ────────────────────────────────────────────────────────────

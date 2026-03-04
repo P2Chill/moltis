@@ -5081,6 +5081,24 @@ impl ChannelStreamDispatcher {
         }
     }
 
+    async fn send_tool_output(&mut self, tool_id: &str, name: &str, full_output: &str) {
+        let event = moltis_channels::StreamEvent::ToolOutput {
+            tool_id: tool_id.to_string(),
+            name: name.to_string(),
+            full_output: full_output.to_string(),
+        };
+        for worker in &self.workers {
+            let _ = worker.sender.send(event.clone()).await;
+        }
+    }
+
+    async fn send_reasoning_delta(&mut self, delta: &str) {
+        let event = moltis_channels::StreamEvent::ReasoningDelta(delta.to_string());
+        for worker in &self.workers {
+            let _ = worker.sender.send(event.clone()).await;
+        }
+    }
+
     async fn finish(&mut self) {
         self.send_terminal(moltis_channels::StreamEvent::Done).await;
         self.join_workers().await;
@@ -5983,7 +6001,25 @@ async fn run_with_tools(
                             result.as_ref(),
                             error.as_deref(),
                         );
-                        dispatcher.lock().await.send_tool_end(&id, &end_msg).await;
+                        let mut disp = dispatcher.lock().await;
+                        disp.send_tool_end(&id, &end_msg).await;
+                        // Send full output for verbose log channel.
+                        let full_out = if let Some(ref r) = result {
+                            if let Some(text) = r.get("output").and_then(|v| v.as_str()) {
+                                text.to_string()
+                            } else if let Some(text) = r.get("text").and_then(|v| v.as_str()) {
+                                text.to_string()
+                            } else {
+                                serde_json::to_string_pretty(r).unwrap_or_default()
+                            }
+                        } else if let Some(ref e) = error {
+                            e.clone()
+                        } else {
+                            String::new()
+                        };
+                        if !full_out.is_empty() {
+                            disp.send_tool_output(&id, &name, &full_out).await;
+                        }
                     }
 
                     // Check for screenshot/image to send to channel (Telegram, etc.)
@@ -6787,6 +6823,9 @@ async fn run_streaming(
                 },
                 StreamEvent::ReasoningDelta(delta) => {
                     accumulated_reasoning.push_str(&delta);
+                    if let Some(dispatcher) = channel_stream_dispatcher.as_mut() {
+                        dispatcher.send_reasoning_delta(&delta).await;
+                    }
                     broadcast(
                         state,
                         "chat",
