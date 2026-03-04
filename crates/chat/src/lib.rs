@@ -6192,7 +6192,20 @@ async fn run_with_tools(
                     payload
                 },
                 RunnerEvent::ThinkingText(text) => {
+                    // ThinkingText sends the full accumulated reasoning each time.
+                    // Compute the delta (new portion only) to avoid duplicating text.
+                    let reasoning_delta = if text.len() > latest_reasoning.len() {
+                        text[latest_reasoning.len()..].to_string()
+                    } else {
+                        String::new()
+                    };
                     latest_reasoning = text.clone();
+                    // Forward new reasoning to channel stream dispatcher for log channel.
+                    if !reasoning_delta.is_empty() {
+                        if let Some(ref dispatcher) = channel_stream_for_events {
+                            dispatcher.lock().await.send_reasoning_delta(&reasoning_delta).await;
+                        }
+                    }
                     if let Some(ref map) = active_thinking_text {
                         map.write().await.insert(sk.clone(), text.clone());
                     }
