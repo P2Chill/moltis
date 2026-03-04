@@ -885,15 +885,8 @@ function handleSlashCommand(cmdName, cmdArgs) {
 function handleModelCommand(args) {
 	var parts = args.trim().split(/\s+/).filter(Boolean);
 
-	// No args — open the model picker dropdown (handles search, all providers)
-	if (parts.length === 0) {
-		openModelDropdown();
-		return;
-	}
-
 	if (!S.activeSessionKey) { chatAddMsg("error", "No active session.", true); return; }
 
-	// With args: /model <provider> [model] — need model list to resolve
 	sendRpc("models.list", {}).then((res) => {
 		if (!res?.ok || !Array.isArray(res.payload)) {
 			chatAddMsg("error", "Could not load model list.", true);
@@ -902,6 +895,19 @@ function handleModelCommand(args) {
 		var models = res.payload;
 		var providers = [];
 		models.forEach((m) => { if (m.provider && !providers.includes(m.provider)) providers.push(m.provider); });
+
+		// No args — list providers
+		if (parts.length === 0) {
+			var html = "<strong>Providers:</strong><br>";
+			providers.forEach((p, i) => {
+				var count = models.filter((m) => m.provider === p).length;
+				html += `${i + 1}. ${p} (${count} models)<br>`;
+			});
+			html += "<br><em>Use <code>/model &lt;provider&gt;</code> to list, <code>/model &lt;provider&gt; &lt;model&gt;</code> to switch.</em>";
+			var el = chatAddMsg("system", html, true);
+			if (el) el.classList.add("system-list");
+			return;
+		}
 
 		// Resolve provider
 		var provArg = parts[0];
