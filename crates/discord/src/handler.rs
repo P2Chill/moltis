@@ -1,8 +1,8 @@
 use {
     serenity::{
         all::{
-            Context, CreateMessage, EventHandler, GatewayIntents, Interaction, Message, MessageId,
-            ReactionType, Ready,
+            Context, CreateMessage, EventHandler, GatewayIntents, Interaction, Message,
+            MessageId, MessagePagination, ReactionType, Ready,
         },
         async_trait,
         gateway::ActivityData,
@@ -452,6 +452,24 @@ impl EventHandler for Handler {
             inferred_kind = ChannelMessageKind::Location;
         }
 
+        // Fetch recent channel history for context when bot is @mentioned in a guild.
+        let text = if is_guild && bot_mentioned && config.context_messages > 0 {
+            let prior = fetch_channel_context(
+                &ctx,
+                msg.channel_id,
+                msg.id,
+                config.context_messages,
+            )
+            .await;
+            if prior.is_empty() {
+                text
+            } else {
+                format!("[Recent conversation context (for reference):\n{prior}]\n\n{text}")
+            }
+        } else {
+            text
+        };
+
         // Dispatch to chat.
         info!(
             account_id = %self.account_id,
@@ -875,6 +893,58 @@ fn find_split_point(text: &str, max_len: usize) -> usize {
     // Prefer splitting outside a code fence; fall back to any newline; finally
     // fall back to the hard limit.
     best_outside_fence.or(best_any_newline).unwrap_or(max_len)
+}
+
+/// Fetch recent messages from a Discord channel for context injection.
+///
+/// Returns a formatted string of the last `limit` messages (oldest first),
+/// excluding bots and the current triggering message. Used to give Sparky
+/// context when @mentioned in an ongoing conversation.
+async fn fetch_channel_context(
+    ctx: &Context,
+    channel_id: serenity::all::ChannelId,
+    before_id: MessageId,
+    limit: u8,
+) -> String {
+    let messages = match ctx
+        .http
+        .get_messages(channel_id, Some(MessagePagination::Before(before_id)), Some(limit))
+        .await
+    {
+        Ok(msgs) => msgs,
+        Err(e) => {
+            debug!("failed to fetch channel context: {e}");
+            return String::new();
+        }
+    };
+
+    // Messages come newest-first; reverse for chronological order.
+    let mut lines: Vec<String> = messages
+        .into_iter()
+        .rev()
+        .filter(|m| {
+            // Skip bot messages to avoid injecting Sparky's own responses.
+            !m.author.bot
+        })
+        .map(|m| {
+            let name = m.author.global_name.as_deref()
+                .or(Some(m.author.name.as_str()))
+                .unwrap_or("unknown");
+            let body = if m.content.is_empty() {
+                "[attachment]".to_string()
+            } else {
+                m.content.clone()
+            };
+            format!("{name}: {body}")
+        })
+        .collect();
+
+    // Cap to avoid excessive context length.
+    if lines.len() > limit as usize {
+        lines = lines.split_off(lines.len() - limit as usize);
+    }
+
+    lines.join("\n")
 }
 
 #[cfg(test)]

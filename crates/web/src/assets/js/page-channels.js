@@ -876,6 +876,7 @@ function EditChannelModal() {
 	var editAckReaction = useSignal("");
 	var editDedicatedChannels = useSignal("");
 	var editLogChannelId = useSignal("");
+	var editContextMessages = useSignal("8");
 	useEffect(() => {
 		editModel.value = ch?.config?.model || "";
 		allowlistItems.value = ch?.config?.allowlist || [];
@@ -884,6 +885,7 @@ function EditChannelModal() {
 		editAckReaction.value = ch?.config?.ack_reaction || "";
 		editDedicatedChannels.value = (ch?.config?.dedicated_channels || []).join(", ");
 		editLogChannelId.value = ch?.config?.log_channel_id || "";
+		editContextMessages.value = String(ch?.config?.context_messages ?? 8);
 	}, [ch]);
 	if (!ch) return null;
 	var cfg = ch.config || {};
@@ -933,6 +935,7 @@ function EditChannelModal() {
 			var logChVal = editLogChannelId.value.trim();
 			if (logChVal) updateConfig.log_channel_id = logChVal;
 			else updateConfig.log_channel_id = null;
+			updateConfig.context_messages = parseInt(editContextMessages.value, 10) || 0;
 		}
 		return updateConfig;
 	}
@@ -1030,6 +1033,10 @@ function EditChannelModal() {
         <input type="text" class="channel-input" placeholder="Discord channel ID (leave empty to disable)"
           value=${editLogChannelId.value}
           onInput=${(e) => { editLogChannelId.value = e.target.value; }} />
+        <label class="text-xs text-[var(--muted)]">Context Messages (recent messages injected on @mention, 0 to disable)</label>
+        <input type="number" min="0" max="20" class="channel-input" placeholder="8"
+          value=${editContextMessages.value}
+          onInput=${(e) => { editContextMessages.value = e.target.value; }} />
       `
 			}
       <label class="text-xs text-[var(--muted)]">Default Model</label>

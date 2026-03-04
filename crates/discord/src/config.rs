@@ -96,6 +96,10 @@ pub struct DiscordAccountConfig {
     /// When set, every Discord interaction posts a structured log to this channel.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub log_channel_id: Option<String>,
+
+    /// Number of preceding channel messages to include as context when the bot is @mentioned
+    /// in a guild channel. Set to 0 to disable. Default: 8.
+    pub context_messages: u8,
 }
 
 impl std::fmt::Debug for DiscordAccountConfig {
@@ -117,6 +121,7 @@ impl std::fmt::Debug for DiscordAccountConfig {
             .field("otp_self_approval", &self.otp_self_approval)
             .field("otp_cooldown_secs", &self.otp_cooldown_secs)
             .field("log_channel_id", &self.log_channel_id)
+            .field("context_messages", &self.context_messages)
             .finish()
     }
 }
@@ -141,6 +146,7 @@ impl Default for DiscordAccountConfig {
             otp_self_approval: true,
             otp_cooldown_secs: 300,
             log_channel_id: None,
+            context_messages: 8,
         }
     }
 }
