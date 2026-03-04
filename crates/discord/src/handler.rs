@@ -22,7 +22,7 @@ use moltis_channels::{
     gating::DmPolicy,
     message_log::MessageLogEntry,
     otp::{OtpInitResult, OtpVerifyResult},
-    plugin::{ChannelEventSink, ChannelMessageKind, ChannelMessageMeta, ChannelReplyTarget},
+    plugin::{ChannelAttachment, ChannelEventSink, ChannelMessageKind, ChannelMessageMeta, ChannelReplyTarget},
 };
 
 use crate::state::AccountStateMap;
@@ -258,7 +258,8 @@ impl EventHandler for Handler {
             msg.content.clone()
         };
 
-        if text.is_empty() {
+        let has_attachments = !msg.attachments.is_empty();
+        if text.is_empty() && !has_attachments {
             return;
         }
 
@@ -459,15 +460,87 @@ impl EventHandler for Handler {
             text_len = text.len(),
             "discord dispatching to chat"
         );
-        sink.dispatch_to_chat(&text, reply_to, ChannelMessageMeta {
+
+        #[cfg(feature = "metrics")]
+        moltis_metrics::counter!(
+            moltis_metrics::channels::MESSAGES_RECEIVED_TOTAL,
+            moltis_metrics::labels::CHANNEL => "discord"
+        )
+        .increment(1);
+
+        let meta = ChannelMessageMeta {
             channel_type: ChannelType::Discord,
             sender_name,
             username,
             message_kind: Some(inferred_kind),
             model: config.model.clone(),
             audio_filename: None,
-        })
-        .await;
+        };
+
+        if msg.attachments.is_empty() {
+            sink.dispatch_to_chat(&text, reply_to, meta).await;
+        } else {
+            // Download and forward image attachments.
+            let mut attachments: Vec<ChannelAttachment> = Vec::new();
+            for attachment in &msg.attachments {
+                let is_image = attachment
+                    .content_type
+                    .as_deref()
+                    .map(|ct| ct.starts_with("image/"))
+                    .unwrap_or_else(|| {
+                        let name = attachment.filename.to_lowercase();
+                        name.ends_with(".png") || name.ends_with(".jpg")
+                            || name.ends_with(".jpeg") || name.ends_with(".gif")
+                            || name.ends_with(".webp")
+                    });
+                if !is_image {
+                    continue;
+                }
+                match reqwest::get(&attachment.url).await {
+                    Ok(resp) => match resp.bytes().await {
+                        Ok(bytes) => {
+                            let (data, media_type) = match moltis_media::image_ops::optimize_for_llm(
+                                &bytes,
+                                None,
+                            ) {
+                                Ok(opt) => (opt.data, opt.media_type),
+                                Err(e) => {
+                                    warn!(
+                                        account_id = %self.account_id,
+                                        filename = %attachment.filename,
+                                        "discord image optimize failed: {e}, using original"
+                                    );
+                                    let mt = attachment
+                                        .content_type
+                                        .clone()
+                                        .unwrap_or_else(|| "image/jpeg".to_string());
+                                    (bytes.to_vec(), mt)
+                                },
+                            };
+                            attachments.push(ChannelAttachment { media_type, data });
+                        },
+                        Err(e) => warn!(
+                            account_id = %self.account_id,
+                            filename = %attachment.filename,
+                            "discord attachment read failed: {e}"
+                        ),
+                    },
+                    Err(e) => warn!(
+                        account_id = %self.account_id,
+                        filename = %attachment.filename,
+                        "discord attachment download failed: {e}"
+                    ),
+                }
+            }
+
+            if attachments.is_empty() {
+                // No downloadable images — fall back to text only.
+                sink.dispatch_to_chat(&text, reply_to, meta).await;
+            } else {
+                sink.dispatch_to_chat_with_attachments(&text, attachments, reply_to, meta)
+                    .await;
+            }
+        }
     }
 
     async fn ready(&self, ctx: Context, ready: Ready) {
