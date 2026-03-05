@@ -349,7 +349,6 @@ function handleChatToolCallEnd(p, isActive, isChatPage, eventSession) {
 		},
 		toolHistoryIndex,
 	);
-	updateSessionHistoryIndex(eventSession, toolHistoryIndex);
 	if (!(isActive && isChatPage)) return;
 	var toolCard = document.getElementById(toolCallCardId(p));
 	if (!toolCard) {
