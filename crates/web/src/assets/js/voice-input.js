@@ -64,7 +64,16 @@ var vadRafId = null;
 var vadSpeechDetected = false;
 var vadSilenceStart = 0;
 var vadMutedForTts = false;
-var VAD_SPEECH_THRESHOLD = 0.045; // RMS threshold — speech above this
+var VAD_SENSITIVITY = parseInt(localStorage.getItem("moltis_vad_sensitivity") || "50", 10);
+var VAD_SPEECH_THRESHOLD = sensitivityToThreshold(VAD_SENSITIVITY);
+
+/** Map sensitivity percentage (0-100) to RMS threshold.
+ *  0% = least sensitive (threshold 0.08), 100% = most sensitive (threshold 0.005). */
+function sensitivityToThreshold(pct) {
+	var clamped = Math.max(0, Math.min(100, pct));
+	// Exponential curve: low sensitivity = high threshold, high sensitivity = low threshold
+	return 0.08 * (0.005 / 0.08) ** (clamped / 100);
+}
 var VAD_SILENCE_DURATION = 2500; // ms of silence before auto-send
 var VAD_DEBOUNCE_SPEECH = 250; // ms of speech before we consider it speech
 var vadSpeechStart = 0;
@@ -822,3 +831,15 @@ export function isVadModeActive() {
 }
 
 
+/** Update VAD sensitivity at runtime (0-100). */
+export function setVadSensitivity(pct) {
+	VAD_SENSITIVITY = Math.max(0, Math.min(100, pct));
+	VAD_SPEECH_THRESHOLD = sensitivityToThreshold(VAD_SENSITIVITY);
+	localStorage.setItem("moltis_vad_sensitivity", String(VAD_SENSITIVITY));
+	console.debug("[voice] VAD sensitivity set to:", VAD_SENSITIVITY, "threshold:", VAD_SPEECH_THRESHOLD.toFixed(4));
+}
+
+/** Get current VAD sensitivity (0-100). */
+export function getVadSensitivity() {
+	return VAD_SENSITIVITY;
+}

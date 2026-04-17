@@ -605,6 +605,17 @@
     background: none;
     padding: 0;
   }
+  /* ── Shiki dual-theme support ── */
+  /* Shiki outputs CSS variables for dark theme; activate them based on data-theme */
+  [data-theme="dark"] .shiki,
+  [data-theme="dark"] .shiki span {
+    color: var(--shiki-dark) !important;
+    background-color: var(--shiki-dark-bg) !important;
+    font-style: var(--shiki-dark-font-style) !important;
+    font-weight: var(--shiki-dark-font-weight) !important;
+    text-decoration: var(--shiki-dark-text-decoration) !important;
+  }
+
   .msg strong {
     font-weight: 600;
     color: var(--text-strong);

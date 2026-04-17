@@ -54,6 +54,7 @@ export function highlightCodeBlocks(containerEl) {
 					light: "github-light",
 					dark: "github-dark",
 				},
+				defaultColor: false,
 			});
 			// Safe: codeToHtml produces deterministic syntax-highlighted markup
 			// from plain-text code content. The input (codeEl.textContent) is

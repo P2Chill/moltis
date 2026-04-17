@@ -41,6 +41,7 @@ import {
 	toggleVoiceProvider,
 	transcribeAudio,
 } from "./voice-utils.js";
+import { getPttKey, getVadSensitivity, setPttKey, setVadSensitivity } from "./voice-input.js";
 
 var identity = signal(null);
 var loading = signal(true);
@@ -2801,6 +2802,13 @@ function VoiceSection() {
 	var [activeRecorder, setActiveRecorder] = useState(null); // MediaRecorder for STT stop functionality
 	var [voiceTestResults, setVoiceTestResults] = useState({}); // { providerId: { text, error } }
 
+	// PTT key configuration
+	var [pttKeyValue, setPttKeyValue] = useState(getPttKey());
+	var [pttListening, setPttListening] = useState(false);
+
+	// VAD sensitivity
+	var [vadSens, setVadSens] = useState(getVadSensitivity());
+
 	function fetchVoiceStatus(options) {
 		if (!options?.silent) {
 			setVoiceLoading(true);
@@ -3070,6 +3078,60 @@ function VoiceSection() {
 						/>`;
 					})}
 				</div>
+			</div>
+		</div>
+
+
+		<!-- Push-to-Talk Configuration -->
+		<div style="max-width:700px;display:flex;flex-direction:column;gap:12px;">
+			<h3 class="text-sm font-medium text-[var(--text-strong)]">Push-to-Talk</h3>
+			<p class="text-xs text-[var(--muted)] leading-relaxed" style="margin:0;">
+				Hold a keyboard key to record voice input. Release to send.
+				Function keys (F1\u2013F24) work even when focused in an input field.
+			</p>
+			<div class="flex items-center gap-3">
+				<label class="text-xs text-[var(--muted)]">PTT Key:</label>
+				<button
+					class="provider-key-input"
+					style="min-width:120px;text-align:center;cursor:pointer;"
+					onClick=${() => {
+						if (pttListening) return;
+						setPttListening(true);
+						var handler = (ev) => {
+							ev.preventDefault();
+							ev.stopPropagation();
+							setPttKeyValue(ev.key);
+							setPttKey(ev.key);
+							setPttListening(false);
+							document.removeEventListener("keydown", handler, true);
+							rerender();
+						};
+						document.addEventListener("keydown", handler, true);
+						rerender();
+					}}
+				>${pttListening ? "Press any key..." : pttKeyValue}</button>
+			</div>
+		</div>
+
+		<!-- VAD Sensitivity -->
+		<div style="max-width:700px;display:flex;flex-direction:column;gap:12px;">
+			<h3 class="text-sm font-medium text-[var(--text-strong)]">Conversation Mode (VAD)</h3>
+			<p class="text-xs text-[var(--muted)] leading-relaxed" style="margin:0;">
+				Adjust how sensitive the voice activity detection is. Higher values pick up
+				softer speech but may trigger on background noise.
+			</p>
+			<div class="flex items-center gap-3">
+				<label class="text-xs text-[var(--muted)]" style="min-width:80px;">Sensitivity:</label>
+				<input type="range" min="0" max="100" step="5"
+					value=${vadSens}
+					style="flex:1;max-width:200px;accent-color:var(--accent);"
+					onInput=${(e) => {
+						var val = parseInt(e.target.value, 10);
+						setVadSens(val);
+						setVadSensitivity(val);
+						rerender();
+					}} />
+				<span class="text-xs text-[var(--muted)]" style="min-width:35px;text-align:right;">${vadSens}%</span>
 			</div>
 		</div>
 
