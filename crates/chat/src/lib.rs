@@ -5454,7 +5454,7 @@ impl AgentScopedMemorySearchTool {
 #[async_trait]
 impl AgentTool for AgentScopedMemorySearchTool {
     fn name(&self) -> &str {
-        "memory_search"
+        "mem_search"
     }
 
     fn description(&self) -> &str {
@@ -5546,11 +5546,11 @@ impl AgentScopedMemoryGetTool {
 #[async_trait]
 impl AgentTool for AgentScopedMemoryGetTool {
     fn name(&self) -> &str {
-        "memory_get"
+        "mem_get"
     }
 
     fn description(&self) -> &str {
-        "Retrieve a specific memory chunk by its ID. Use this to get the full text of a chunk found via memory_search."
+        "Retrieve a specific memory chunk by its ID. Use this to get the full text of a chunk found via mem_search."
     }
 
     fn parameters_schema(&self) -> Value {
@@ -5608,11 +5608,11 @@ impl AgentScopedMemorySaveTool {
 #[async_trait]
 impl AgentTool for AgentScopedMemorySaveTool {
     fn name(&self) -> &str {
-        "memory_save"
+        "mem_save"
     }
 
     fn description(&self) -> &str {
-        "Save content to long-term memory. Writes to MEMORY.md or memory/<name>.md. Content persists across sessions and is searchable via memory_search."
+        "Save content to long-term memory. Writes to MEMORY.md or memory/<name>.md. Content persists across sessions and is searchable via mem_search."
     }
 
     fn parameters_schema(&self) -> Value {
@@ -5668,9 +5668,9 @@ fn install_agent_scoped_memory_tools(
     manager: &Arc<moltis_memory::manager::MemoryManager>,
     agent_id: &str,
 ) {
-    let had_search = registry.unregister("memory_search");
-    let had_get = registry.unregister("memory_get");
-    let had_save = registry.unregister("memory_save");
+    let had_search = registry.unregister("mem_search");
+    let had_get = registry.unregister("mem_get");
+    let had_save = registry.unregister("mem_save");
 
     let agent_id_owned = agent_id.to_string();
     if had_search {
@@ -8082,7 +8082,7 @@ fn format_tool_status_message(tool_name: &str, arguments: &Value) -> String {
                 "🧮 Calculating...".to_string()
             }
         },
-        "memory_search" => "🧠 Searching memory...".to_string(),
+        "mem_search" => "🧠 Searching memory...".to_string(),
         "memory_store" => "🧠 Storing to memory...".to_string(),
         _ => {
             // Handle MCP tools: mcp.server.tool or mcp__server__tool
@@ -8182,7 +8182,7 @@ fn format_tool_end_message(
                 "🔍 Searched".to_string()
             }
         },
-        "memory_search" => "🧠 Searched memory".to_string(),
+        "mem_search" => "🧠 Searched memory".to_string(),
         "memory_store" => "🧠 Stored to memory".to_string(),
         _ => {
             if let Some(mcp) = parse_mcp_tool(tool_name) {

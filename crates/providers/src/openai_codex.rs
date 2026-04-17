@@ -29,6 +29,7 @@ const CODEX_MODELS_ENDPOINT: &str = "https://chatgpt.com/backend-api/codex/model
 const CODEX_MODELS_CLIENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 const DEFAULT_CODEX_MODELS: &[(&str, &str)] = &[
+    ("gpt-5.4", "GPT-5.4"),
     ("gpt-5.3-codex", "GPT-5.3 Codex"),
     ("gpt-5.2-codex", "GPT-5.2 Codex"),
     ("gpt-5.2", "GPT-5.2"),
@@ -67,10 +68,10 @@ impl OpenAiCodexProvider {
     }
 
     async fn get_valid_tokens(&self) -> anyhow::Result<moltis_oauth::OAuthTokens> {
-        let tokens = self
-            .token_store
-            .load("openai-codex")
-            .or_else(load_codex_cli_tokens)
+        // Prefer Codex CLI tokens (~/.codex/auth.json) — kept fresh by `codex` login.
+        // Fall back to moltis own token store if CLI file is absent.
+        let tokens = load_codex_cli_tokens()
+            .or_else(|| self.token_store.load("openai-codex"))
             .ok_or_else(|| {
                 anyhow::anyhow!(
                     "not logged in to openai-codex — run `moltis auth login --provider openai-codex`"

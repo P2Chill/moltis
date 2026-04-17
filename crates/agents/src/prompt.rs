@@ -515,8 +515,8 @@ fn append_memory_section(
     memory_text: Option<&str>,
     tool_schemas: &[serde_json::Value],
 ) {
-    let has_memory_search = has_tool_schema(tool_schemas, "memory_search");
-    let has_memory_save = has_tool_schema(tool_schemas, "memory_save");
+    let has_memory_search = has_tool_schema(tool_schemas, "mem_search");
+    let has_memory_save = has_tool_schema(tool_schemas, "mem_save");
     let memory_content = memory_text.filter(|text| !text.is_empty());
     if memory_content.is_none() && !has_memory_search && !has_memory_save {
         return;
@@ -528,7 +528,7 @@ fn append_memory_section(
             prompt,
             text,
             MEMORY_BOOTSTRAP_MAX_CHARS,
-            "\n\n*(MEMORY.md truncated — use `memory_search` for full content)*\n",
+            "\n\n*(MEMORY.md truncated — use `mem_search` for full content)*\n",
         );
         prompt.push_str(concat!(
             "\n\n**The information above is what you already know about the user. ",
@@ -539,7 +539,7 @@ fn append_memory_section(
     }
     if has_memory_search {
         prompt.push_str(concat!(
-            "\nYou also have `memory_search` to find additional details from ",
+            "\nYou also have `mem_search` to find additional details from ",
             "`memory/*.md` files and past session history beyond what is shown above. ",
             "**Always search memory before claiming you don't know something.** ",
             "The long-term memory system holds user facts, past decisions, project context, ",
@@ -549,7 +549,7 @@ fn append_memory_section(
     if has_memory_save {
         prompt.push_str(concat!(
             "\n**When the user asks you to remember, save, or note something, ",
-            "you MUST call `memory_save` to persist it.** ",
+            "you MUST call `mem_save` to persist it.** ",
             "Do not just acknowledge verbally — without calling the tool, ",
             "the information will be lost after the session.\n",
             "\nChoose the right target to keep context lean:\n",
@@ -558,7 +558,7 @@ fn append_memory_section(
             "so keep it short.\n",
             "- **memory/&lt;topic&gt;.md** — everything else (detailed notes, project ",
             "context, decisions, session summaries). These are only retrieved via ",
-            "`memory_search` and do not consume prompt space.\n",
+            "`mem_search` and do not consume prompt space.\n",
         ));
     }
     prompt.push('\n');
@@ -1278,7 +1278,7 @@ mod tests {
         assert!(prompt.contains("## Long-Term Memory"));
         assert!(prompt.contains("Important fact"));
         // Minimal prompts have no tools, so no memory_search hint
-        assert!(!prompt.contains("memory_search"));
+        assert!(!prompt.contains("mem_search"));
     }
 
     /// Helper to create a [`ToolRegistry`] with one or more named stub tools.
@@ -1311,7 +1311,7 @@ mod tests {
 
     #[test]
     fn test_memory_save_hint_injected_when_tool_registered() {
-        let tools = registry_with_tools(&["memory_save"]);
+        let tools = registry_with_tools(&["mem_save"]);
         let prompt = build_system_prompt_with_session_runtime(
             &tools,
             true,
@@ -1326,7 +1326,7 @@ mod tests {
             None,
         );
         assert!(prompt.contains("## Long-Term Memory"));
-        assert!(prompt.contains("MUST call `memory_save`"));
+        assert!(prompt.contains("MUST call `mem_save`"));
     }
 
     #[test]
@@ -1345,12 +1345,12 @@ mod tests {
             None,
             None,
         );
-        assert!(!prompt.contains("memory_save"));
+        assert!(!prompt.contains("mem_save"));
     }
 
     #[test]
     fn test_memory_search_and_save_hints_both_present() {
-        let tools = registry_with_tools(&["memory_search", "memory_save"]);
+        let tools = registry_with_tools(&["mem_search", "mem_save"]);
         let memory = "## User Facts\n- Likes coffee";
         let prompt = build_system_prompt_with_session_runtime(
             &tools,
@@ -1367,8 +1367,8 @@ mod tests {
         );
         assert!(prompt.contains("## Long-Term Memory"));
         assert!(prompt.contains("Likes coffee"));
-        assert!(prompt.contains("memory_search"));
-        assert!(prompt.contains("MUST call `memory_save`"));
+        assert!(prompt.contains("mem_search"));
+        assert!(prompt.contains("MUST call `mem_save`"));
     }
 
     #[test]

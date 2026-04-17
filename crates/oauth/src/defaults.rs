@@ -46,6 +46,29 @@ fn builtin_defaults() -> HashMap<String, OAuthConfig> {
         ],
         device_flow: false,
     });
+    // Anthropic OAuth — matches Claude Code's production OAuth app.
+    // Uses the Claude.ai authorize URL (for Pro/Max subscribers), which 307s
+    // to claude.ai/oauth/authorize. Console users would use
+    // platform.claude.com/oauth/authorize instead.
+    m.insert("anthropic".into(), OAuthConfig {
+        client_id: "9d1c250a-e61b-44d9-88ed-5944d1962f5e".into(),
+        auth_url: "https://claude.com/cai/oauth/authorize".into(),
+        token_url: "https://platform.claude.com/v1/oauth/token".into(),
+        redirect_uri: "http://localhost:54545/callback".into(),
+        resource: None,
+        scopes: vec![
+            "user:profile".into(),
+            "user:inference".into(),
+            "user:sessions:claude_code".into(),
+            "user:mcp_servers".into(),
+            "user:file_upload".into(),
+            "org:create_api_key".into(),
+        ],
+        extra_auth_params: vec![
+            ("code".into(), "true".into()),
+        ],
+        device_flow: false,
+    });
     m
 }
 

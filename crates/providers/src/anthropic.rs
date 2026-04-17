@@ -90,6 +90,16 @@ impl AnthropicProvider {
     }
 }
 
+
+/// Billing header required for OAuth Bearer auth with Claude 4+ models.
+/// Without this in the system prompt, the API returns invalid_request_error.
+const OAUTH_BILLING_HEADER: &str =
+    "x-anthropic-billing-header: cc_version=moltis; cc_entrypoint=gateway; cch=0;";
+
+/// Beta headers for OAuth Bearer requests (matches Claude Code).
+const OAUTH_BETA_HEADERS: &str =
+    "claude-code-20250219,oauth-2025-04-20,interleaved-thinking-2025-05-14";
+
 /// Convert tool schemas from the generic format to Anthropic's tool format.
 fn to_anthropic_tools(tools: &[serde_json::Value]) -> Vec<serde_json::Value> {
     tools
@@ -290,7 +300,16 @@ impl LlmProvider for AnthropicProvider {
             "messages": anthropic_messages,
         });
 
-        if let Some(ref sys) = system_text {
+        // Build system prompt — OAuth Bearer requires billing header + array format
+        if self.use_bearer {
+            let mut system_blocks = vec![
+                serde_json::json!({"type": "text", "text": OAUTH_BILLING_HEADER}),
+            ];
+            if let Some(ref sys) = system_text {
+                system_blocks.push(serde_json::json!({"type": "text", "text": sys}));
+            }
+            body["system"] = serde_json::Value::Array(system_blocks);
+        } else if let Some(ref sys) = system_text {
             body["system"] = serde_json::Value::String(sys.clone());
         }
 
@@ -299,10 +318,17 @@ impl LlmProvider for AnthropicProvider {
         }
 
         let thinking_budget = moltis_agents::model::THINKING_BUDGET.try_with(|b| *b).unwrap_or(0);
-        if thinking_budget > 0 {
+        // Claude 4.6+ OAuth path: always use adaptive thinking. Opus 4.7 does
+        // NOT stream thinking_delta events in explicit `enabled` mode even with
+        // `display: summarized` - only adaptive mode streams thinking.
+        if self.use_bearer && (self.model.contains("4-6") || self.model.contains("4-7")) {
+            body["thinking"] = serde_json::json!({"type": "adaptive", "display": "summarized"});
+            body["max_tokens"] = serde_json::json!(16384);
+        } else if thinking_budget > 0 {
             body["thinking"] = serde_json::json!({
                 "type": "enabled",
                 "budget_tokens": thinking_budget,
+                "display": "summarized",
             });
             // Anthropic requires max_tokens >= budget_tokens for thinking models
             let min_max = (thinking_budget + 16384) as u64;
@@ -335,11 +361,11 @@ impl LlmProvider for AnthropicProvider {
             .header("content-type", "application/json")
             .header(
                 "anthropic-beta",
-                {
+                if self.use_bearer {
+                    OAUTH_BETA_HEADERS.to_string()
+                } else {
                     let mut beta = String::new();
-                    if self.use_bearer { beta.push_str("oauth-2025-04-20"); }
                     if thinking_budget > 0 {
-                        if !beta.is_empty() { beta.push_str(","); }
                         beta.push_str("interleaved-thinking-2025-05-14");
                     }
                     beta
@@ -423,7 +449,16 @@ impl LlmProvider for AnthropicProvider {
                 "stream": true,
             });
 
-            if let Some(ref sys) = system_text {
+            // Build system prompt — OAuth Bearer requires billing header + array format
+            if self.use_bearer {
+                let mut system_blocks = vec![
+                    serde_json::json!({"type": "text", "text": OAUTH_BILLING_HEADER}),
+                ];
+                if let Some(ref sys) = system_text {
+                    system_blocks.push(serde_json::json!({"type": "text", "text": sys}));
+                }
+                body["system"] = serde_json::Value::Array(system_blocks);
+            } else if let Some(ref sys) = system_text {
                 body["system"] = serde_json::Value::String(sys.clone());
             }
 
@@ -433,10 +468,17 @@ impl LlmProvider for AnthropicProvider {
 
             let thinking_budget = moltis_agents::model::THINKING_BUDGET.try_with(|b| *b).unwrap_or(0);
 
-            if thinking_budget > 0 {
+            // Claude 4.6+ OAuth: always use adaptive thinking. Explicit enabled
+            // mode with budget_tokens does NOT stream thinking_delta events on
+            // Opus 4.7, even with display: summarized. Only adaptive mode streams.
+            if self.use_bearer && (self.model.contains("4-6") || self.model.contains("4-7")) {
+                body["thinking"] = serde_json::json!({"type": "adaptive", "display": "summarized"});
+                body["max_tokens"] = serde_json::json!(16384);
+            } else if thinking_budget > 0 {
                 body["thinking"] = serde_json::json!({
                     "type": "enabled",
                     "budget_tokens": thinking_budget,
+                    "display": "summarized",
                 });
                 let min_max = (thinking_budget + 16384) as u64;
                 if body["max_tokens"].as_u64().unwrap_or(0) < min_max {
@@ -451,7 +493,6 @@ impl LlmProvider for AnthropicProvider {
                 has_system = system_text.is_some(),
                 "anthropic stream_with_tools request"
             );
-            trace!(body = %serde_json::to_string(&body).unwrap_or_default(), "anthropic stream request body");
 
             let resp = match self
                 .client
@@ -466,15 +507,17 @@ impl LlmProvider for AnthropicProvider {
                 )
                 .header("anthropic-version", "2023-06-01")
                 .header("content-type", "application/json")
-                .header("anthropic-beta", {
-                    let mut beta = String::new();
-                    if self.use_bearer { beta.push_str("oauth-2025-04-20"); }
-                    if thinking_budget > 0 {
-                        if !beta.is_empty() { beta.push_str(","); }
-                        beta.push_str("interleaved-thinking-2025-05-14");
-                    }
-                    beta
-                })
+                .header("anthropic-beta",
+                    if self.use_bearer {
+                        OAUTH_BETA_HEADERS.to_string()
+                    } else {
+                        let mut beta = String::new();
+                        if thinking_budget > 0 {
+                            beta.push_str("interleaved-thinking-2025-05-14");
+                        }
+                        beta
+                    },
+                )
                 .json(&body)
                 .send()
                 .await

@@ -19,7 +19,7 @@ impl MemorySearchTool {
 #[async_trait]
 impl AgentTool for MemorySearchTool {
     fn name(&self) -> &str {
-        "memory_search"
+        "mem_search"
     }
 
     fn description(&self) -> &str {
@@ -97,11 +97,11 @@ impl MemoryGetTool {
 #[async_trait]
 impl AgentTool for MemoryGetTool {
     fn name(&self) -> &str {
-        "memory_get"
+        "mem_get"
     }
 
     fn description(&self) -> &str {
-        "Retrieve a specific memory chunk by its ID. Use this to get the full text of a chunk found via memory_search."
+        "Retrieve a specific memory chunk by its ID. Use this to get the full text of a chunk found via mem_search."
     }
 
     fn parameters_schema(&self) -> serde_json::Value {
@@ -153,11 +153,11 @@ impl MemorySaveTool {
 #[async_trait]
 impl AgentTool for MemorySaveTool {
     fn name(&self) -> &str {
-        "memory_save"
+        "mem_save"
     }
 
     fn description(&self) -> &str {
-        "Save content to long-term memory. Writes to MEMORY.md or memory/<name>.md. Content persists across sessions and is searchable via memory_search."
+        "Save content to long-term memory. Writes to MEMORY.md or memory/<name>.md. Content persists across sessions and is searchable via mem_search."
     }
 
     fn parameters_schema(&self) -> serde_json::Value {
@@ -286,7 +286,7 @@ mod tests {
         let rt = tokio::runtime::Runtime::new().unwrap();
         let (manager, _tmp) = rt.block_on(setup_manager());
         let tool = MemorySearchTool::new(manager);
-        assert_eq!(tool.name(), "memory_search");
+        assert_eq!(tool.name(), "mem_search");
         let schema = tool.parameters_schema();
         assert!(schema["properties"]["query"].is_object());
         assert!(
@@ -302,7 +302,7 @@ mod tests {
         let rt = tokio::runtime::Runtime::new().unwrap();
         let (manager, _tmp) = rt.block_on(setup_manager());
         let tool = MemoryGetTool::new(manager);
-        assert_eq!(tool.name(), "memory_get");
+        assert_eq!(tool.name(), "mem_get");
         let schema = tool.parameters_schema();
         assert!(schema["properties"]["chunk_id"].is_object());
         assert!(
@@ -463,7 +463,7 @@ mod tests {
         let rt = tokio::runtime::Runtime::new().unwrap();
         let (manager, _tmp) = rt.block_on(setup_manager());
         let tool = MemorySaveTool::new(manager);
-        assert_eq!(tool.name(), "memory_save");
+        assert_eq!(tool.name(), "mem_save");
         let schema = tool.parameters_schema();
         assert!(schema["properties"]["content"].is_object());
         assert!(schema["properties"]["file"].is_object());

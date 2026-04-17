@@ -201,7 +201,8 @@ fn merge_discovered_with_fallback_catalog(
 
     let fallback_by_id: HashMap<String, DiscoveredModel> =
         fallback.into_iter().map(|m| (m.id.clone(), m)).collect();
-    discovered
+    let discovered_ids: HashSet<String> = discovered.iter().map(|m| m.id.clone()).collect();
+    let mut merged: Vec<DiscoveredModel> = discovered
         .into_iter()
         .map(|m| {
             let display_name = if m.display_name.trim().is_empty() {
@@ -218,7 +219,14 @@ fn merge_discovered_with_fallback_catalog(
                 created_at: m.created_at,
             }
         })
-        .collect()
+        .collect();
+    // Append fallback-only models not returned by the live API
+    for (id, fb) in fallback_by_id {
+        if !discovered_ids.contains(&id) {
+            merged.push(fb);
+        }
+    }
+    merged
 }
 
 fn normalize_ollama_api_base_url(base_url: &str) -> String {
@@ -562,6 +570,11 @@ pub fn context_window_for_model(model_id: &str) -> u32 {
     if model_id.starts_with("codestral") {
         return 256_000;
     }
+    // Claude Opus 4.6 and 4.7: 1M context window (native, no extra cost).
+    // Note: Sonnet 4.6 also supports 1M but at extra cost — keep default 200k.
+    if model_id.starts_with("claude-opus-4-6") || model_id.starts_with("claude-opus-4-7") {
+        return 1_000_000;
+    }
     // Claude models: 200k.
     if model_id.starts_with("claude-") {
         return 200_000;
@@ -733,6 +746,7 @@ pub struct ModelInfo {
 /// Current models listed first, then legacy models.
 const ANTHROPIC_MODELS: &[(&str, &str)] = &[
     ("claude-opus-4-6", "Claude Opus 4.6"),
+    ("claude-opus-4-7", "Claude Opus 4.7"),
     ("claude-sonnet-4-6", "Claude Sonnet 4.6"),
     ("claude-opus-4-5-20251101", "Claude Opus 4.5"),
     ("claude-sonnet-4-5-20250929", "Claude Sonnet 4.5"),
@@ -1117,6 +1131,11 @@ impl ProviderRegistry {
                 );
                 return false;
             },
+        };
+        // Merge with full catalog (includes fallback entries for models not in live API)
+        let live_catalog = {
+            let full = source.available_models();
+            if full.len() > live_catalog.len() { full } else { live_catalog }
         };
 
         let Some(next_models) =

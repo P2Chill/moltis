@@ -150,9 +150,9 @@ async fn cache_discovered_tools(session_key: &str, names: &[String], ttl: u8) {
 pub const LAZY_CORE_TOOLS: &[&str] = &[
     "discover_tools",
     "exec",
-    "memory_search",
-    "memory_get",
-    "memory_save",
+    "mem_search",
+    "mem_get",
+    "mem_save",
     "web_search",
     "web_fetch",
     "create_skill",
@@ -792,7 +792,7 @@ pub async fn run_agent_loop_with_context(
     let mut total_tool_calls = 0;
     let mut total_input_tokens: u32 = 0;
     let mut total_output_tokens: u32 = 0;
-    let mut server_retries_remaining: u8 = 1;
+    let mut server_retries_remaining: u8 = 10;
     let mut rate_limit_retries_remaining: u8 = RATE_LIMIT_MAX_RETRIES;
     let mut rate_limit_backoff_ms: Option<u64> = None;
     let mut last_answer_text = String::new();
@@ -1387,7 +1387,7 @@ pub async fn run_agent_loop_streaming(
     let mut total_tool_calls = 0;
     let mut total_input_tokens: u32 = 0;
     let mut total_output_tokens: u32 = 0;
-    let mut server_retries_remaining: u8 = 1;
+    let mut server_retries_remaining: u8 = 10;
     let mut rate_limit_retries_remaining: u8 = RATE_LIMIT_MAX_RETRIES;
     let mut rate_limit_backoff_ms: Option<u64> = None;
     let mut raw_llm_responses: Vec<serde_json::Value> = Vec::new();
