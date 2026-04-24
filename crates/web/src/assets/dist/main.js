@@ -4847,6 +4847,7 @@ let vadRecordingStart = 0;
 let vadMediaRecorder = null;
 let vadTranscribing = false;
 let vadReacquiring = false;
+let vadStarting = false;
 let vadSourceNode = null;
 let vadMonitorMuteStart = 0;
 function isVoiceEnabled() {
@@ -5203,19 +5204,22 @@ function onPttKeyUp(e) {
   stopRecording();
 }
 async function startVad() {
-  if (vadActive) return;
+  if (vadActive || vadStarting) return;
+  vadStarting = true;
   console.debug("[voice] VAD starting");
   try {
     vadStream = await navigator.mediaDevices.getUserMedia({
       audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
     });
   } catch (err) {
+    vadStarting = false;
     console.error("[voice] VAD mic access failed:", err);
     if (err.name === "NotAllowedError") {
       alert(t("settings:voice.micDenied"));
     }
     return;
   }
+  vadStarting = false;
   vadActive = true;
   vadSpeechDetected = false;
   vadSilenceStart = 0;

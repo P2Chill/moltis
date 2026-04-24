@@ -79,6 +79,7 @@ let vadRecordingStart = 0;
 let vadMediaRecorder: MediaRecorder | null = null;
 let vadTranscribing = false;
 let vadReacquiring = false;
+let vadStarting = false;
 let vadSourceNode: MediaStreamAudioSourceNode | null = null;
 
 // VAD monitor loop mutable state (avoids static properties on function)
@@ -521,7 +522,8 @@ function onPttKeyUp(e: KeyboardEvent): void {
 // ── VAD (voice activity detection) ───────────────────────────
 
 async function startVad(): Promise<void> {
-	if (vadActive) return;
+	if (vadActive || vadStarting) return;
+	vadStarting = true;
 
 	console.debug("[voice] VAD starting");
 	try {
@@ -529,6 +531,7 @@ async function startVad(): Promise<void> {
 			audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
 		});
 	} catch (err) {
+		vadStarting = false;
 		console.error("[voice] VAD mic access failed:", err);
 		if ((err as DOMException).name === "NotAllowedError") {
 			alert(t("settings:voice.micDenied"));
@@ -536,6 +539,7 @@ async function startVad(): Promise<void> {
 		return;
 	}
 
+	vadStarting = false;
 	vadActive = true;
 	vadSpeechDetected = false;
 	vadSilenceStart = 0;
