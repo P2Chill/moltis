@@ -5204,7 +5204,7 @@ function onPttKeyUp(e) {
   stopRecording();
 }
 async function startVad() {
-  if (vadActive || vadStarting) return;
+  if (vadActive || vadStarting || isRecording || isStarting) return;
   vadStarting = true;
   console.debug("[voice] VAD starting");
   try {
@@ -5502,24 +5502,26 @@ function onVadClick(e) {
     startVad();
   }
 }
+function onMicKeydown(e) {
+  if (e.key === " " || e.key === "Enter") {
+    e.preventDefault();
+    onMicClick(e);
+  }
+}
+function onEscapeKeydown(e) {
+  if (e.key === "Escape" && isRecording) {
+    e.preventDefault();
+    cancelRecording();
+    if (vadActive) stopVad();
+  }
+}
 function initVoiceInput(btn2) {
   if (!btn2) return;
   micBtn = btn2;
   checkSttStatus();
   micBtn.addEventListener("click", onMicClick);
-  micBtn.addEventListener("keydown", (e) => {
-    if (e.key === " " || e.key === "Enter") {
-      e.preventDefault();
-      onMicClick(e);
-    }
-  });
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && isRecording) {
-      e.preventDefault();
-      cancelRecording();
-      if (vadActive) stopVad();
-    }
-  });
+  micBtn.addEventListener("keydown", onMicKeydown);
+  document.addEventListener("keydown", onEscapeKeydown);
   document.addEventListener("keydown", onPttKeyDown);
   document.addEventListener("keyup", onPttKeyUp);
   window.addEventListener("voice-config-changed", checkSttStatus);
@@ -5535,8 +5537,10 @@ function teardownVoiceInput() {
   if (isRecording && mediaRecorder) {
     mediaRecorder.stop();
   }
+  document.removeEventListener("keydown", onEscapeKeydown);
   document.removeEventListener("keydown", onPttKeyDown);
   document.removeEventListener("keyup", onPttKeyUp);
+  micBtn == null ? void 0 : micBtn.removeEventListener("keydown", onMicKeydown);
   window.removeEventListener("voice-config-changed", checkSttStatus);
   releaseVoiceLock();
   micBtn = null;

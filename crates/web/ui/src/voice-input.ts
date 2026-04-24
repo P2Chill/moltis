@@ -522,7 +522,7 @@ function onPttKeyUp(e: KeyboardEvent): void {
 // ── VAD (voice activity detection) ───────────────────────────
 
 async function startVad(): Promise<void> {
-	if (vadActive || vadStarting) return;
+	if (vadActive || vadStarting || isRecording || isStarting) return;
 	vadStarting = true;
 
 	console.debug("[voice] VAD starting");
@@ -870,6 +870,21 @@ function onVadClick(e: Event): void {
 	}
 }
 
+function onMicKeydown(e: KeyboardEvent): void {
+	if (e.key === " " || e.key === "Enter") {
+		e.preventDefault();
+		onMicClick(e);
+	}
+}
+
+function onEscapeKeydown(e: KeyboardEvent): void {
+	if (e.key === "Escape" && isRecording) {
+		e.preventDefault();
+		cancelRecording();
+		if (vadActive) stopVad();
+	}
+}
+
 // ── Init / teardown ──────────────────────────────────────────
 
 /** Initialize voice input with the mic button element. */
@@ -881,20 +896,8 @@ export function initVoiceInput(btn: HTMLButtonElement | null): void {
 
 	micBtn.addEventListener("click", onMicClick);
 
-	micBtn.addEventListener("keydown", (e: KeyboardEvent): void => {
-		if (e.key === " " || e.key === "Enter") {
-			e.preventDefault();
-			onMicClick(e);
-		}
-	});
-
-	document.addEventListener("keydown", (e: KeyboardEvent): void => {
-		if (e.key === "Escape" && isRecording) {
-			e.preventDefault();
-			cancelRecording();
-			if (vadActive) stopVad();
-		}
-	});
+	micBtn.addEventListener("keydown", onMicKeydown);
+	document.addEventListener("keydown", onEscapeKeydown);
 
 	// PTT: global key handlers
 	document.addEventListener("keydown", onPttKeyDown);
@@ -917,8 +920,10 @@ export function teardownVoiceInput(): void {
 	if (isRecording && mediaRecorder) {
 		mediaRecorder.stop();
 	}
+	document.removeEventListener("keydown", onEscapeKeydown);
 	document.removeEventListener("keydown", onPttKeyDown);
 	document.removeEventListener("keyup", onPttKeyUp);
+	micBtn?.removeEventListener("keydown", onMicKeydown);
 	window.removeEventListener("voice-config-changed", checkSttStatus);
 	releaseVoiceLock();
 	micBtn = null;
