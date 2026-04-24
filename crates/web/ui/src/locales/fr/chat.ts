@@ -11,6 +11,10 @@ export default {
 	voiceTranscribingMessage: "Transcription de la voix...",
 	vadTooltip: "Mode conversation (VAD)",
 	vadStopTooltip: "Cliquer pour quitter le mode conversation",
+	voiceNoSpeech: "Aucune parole détectée",
+	voiceTranscriptionError: "Erreur de transcription",
+	voiceTranscriptionFailed: "Échec de la transcription : {{error}}",
+	voiceUploadFailed: "Échec du téléversement : {{error}}",
 
 	// ── Slash commands ───────────────────────────────────────
 	slashClear: "Clear conversation history",

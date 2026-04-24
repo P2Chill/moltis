@@ -90,6 +90,7 @@ function isVoiceEnabled(): boolean {
 async function checkSttStatus(): Promise<void> {
 	if (!isVoiceEnabled()) {
 		sttConfigured = false;
+		if (vadActive) stopVad();
 		updateMicButton();
 		updateVadButton();
 		return;
@@ -100,6 +101,7 @@ async function checkSttStatus(): Promise<void> {
 	} else {
 		sttConfigured = false;
 	}
+	if (!sttConfigured && vadActive) stopVad();
 	updateMicButton();
 	updateVadButton();
 }
@@ -431,20 +433,20 @@ async function transcribeAudio(): Promise<void> {
 				cleanupTranscribingState();
 				sendTranscribedMessage(text, audioFilename || null);
 			} else {
-				showTemporaryMessage("No speech detected", false, 2000);
+				showTemporaryMessage(t("chat:voiceNoSpeech"), false, 2000);
 			}
 		} else if (res.transcriptionError) {
 			console.error("Transcription failed:", res.transcriptionError);
-			showTemporaryMessage(`Transcription failed: ${res.transcriptionError}`, true, 4000);
+			showTemporaryMessage(t("chat:voiceTranscriptionFailed", { error: res.transcriptionError }), true, 4000);
 		} else if (!res.ok) {
 			console.error("Upload failed:", res.error);
-			showTemporaryMessage(`Upload failed: ${res.error || "Unknown error"}`, true, 4000);
+			showTemporaryMessage(t("chat:voiceUploadFailed", { error: res.error || t("chat:unknownError") }), true, 4000);
 		}
 	} catch (err) {
 		console.error("Transcription error:", err);
 		micBtn?.classList.remove("transcribing");
 		if (micBtn) micBtn.title = t("chat:micTooltip");
-		showTemporaryMessage("Transcription error", true, 4000);
+		showTemporaryMessage(t("chat:voiceTranscriptionError"), true, 4000);
 	}
 }
 
@@ -574,6 +576,9 @@ async function vadReacquireStream(): Promise<void> {
 		const newStream = await navigator.mediaDevices.getUserMedia({
 			audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
 		});
+		if (vadStream) {
+			for (const track of vadStream.getTracks()) track.stop();
+		}
 		vadStream = newStream;
 		if (vadAudioCtx && vadAnalyser) {
 			const source = vadAudioCtx.createMediaStreamSource(newStream);

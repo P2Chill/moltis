@@ -4852,6 +4852,7 @@ function isVoiceEnabled() {
 async function checkSttStatus() {
   if (!isVoiceEnabled()) {
     sttConfigured = false;
+    if (vadActive) stopVad();
     updateMicButton();
     updateVadButton();
     return;
@@ -4862,6 +4863,7 @@ async function checkSttStatus() {
   } else {
     sttConfigured = false;
   }
+  if (!sttConfigured && vadActive) stopVad();
   updateMicButton();
   updateVadButton();
 }
@@ -5124,20 +5126,20 @@ async function transcribeAudio() {
         cleanupTranscribingState();
         sendTranscribedMessage(text, audioFilename || null);
       } else {
-        showTemporaryMessage("No speech detected", false, 2e3);
+        showTemporaryMessage(t("chat:voiceNoSpeech"), false, 2e3);
       }
     } else if (res.transcriptionError) {
       console.error("Transcription failed:", res.transcriptionError);
-      showTemporaryMessage(`Transcription failed: ${res.transcriptionError}`, true, 4e3);
+      showTemporaryMessage(t("chat:voiceTranscriptionFailed", { error: res.transcriptionError }), true, 4e3);
     } else if (!res.ok) {
       console.error("Upload failed:", res.error);
-      showTemporaryMessage(`Upload failed: ${res.error || "Unknown error"}`, true, 4e3);
+      showTemporaryMessage(t("chat:voiceUploadFailed", { error: res.error || t("chat:unknownError") }), true, 4e3);
     }
   } catch (err) {
     console.error("Transcription error:", err);
     micBtn == null ? void 0 : micBtn.classList.remove("transcribing");
     if (micBtn) micBtn.title = t("chat:micTooltip");
-    showTemporaryMessage("Transcription error", true, 4e3);
+    showTemporaryMessage(t("chat:voiceTranscriptionError"), true, 4e3);
   }
 }
 function onMicClick(e) {
@@ -5250,6 +5252,9 @@ async function vadReacquireStream() {
     const newStream = await navigator.mediaDevices.getUserMedia({
       audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
     });
+    if (vadStream) {
+      for (const track of vadStream.getTracks()) track.stop();
+    }
     vadStream = newStream;
     if (vadAudioCtx && vadAnalyser) {
       const source = vadAudioCtx.createMediaStreamSource(newStream);
