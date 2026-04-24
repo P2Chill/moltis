@@ -10,6 +10,7 @@ import * as S from "../../state";
 import { fetchPhrase } from "../../tts-phrases";
 import { targetChecked, targetValue } from "../../typed-events";
 import { Modal } from "../../ui";
+import { getPttKey, getVadSensitivity, setPttKey, setVadSensitivity } from "../../voice-input";
 import {
 	decodeBase64Safe,
 	fetchVoiceProviders,
@@ -84,6 +85,13 @@ export function VoiceSection(): VNode {
 	const [voiceTesting, setVoiceTesting] = useState<VoiceTesting | null>(null);
 	const [activeRecorder, setActiveRecorder] = useState<MediaRecorder | null>(null);
 	const [voiceTestResults, setVoiceTestResults] = useState<Record<string, VoiceTestResult>>({});
+
+	// PTT key configuration
+	const [pttKeyValue, setPttKeyValue] = useState(getPttKey());
+	const [pttListening, setPttListening] = useState(false);
+
+	// VAD sensitivity
+	const [vadSens, setVadSens] = useState(getVadSensitivity());
 
 	function fetchVoiceStatus(options?: { silent?: boolean }): void {
 		if (!options?.silent) {
@@ -369,6 +377,71 @@ export function VoiceSection(): VNode {
 							);
 						})}
 					</div>
+				</div>
+			</div>
+
+			{/* Push-to-Talk Configuration */}
+			<div style={{ maxWidth: "700px", display: "flex", flexDirection: "column", gap: "12px" }}>
+				<h3 className="text-sm font-medium text-[var(--text-strong)]">Push-to-Talk</h3>
+				<p className="text-xs text-[var(--muted)] leading-relaxed" style={{ margin: 0 }}>
+					Hold a keyboard key to record voice input. Release to send. Function keys (F1–F24) work even when focused in
+					an input field.
+				</p>
+				<div className="flex items-center gap-3">
+					<span className="text-xs text-[var(--muted)]">PTT Key:</span>
+					<button
+						type="button"
+						className="provider-key-input"
+						style={{ minWidth: "120px", textAlign: "center", cursor: "pointer" }}
+						onClick={() => {
+							if (pttListening) return;
+							setPttListening(true);
+							const handler = (ev: KeyboardEvent): void => {
+								ev.preventDefault();
+								ev.stopPropagation();
+								setPttKeyValue(ev.key);
+								setPttKey(ev.key);
+								setPttListening(false);
+								document.removeEventListener("keydown", handler, true);
+								rerender();
+							};
+							document.addEventListener("keydown", handler, true);
+							rerender();
+						}}
+					>
+						{pttListening ? "Press any key..." : pttKeyValue}
+					</button>
+				</div>
+			</div>
+
+			{/* VAD Sensitivity */}
+			<div style={{ maxWidth: "700px", display: "flex", flexDirection: "column", gap: "12px" }}>
+				<h3 className="text-sm font-medium text-[var(--text-strong)]">Conversation Mode (VAD)</h3>
+				<p className="text-xs text-[var(--muted)] leading-relaxed" style={{ margin: 0 }}>
+					Adjust how sensitive the voice activity detection is. Higher values pick up softer speech but may trigger on
+					background noise.
+				</p>
+				<div className="flex items-center gap-3">
+					<span className="text-xs text-[var(--muted)]" style={{ minWidth: "80px" }}>
+						Sensitivity:
+					</span>
+					<input
+						type="range"
+						min="0"
+						max="100"
+						step="5"
+						value={vadSens}
+						style={{ flex: 1, maxWidth: "200px", accentColor: "var(--accent)" }}
+						onInput={(e) => {
+							const val = parseInt(targetValue(e), 10);
+							setVadSens(val);
+							setVadSensitivity(val);
+							rerender();
+						}}
+					/>
+					<span className="text-xs text-[var(--muted)]" style={{ minWidth: "35px", textAlign: "right" }}>
+						{vadSens}%
+					</span>
 				</div>
 			</div>
 

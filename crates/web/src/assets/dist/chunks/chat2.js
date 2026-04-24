@@ -7,6 +7,8 @@ const chat = {
   micStopAndSend: "Cliquez pour arrêter et envoyer",
   voiceTranscribing: "Transcription...",
   voiceTranscribingMessage: "Transcription de la voix...",
+  vadTooltip: "Mode conversation (VAD)",
+  vadStopTooltip: "Cliquer pour quitter le mode conversation",
   // ── Slash commands ───────────────────────────────────────
   slashClear: "Clear conversation history",
   slashCompact: "Summarize conversation to save tokens",

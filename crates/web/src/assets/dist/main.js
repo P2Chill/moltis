@@ -4794,12 +4794,59 @@ window.addEventListener("moltis:locale-changed", () => {
   }
 });
 let micBtn = null;
+let vadBtn = null;
 let mediaRecorder = null;
 let audioChunks = [];
 let sttConfigured = false;
 let isRecording = false;
 let isStarting = false;
 let transcribingEl = null;
+let pttKey = localStorage.getItem("moltis_ptt_key") || "F13";
+let pttActive = false;
+const voiceLockChannel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("moltis_voice_lock") : null;
+let voiceLockedByOtherTab = false;
+if (voiceLockChannel) {
+  voiceLockChannel.onmessage = (e) => {
+    var _a2, _b2;
+    if (((_a2 = e.data) == null ? void 0 : _a2.type) === "voice_lock") {
+      voiceLockedByOtherTab = true;
+      console.debug("[voice] another tab claimed voice lock");
+    } else if (((_b2 = e.data) == null ? void 0 : _b2.type) === "voice_unlock") {
+      voiceLockedByOtherTab = false;
+      console.debug("[voice] another tab released voice lock");
+    }
+  };
+}
+function claimVoiceLock() {
+  voiceLockedByOtherTab = false;
+  voiceLockChannel == null ? void 0 : voiceLockChannel.postMessage({ type: "voice_lock" });
+}
+function releaseVoiceLock() {
+  voiceLockChannel == null ? void 0 : voiceLockChannel.postMessage({ type: "voice_unlock" });
+}
+let vadActive = false;
+let vadStream = null;
+let vadAudioCtx = null;
+let vadAnalyser = null;
+let vadDataArray = null;
+let vadRafId = null;
+let vadSpeechDetected = false;
+let vadSilenceStart = 0;
+let vadMutedForTts = false;
+let vadSensitivity = parseInt(localStorage.getItem("moltis_vad_sensitivity") || "50", 10);
+let vadSpeechThreshold = sensitivityToThreshold(vadSensitivity);
+function sensitivityToThreshold(pct) {
+  const clamped = Math.max(0, Math.min(100, pct));
+  return 0.08 * (5e-3 / 0.08) ** (clamped / 100);
+}
+const VAD_SILENCE_DURATION = 2500;
+const VAD_DEBOUNCE_SPEECH = 250;
+let vadSpeechStart = 0;
+let vadRecordingStart = 0;
+let vadMediaRecorder = null;
+let vadTranscribing = false;
+let vadMonitorMuteStart = 0;
+let vadMonitorLastLog = 0;
 function isVoiceEnabled() {
   return get("voice_enabled") === true;
 }
@@ -4807,6 +4854,7 @@ async function checkSttStatus() {
   if (!isVoiceEnabled()) {
     sttConfigured = false;
     updateMicButton();
+    updateVadButton();
     return;
   }
   const res = await sendRpc("stt.status", {});
@@ -4816,12 +4864,19 @@ async function checkSttStatus() {
     sttConfigured = false;
   }
   updateMicButton();
+  updateVadButton();
 }
 function updateMicButton() {
   if (!micBtn) return;
   micBtn.style.display = sttConfigured && isVoiceEnabled() ? "" : "none";
   micBtn.disabled = !connected;
   micBtn.title = isStarting ? t("chat:micStarting") : isRecording ? t("chat:micStopAndSend") : t("chat:micTooltip");
+}
+function updateVadButton() {
+  if (!vadBtn) return;
+  vadBtn.style.display = sttConfigured && isVoiceEnabled() ? "" : "none";
+  vadBtn.disabled = !connected;
+  vadBtn.title = vadActive ? t("chat:vadStopTooltip") : t("chat:vadTooltip");
 }
 function stopAllAudio() {
   for (const audio of document.querySelectorAll("audio")) {
@@ -4831,25 +4886,45 @@ function stopAllAudio() {
     }
   }
 }
-async function startRecording() {
+function getRMS(analyser, dataArray) {
+  analyser.getByteTimeDomainData(dataArray);
+  let sum = 0;
+  for (const sample of dataArray) {
+    const val = (sample - 128) / 128;
+    sum += val * val;
+  }
+  return Math.sqrt(sum / dataArray.length);
+}
+async function startRecording(opts) {
   if (isRecording || isStarting || !sttConfigured) return;
+  const fromVad = (opts == null ? void 0 : opts.fromVad) === true;
+  let stream = null;
   stopAllAudio();
   isStarting = true;
-  micBtn == null ? void 0 : micBtn.classList.add("starting");
-  micBtn == null ? void 0 : micBtn.setAttribute("aria-busy", "true");
-  micBtn.title = t("chat:micStarting");
+  if (micBtn && !fromVad) {
+    micBtn.classList.add("starting");
+    micBtn.setAttribute("aria-busy", "true");
+    micBtn.title = t("chat:micStarting");
+  }
   try {
     let showRecordingUi = function() {
-      if (recordingUiShown || !micBtn) return;
+      if (recordingUiShown) return;
       recordingUiShown = true;
       isStarting = false;
-      micBtn.classList.remove("starting");
-      micBtn.removeAttribute("aria-busy");
-      micBtn.classList.add("recording");
-      micBtn.setAttribute("aria-pressed", "true");
-      micBtn.title = t("chat:micStopAndSend");
+      if (fromVad) ;
+      else if (micBtn) {
+        micBtn.classList.remove("starting");
+        micBtn.removeAttribute("aria-busy");
+        micBtn.classList.add("recording");
+        micBtn.setAttribute("aria-pressed", "true");
+        micBtn.title = t("chat:micStopAndSend");
+      }
     };
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    if (!stream) {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+      });
+    }
     audioChunks = [];
     let recordingUiShown = false;
     const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus") ? "audio/webm;codecs=opus" : "audio/webm";
@@ -4870,16 +4945,19 @@ async function startRecording() {
       audioTrack.addEventListener("unmute", showRecordingUi, { once: true });
     }
     mediaRecorder.onstop = async () => {
-      for (const track of stream.getTracks()) {
-        track.stop();
+      if (!fromVad) {
+        for (const track of stream.getTracks()) {
+          track.stop();
+        }
       }
+      if (fromVad) ;
       await transcribeAudio();
     };
     mediaRecorder.start(250);
   } catch (err) {
     isStarting = false;
     isRecording = false;
-    if (micBtn) {
+    if (micBtn && !fromVad) {
       micBtn.classList.remove("starting");
       micBtn.removeAttribute("aria-busy");
       micBtn.setAttribute("aria-pressed", "false");
@@ -4897,12 +4975,14 @@ function stopRecording() {
   if (!(isRecording && mediaRecorder)) return;
   isStarting = false;
   isRecording = false;
-  micBtn == null ? void 0 : micBtn.classList.remove("starting");
-  micBtn == null ? void 0 : micBtn.removeAttribute("aria-busy");
-  micBtn == null ? void 0 : micBtn.classList.remove("recording");
-  micBtn == null ? void 0 : micBtn.setAttribute("aria-pressed", "false");
-  micBtn == null ? void 0 : micBtn.classList.add("transcribing");
-  micBtn.title = t("chat:voiceTranscribing");
+  if (micBtn) {
+    micBtn.classList.remove("starting");
+    micBtn.removeAttribute("aria-busy");
+    micBtn.classList.remove("recording");
+    micBtn.setAttribute("aria-pressed", "false");
+    micBtn.classList.add("transcribing");
+    micBtn.title = t("chat:voiceTranscribing");
+  }
   mediaRecorder.stop();
 }
 function cancelRecording() {
@@ -4911,10 +4991,13 @@ function cancelRecording() {
   audioChunks = [];
   isStarting = false;
   isRecording = false;
-  micBtn == null ? void 0 : micBtn.classList.remove("starting", "recording");
-  micBtn == null ? void 0 : micBtn.removeAttribute("aria-busy");
-  micBtn == null ? void 0 : micBtn.setAttribute("aria-pressed", "false");
-  micBtn.title = t("chat:micTooltip");
+  if (micBtn) {
+    micBtn.classList.remove("starting", "recording");
+    micBtn.removeAttribute("aria-busy");
+    micBtn.setAttribute("aria-pressed", "false");
+    micBtn.title = t("chat:micTooltip");
+  }
+  vadBtn == null ? void 0 : vadBtn.classList.remove("vad-speech");
   mediaRecorder.stop();
 }
 function createTranscribingIndicator(message, isError) {
@@ -4952,7 +5035,7 @@ function cleanupTranscribingState() {
   micBtn == null ? void 0 : micBtn.classList.remove("starting");
   micBtn == null ? void 0 : micBtn.removeAttribute("aria-busy");
   micBtn == null ? void 0 : micBtn.classList.remove("transcribing");
-  micBtn.title = t("chat:micTooltip");
+  if (micBtn) micBtn.title = t("chat:micTooltip");
   if (transcribingEl) {
     transcribingEl.remove();
     transcribingEl = null;
@@ -4968,7 +5051,6 @@ function sendTranscribedMessage(text, audioFilename) {
       if (text) {
         const textWrap = document.createElement("div");
         textWrap.className = "mt-2";
-        textWrap.textContent = "";
         const rendered = renderMarkdown(text);
         const fragment = document.createRange().createContextualFragment(rendered);
         textWrap.appendChild(fragment);
@@ -4982,13 +5064,9 @@ function sendTranscribedMessage(text, audioFilename) {
     text,
     _input_medium: "voice"
   };
-  if (audioFilename) {
-    chatParams._audio_filename = audioFilename;
-  }
+  if (audioFilename) chatParams._audio_filename = audioFilename;
   const selectedModel = selectedModelId;
-  if (selectedModel) {
-    chatParams.model = selectedModel;
-  }
+  if (selectedModel) chatParams.model = selectedModel;
   bumpSessionCount(activeSessionKey, 1);
   seedSessionPreviewFromUserText(activeSessionKey, text);
   setSessionReplying(activeSessionKey, true);
@@ -5013,14 +5091,29 @@ async function transcribeAudio() {
   try {
     const blob = new Blob(audioChunks, { type: "audio/webm" });
     audioChunks = [];
+    if (blob.size < 2e3) {
+      console.debug("[voice] skipping tiny blob:", blob.size, "bytes");
+      cleanupTranscribingState();
+      return;
+    }
+    const headerBytes = new Uint8Array(await blob.slice(0, 4).arrayBuffer());
+    if (headerBytes[0] !== 26 || headerBytes[1] !== 69 || headerBytes[2] !== 223 || headerBytes[3] !== 163) {
+      console.warn("[voice] corrupt WebM blob (bad EBML header), discarding. size:", blob.size);
+      cleanupTranscribingState();
+      return;
+    }
+    const abortCtrl = new AbortController();
+    const fetchTimeout = setTimeout(() => abortCtrl.abort(), 15e3);
     const resp = await fetch(`/api/sessions/${encodeURIComponent(activeSessionKey)}/upload?transcribe=true`, {
       method: "POST",
       headers: { "Content-Type": blob.type || "audio/webm" },
-      body: blob
+      body: blob,
+      signal: abortCtrl.signal
     });
+    clearTimeout(fetchTimeout);
     const res = await resp.json();
     micBtn == null ? void 0 : micBtn.classList.remove("transcribing");
-    micBtn.title = t("chat:micTooltip");
+    if (micBtn) micBtn.title = t("chat:micTooltip");
     if (res.ok && ((_a2 = res.transcription) == null ? void 0 : _a2.text)) {
       const text = String(res.transcription.text).trim();
       const audioFilename = typeof res.filename === "string" ? res.filename.trim() : "";
@@ -5040,16 +5133,339 @@ async function transcribeAudio() {
   } catch (err) {
     console.error("Transcription error:", err);
     micBtn == null ? void 0 : micBtn.classList.remove("transcribing");
-    micBtn.title = t("chat:micTooltip");
+    if (micBtn) micBtn.title = t("chat:micTooltip");
     showTemporaryMessage("Transcription error", true, 4e3);
   }
 }
 function onMicClick(e) {
   e.preventDefault();
+  if (vadActive) return;
   if (isRecording) {
+    releaseVoiceLock();
     stopRecording();
   } else {
+    if (voiceLockedByOtherTab) return;
+    claimVoiceLock();
     startRecording();
+  }
+}
+function onPttKeyDown(e) {
+  var _a2;
+  if (e.key !== pttKey) return;
+  if (vadActive || pttActive || isRecording) return;
+  const isFunctionKey = /^F\d{1,2}$/.test(e.key);
+  if (!isFunctionKey) {
+    const tag = (_a2 = document.activeElement) == null ? void 0 : _a2.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+  }
+  e.preventDefault();
+  if (voiceLockedByOtherTab) return;
+  pttActive = true;
+  claimVoiceLock();
+  console.debug("[voice] PTT start:", pttKey);
+  stopAllAudio();
+  startRecording();
+}
+function onPttKeyUp(e) {
+  if (e.key !== pttKey) return;
+  if (!pttActive) return;
+  e.preventDefault();
+  pttActive = false;
+  releaseVoiceLock();
+  console.debug("[voice] PTT release — sending");
+  stopRecording();
+}
+async function startVad() {
+  if (vadActive) return;
+  console.debug("[voice] VAD starting");
+  try {
+    vadStream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+    });
+  } catch (err) {
+    console.error("[voice] VAD mic access failed:", err);
+    if (err.name === "NotAllowedError") {
+      alert(t("settings:voice.micDenied"));
+    }
+    return;
+  }
+  vadActive = true;
+  vadSpeechDetected = false;
+  vadSilenceStart = 0;
+  vadSpeechStart = 0;
+  vadMutedForTts = false;
+  claimVoiceLock();
+  if (vadBtn) {
+    vadBtn.classList.add("vad-active");
+    vadBtn.title = t("chat:vadStopTooltip");
+  }
+  vadAudioCtx = new AudioContext();
+  const source = vadAudioCtx.createMediaStreamSource(vadStream);
+  vadAnalyser = vadAudioCtx.createAnalyser();
+  vadAnalyser.fftSize = 512;
+  vadAnalyser.smoothingTimeConstant = 0.3;
+  source.connect(vadAnalyser);
+  vadDataArray = new Uint8Array(vadAnalyser.fftSize);
+  vadStartContinuousRecorder();
+  vadMonitorLoop();
+  document.addEventListener("play", onTtsPlay, true);
+  document.addEventListener("ended", onTtsEnded, true);
+  document.addEventListener("pause", onTtsPause, true);
+}
+function vadStartContinuousRecorder() {
+  if (!(vadActive && vadStream)) return;
+  if (vadTranscribing) return;
+  audioChunks = [];
+  const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus") ? "audio/webm;codecs=opus" : "audio/webm";
+  vadMediaRecorder = new MediaRecorder(vadStream, { mimeType });
+  vadMediaRecorder.ondataavailable = (e) => {
+    if (e.data.size > 0) audioChunks.push(e.data);
+  };
+  vadMediaRecorder.onstop = async () => {
+    vadBtn == null ? void 0 : vadBtn.classList.remove("vad-speech");
+    if (audioChunks.length > 0 && vadSpeechDetected) {
+      vadSpeechDetected = false;
+      vadTranscribing = true;
+      try {
+        await transcribeAudio();
+      } finally {
+        vadTranscribing = false;
+      }
+    } else {
+      audioChunks = [];
+      vadSpeechDetected = false;
+    }
+    if (vadActive && !vadMutedForTts) {
+      vadStartContinuousRecorder();
+    }
+  };
+  vadMediaRecorder.start(250);
+  console.debug("[voice] VAD continuous recorder started");
+}
+async function vadReacquireStream() {
+  try {
+    const newStream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+    });
+    vadStream = newStream;
+    if (vadAudioCtx && vadAnalyser) {
+      const source = vadAudioCtx.createMediaStreamSource(newStream);
+      source.connect(vadAnalyser);
+    }
+    if (vadMediaRecorder && vadMediaRecorder.state === "recording") {
+      vadMediaRecorder.stop();
+    } else {
+      vadStartContinuousRecorder();
+    }
+    console.debug("[voice] VAD: stream reacquired successfully");
+  } catch (err) {
+    console.error("[voice] VAD: failed to reacquire stream:", err);
+    stopVad();
+  }
+}
+function stopVad() {
+  if (!vadActive) return;
+  console.debug("[voice] VAD stopping");
+  vadActive = false;
+  vadSpeechDetected = false;
+  vadTranscribing = false;
+  if (vadMediaRecorder && vadMediaRecorder.state !== "inactive") {
+    audioChunks = [];
+    vadMediaRecorder.stop();
+  }
+  vadMediaRecorder = null;
+  if (isRecording && mediaRecorder) {
+    audioChunks = [];
+    isRecording = false;
+    mediaRecorder.stop();
+  }
+  if (vadRafId) {
+    cancelAnimationFrame(vadRafId);
+    vadRafId = null;
+  }
+  if (vadAudioCtx) {
+    vadAudioCtx.close().catch(() => {
+    });
+    vadAudioCtx = null;
+    vadAnalyser = null;
+    vadDataArray = null;
+  }
+  if (vadStream) {
+    for (const track of vadStream.getTracks()) track.stop();
+    vadStream = null;
+  }
+  if (vadBtn) {
+    vadBtn.classList.remove("vad-active", "vad-speech", "vad-listening");
+    vadBtn.title = t("chat:vadTooltip");
+  }
+  releaseVoiceLock();
+  document.removeEventListener("play", onTtsPlay, true);
+  document.removeEventListener("ended", onTtsEnded, true);
+  document.removeEventListener("pause", onTtsPause, true);
+}
+function vadMonitorLoop() {
+  if (!(vadActive && vadAnalyser && vadDataArray)) return;
+  if (vadAudioCtx && vadAudioCtx.state === "suspended") {
+    console.debug("[voice] VAD: AudioContext suspended, resuming");
+    vadAudioCtx.resume();
+  }
+  if (vadStream) {
+    const track = vadStream.getAudioTracks()[0];
+    if (!track || track.readyState !== "live") {
+      console.warn("[voice] VAD: mic track died, reacquiring");
+      vadReacquireStream();
+      vadRafId = requestAnimationFrame(vadMonitorLoop);
+      return;
+    }
+  }
+  if (vadMutedForTts || (micBtn == null ? void 0 : micBtn.classList.contains("transcribing"))) {
+    if (vadMutedForTts && !vadMonitorMuteStart) {
+      vadMonitorMuteStart = Date.now();
+    } else if (vadMutedForTts && Date.now() - vadMonitorMuteStart > 1e4) {
+      console.debug("[voice] VAD: TTS mute timeout, force-resuming");
+      vadMutedForTts = false;
+      vadMonitorMuteStart = 0;
+      vadSpeechDetected = false;
+      vadStartContinuousRecorder();
+      vadBtn == null ? void 0 : vadBtn.classList.add("vad-listening");
+    }
+    vadRafId = requestAnimationFrame(vadMonitorLoop);
+    return;
+  }
+  vadMonitorMuteStart = 0;
+  const activeSession = sessionStore.getByKey(activeSessionKey);
+  if (activeSession == null ? void 0 : activeSession.replying.value) {
+    vadRafId = requestAnimationFrame(vadMonitorLoop);
+    return;
+  }
+  if (vadMediaRecorder && vadMediaRecorder.state === "recording" && vadBtn && !vadBtn.classList.contains("vad-listening") && !vadBtn.classList.contains("vad-speech")) {
+    vadBtn.classList.add("vad-listening");
+  }
+  if (!vadTranscribing && (!vadMediaRecorder || vadMediaRecorder.state === "inactive")) {
+    vadStartContinuousRecorder();
+  }
+  const rms = getRMS(vadAnalyser, vadDataArray);
+  const now = Date.now();
+  if (!vadMonitorLastLog || now - vadMonitorLastLog > 1e3) {
+    vadMonitorLastLog = now;
+    console.debug(
+      "[voice] VAD rms:",
+      rms.toFixed(4),
+      "speech:",
+      vadSpeechDetected,
+      "muted:",
+      vadMutedForTts,
+      "transcribing:",
+      vadTranscribing,
+      "ctx:",
+      vadAudioCtx == null ? void 0 : vadAudioCtx.state
+    );
+  }
+  if (rms > vadSpeechThreshold) {
+    vadSilenceStart = 0;
+    if (vadSpeechDetected && vadRecordingStart && now - vadRecordingStart > 3e4) {
+      console.debug("[voice] VAD: max duration reached, auto-sending");
+      vadSilenceStart = 0;
+      vadRecordingStart = 0;
+      vadBtn == null ? void 0 : vadBtn.classList.remove("vad-speech", "vad-listening");
+      if (vadMediaRecorder && vadMediaRecorder.state === "recording") {
+        vadMediaRecorder.stop();
+      }
+      vadRafId = requestAnimationFrame(vadMonitorLoop);
+      return;
+    }
+    if (!vadSpeechDetected) {
+      if (!vadSpeechStart) {
+        vadSpeechStart = now;
+      } else if (now - vadSpeechStart >= VAD_DEBOUNCE_SPEECH) {
+        vadSpeechDetected = true;
+        vadSpeechStart = 0;
+        vadRecordingStart = now;
+        console.debug("[voice] VAD: speech detected (recorder already running)");
+        stopAllAudio();
+        vadBtn == null ? void 0 : vadBtn.classList.add("vad-speech");
+      }
+    }
+  } else {
+    vadSpeechStart = 0;
+    if (vadSpeechDetected) {
+      if (!vadSilenceStart) {
+        vadSilenceStart = now;
+      } else if (now - vadSilenceStart >= VAD_SILENCE_DURATION) {
+        console.debug("[voice] VAD: silence detected, stopping & sending");
+        vadRecordingStart = 0;
+        vadSilenceStart = 0;
+        vadBtn == null ? void 0 : vadBtn.classList.remove("vad-speech", "vad-listening");
+        if (vadMediaRecorder && vadMediaRecorder.state === "recording") {
+          vadMediaRecorder.stop();
+        } else {
+          vadSpeechDetected = false;
+          audioChunks = [];
+        }
+      }
+    }
+  }
+  vadRafId = requestAnimationFrame(vadMonitorLoop);
+}
+function isAnyAudioPlaying() {
+  return Array.from(document.querySelectorAll("audio")).some((a) => !(a.paused || a.ended));
+}
+function onTtsPlay(e) {
+  var _a2;
+  if (!vadActive) return;
+  if (((_a2 = e.target) == null ? void 0 : _a2.tagName) !== "AUDIO") return;
+  console.debug("[voice] VAD: TTS playing, muting VAD + stopping recorder");
+  vadMutedForTts = true;
+  vadBtn == null ? void 0 : vadBtn.classList.remove("vad-listening", "vad-speech");
+  if (vadMediaRecorder && vadMediaRecorder.state === "recording") {
+    vadSpeechDetected = false;
+    audioChunks = [];
+    vadMediaRecorder.stop();
+    vadMediaRecorder = null;
+  }
+}
+function resumeVadAfterTts() {
+  vadSpeechDetected = false;
+  vadSilenceStart = 0;
+  vadSpeechStart = 0;
+  setTimeout(() => {
+    if (!vadActive) return;
+    if (isAnyAudioPlaying()) {
+      console.debug("[voice] VAD: another audio still playing, staying muted");
+      return;
+    }
+    vadMutedForTts = false;
+    if (!vadTranscribing) {
+      vadStartContinuousRecorder();
+      vadBtn == null ? void 0 : vadBtn.classList.add("vad-listening");
+    }
+  }, 400);
+}
+function onTtsEnded(e) {
+  var _a2;
+  if (!vadActive) return;
+  if (((_a2 = e.target) == null ? void 0 : _a2.tagName) !== "AUDIO") return;
+  console.debug("[voice] VAD: TTS ended, resuming VAD after delay");
+  resumeVadAfterTts();
+}
+function onTtsPause(e) {
+  var _a2;
+  if (!vadActive) return;
+  if (((_a2 = e.target) == null ? void 0 : _a2.tagName) !== "AUDIO") return;
+  const audio = e.target;
+  if (audio.ended || audio.duration && audio.currentTime >= audio.duration - 0.1) {
+    console.debug("[voice] VAD: TTS paused at end, treating as ended");
+    resumeVadAfterTts();
+  } else if (!isAnyAudioPlaying()) {
+    vadMutedForTts = false;
+  }
+}
+function onVadClick(e) {
+  e.preventDefault();
+  if (vadActive) {
+    stopVad();
+  } else {
+    startVad();
   }
 }
 function initVoiceInput(btn2) {
@@ -5067,19 +5483,52 @@ function initVoiceInput(btn2) {
     if (e.key === "Escape" && isRecording) {
       e.preventDefault();
       cancelRecording();
+      if (vadActive) stopVad();
     }
   });
+  document.addEventListener("keydown", onPttKeyDown);
+  document.addEventListener("keyup", onPttKeyUp);
   window.addEventListener("voice-config-changed", checkSttStatus);
 }
+function initVadButton(btn2) {
+  if (!btn2) return;
+  vadBtn = btn2;
+  updateVadButton();
+  vadBtn.addEventListener("click", onVadClick);
+}
 function teardownVoiceInput() {
+  if (vadActive) stopVad();
   if (isRecording && mediaRecorder) {
     mediaRecorder.stop();
   }
+  document.removeEventListener("keydown", onPttKeyDown);
+  document.removeEventListener("keyup", onPttKeyUp);
   window.removeEventListener("voice-config-changed", checkSttStatus);
+  releaseVoiceLock();
   micBtn = null;
+  vadBtn = null;
   mediaRecorder = null;
+  vadMediaRecorder = null;
+  vadTranscribing = false;
   audioChunks = [];
   isRecording = false;
+}
+function setPttKey(key) {
+  pttKey = key;
+  localStorage.setItem("moltis_ptt_key", key);
+  console.debug("[voice] PTT key set to:", key);
+}
+function getPttKey() {
+  return pttKey;
+}
+function setVadSensitivity(pct) {
+  vadSensitivity = Math.max(0, Math.min(100, pct));
+  vadSpeechThreshold = sensitivityToThreshold(vadSensitivity);
+  localStorage.setItem("moltis_vad_sensitivity", String(vadSensitivity));
+  console.debug("[voice] VAD sensitivity set to:", vadSensitivity, "threshold:", vadSpeechThreshold.toFixed(4));
+}
+function getVadSensitivity() {
+  return vadSensitivity;
 }
 function ctxEl(tag, cls, text) {
   const el = document.createElement(tag);
@@ -6374,7 +6823,7 @@ function initializeChatMediaDrop() {
   const inputArea = (_a2 = chatInput) == null ? void 0 : _a2.closest(".px-4.py-3");
   initMediaDrop(chatMsgBox, inputArea);
 }
-const chatPageHTML = '<div style="position:absolute;inset:0;display:grid;grid-template-rows:auto auto 1fr auto auto auto;overflow:hidden"><div class="chat-toolbar h-12 px-4 border-b border-[var(--border)] bg-[var(--surface)] flex items-center gap-2" style="grid-row:1;"><div id="modelCombo" class="model-combo"><button id="modelComboBtn" class="model-combo-btn" type="button"><span id="modelComboLabel">loading…</span><span class="icon icon-sm icon-chevron-down model-combo-chevron"></span></button><div id="modelDropdown" class="model-dropdown hidden"><input id="modelSearchInput" type="text" placeholder="Search models…" class="model-search-input" autocomplete="off" /><div id="modelDropdownList" class="model-dropdown-list"></div></div></div><div id="reasoningCombo" class="model-combo hidden"><button id="reasoningComboBtn" class="model-combo-btn" type="button" title="Reasoning effort"><span class="icon icon-sm icon-brain" style="flex-shrink:0;"></span><span id="reasoningComboLabel">Off</span><span class="icon icon-sm icon-chevron-down model-combo-chevron"></span></button><div id="reasoningDropdown" class="model-dropdown hidden"><div id="reasoningDropdownList" class="model-dropdown-list"></div></div></div><div id="nodeCombo" class="model-combo hidden"><button id="nodeComboBtn" class="model-combo-btn" type="button"><span class="icon icon-sm icon-server" style="flex-shrink:0;"></span><span id="nodeComboLabel">Local</span><span class="icon icon-sm icon-chevron-down model-combo-chevron"></span></button><div id="nodeDropdown" class="model-dropdown hidden" tabindex="-1"><div id="nodeDropdownList" class="model-dropdown-list"></div></div></div><div id="projectCombo" class="model-combo hidden"><button id="projectComboBtn" class="model-combo-btn" type="button"><span class="icon icon-sm icon-folder" style="flex-shrink:0;"></span><span id="projectComboLabel">No project</span><span class="icon icon-sm icon-chevron-down model-combo-chevron"></span></button><div id="projectDropdown" class="model-dropdown hidden"><div id="projectDropdownList" class="model-dropdown-list"></div></div></div><div id="sessionHeaderToolbarMount" class="ml-auto flex items-center gap-1.5"></div><button id="chatMoreBtn" type="button" class="model-combo-btn" title="More controls" aria-label="More controls"><span class="icon icon-lg icon-menu-dots-horizontal"></span></button></div><div id="chatMoreModal" class="provider-modal-backdrop hidden"><div class="provider-modal" style="width:560px;max-width:92vw;"><div class="provider-modal-header"><div class="flex items-center gap-2"><button id="chatMoreDeleteAllBtn" type="button" class="provider-btn provider-btn-sm chat-session-btn-danger inline-flex items-center gap-1.5" style="background:var(--error);border-color:var(--error);color:#fff;"><span class="icon icon-sm icon-x-circle shrink-0"></span><span id="chatMoreDeleteAllLabel">Delete all sessions</span></button></div><div id="sessionHeaderModalTopMount" class="flex items-center gap-2"></div></div><div class="provider-modal-body flex flex-col gap-3"><div class="flex flex-wrap items-center gap-2"><button id="sandboxToggle" class="sandbox-toggle text-xs border border-[var(--border)] px-2 py-1 rounded-md transition-colors cursor-pointer bg-transparent font-[var(--font-body)] inline-flex items-center gap-1" title="Toggle sandbox mode"><span class="icon icon-md icon-lock shrink-0"></span><span id="sandboxLabel">sandboxed</span></button><div style="position:relative;display:inline-block"><button id="sandboxImageBtn" class="text-xs border border-[var(--border)] px-2 py-1 rounded-md transition-colors cursor-pointer bg-transparent font-[var(--font-body)] inline-flex items-center gap-1 text-[var(--muted)]" title="Sandbox image"><span class="icon icon-md icon-cube shrink-0"></span><span id="sandboxImageLabel" class="max-w-[120px] truncate">ubuntu:25.10</span></button><div id="sandboxImageDropdown" class="hidden" style="position:absolute;top:100%;left:0;z-index:50;margin-top:4px;min-width:200px;max-height:300px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.15);"></div></div><button id="mcpToggleBtn" class="text-xs border border-[var(--border)] px-2 py-1 rounded-md transition-colors cursor-pointer bg-transparent font-[var(--font-body)] inline-flex items-center gap-1" title="Toggle MCP tools for this session"><span class="icon icon-md icon-link shrink-0"></span><span id="mcpToggleLabel">MCP</span></button><button id="debugPanelBtn" class="text-xs border border-[var(--border)] px-2 py-1 rounded-md transition-colors cursor-pointer bg-transparent font-[var(--font-body)] inline-flex items-center gap-1 text-[var(--muted)]" title="Show context debug info"><span class="icon icon-md icon-wrench shrink-0"></span><span id="debugPanelLabel">Debug</span></button><button id="fullContextBtn" class="text-xs border border-[var(--border)] px-2 py-1 rounded-md transition-colors cursor-pointer bg-transparent font-[var(--font-body)] inline-flex items-center gap-1 text-[var(--muted)]" title="Show full LLM context (system prompt + history)"><span class="icon icon-md icon-document shrink-0"></span><span id="fullContextLabel">Context</span></button></div><div id="sessionControlsSection" class="border-t border-[var(--border)] pt-3"><div id="sessionHeaderModalMount" class="w-full"></div></div></div></div></div><div id="debugModal" class="provider-modal-backdrop hidden"><div class="provider-modal" style="width:min(980px,96vw);max-width:96vw;max-height:88vh;"><div class="provider-modal-header"><div class="provider-item-name">Debug context</div><button id="debugModalCloseBtn" type="button" class="provider-btn provider-btn-secondary provider-btn-sm">Close</button></div><div class="provider-modal-body" style="padding:0;overflow:hidden;"><div id="debugPanel" class="px-4 py-3 overflow-y-auto" style="max-height:72vh;"></div></div></div></div><div id="fullContextModal" class="provider-modal-backdrop hidden"><div class="provider-modal" style="width:min(1080px,96vw);max-width:96vw;max-height:88vh;"><div class="provider-modal-header"><div class="provider-item-name">Full context</div><button id="fullContextModalCloseBtn" type="button" class="provider-btn provider-btn-secondary provider-btn-sm">Close</button></div><div class="provider-modal-body" style="padding:0;overflow:hidden;"><div id="fullContextPanel" class="px-4 py-3 overflow-y-auto" style="max-height:72vh;"></div></div></div></div><div class="p-4 flex flex-col gap-2" id="messages" style="grid-row:3;overflow-y:auto;min-height:0"></div><div id="queuedMessages" class="queued-tray hidden" style="grid-row:4;"></div><div id="tokenBar" class="token-bar" style="grid-row:5;"></div><div class="chat-input-row px-4 py-3 border-t border-[var(--border)] bg-[var(--surface)] flex gap-2 items-end" style="grid-row:6;"><span id="chatCommandPrompt" class="chat-command-prompt chat-command-prompt-hidden" title="Command prompt symbol" aria-hidden="true">$</span><textarea id="chatInput" placeholder="Type a message..." rows="1" enterkeyhint="send" class="flex-1 bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] px-3 py-2 rounded-lg text-sm resize-none min-h-[40px] max-h-[120px] leading-relaxed focus:outline-none focus:border-[var(--border-strong)] focus:ring-1 focus:ring-[var(--accent-subtle)] transition-colors font-[var(--font-body)]"></textarea><button id="micBtn" disabled title="Click to start recording" class="mic-btn min-h-[40px] px-3 bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--muted)] cursor-pointer disabled:opacity-40 disabled:cursor-default transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text)]"><span class="icon icon-lg icon-microphone"></span></button><button id="sendBtn" disabled class="provider-btn min-h-[40px] disabled:opacity-40 disabled:cursor-default">Send</button></div></div>';
+const chatPageHTML = '<div style="position:absolute;inset:0;display:grid;grid-template-rows:auto auto 1fr auto auto auto;overflow:hidden"><div class="chat-toolbar h-12 px-4 border-b border-[var(--border)] bg-[var(--surface)] flex items-center gap-2" style="grid-row:1;"><div id="modelCombo" class="model-combo"><button id="modelComboBtn" class="model-combo-btn" type="button"><span id="modelComboLabel">loading…</span><span class="icon icon-sm icon-chevron-down model-combo-chevron"></span></button><div id="modelDropdown" class="model-dropdown hidden"><input id="modelSearchInput" type="text" placeholder="Search models…" class="model-search-input" autocomplete="off" /><div id="modelDropdownList" class="model-dropdown-list"></div></div></div><div id="reasoningCombo" class="model-combo hidden"><button id="reasoningComboBtn" class="model-combo-btn" type="button" title="Reasoning effort"><span class="icon icon-sm icon-brain" style="flex-shrink:0;"></span><span id="reasoningComboLabel">Off</span><span class="icon icon-sm icon-chevron-down model-combo-chevron"></span></button><div id="reasoningDropdown" class="model-dropdown hidden"><div id="reasoningDropdownList" class="model-dropdown-list"></div></div></div><div id="nodeCombo" class="model-combo hidden"><button id="nodeComboBtn" class="model-combo-btn" type="button"><span class="icon icon-sm icon-server" style="flex-shrink:0;"></span><span id="nodeComboLabel">Local</span><span class="icon icon-sm icon-chevron-down model-combo-chevron"></span></button><div id="nodeDropdown" class="model-dropdown hidden" tabindex="-1"><div id="nodeDropdownList" class="model-dropdown-list"></div></div></div><div id="projectCombo" class="model-combo hidden"><button id="projectComboBtn" class="model-combo-btn" type="button"><span class="icon icon-sm icon-folder" style="flex-shrink:0;"></span><span id="projectComboLabel">No project</span><span class="icon icon-sm icon-chevron-down model-combo-chevron"></span></button><div id="projectDropdown" class="model-dropdown hidden"><div id="projectDropdownList" class="model-dropdown-list"></div></div></div><div id="sessionHeaderToolbarMount" class="ml-auto flex items-center gap-1.5"></div><button id="chatMoreBtn" type="button" class="model-combo-btn" title="More controls" aria-label="More controls"><span class="icon icon-lg icon-menu-dots-horizontal"></span></button></div><div id="chatMoreModal" class="provider-modal-backdrop hidden"><div class="provider-modal" style="width:560px;max-width:92vw;"><div class="provider-modal-header"><div class="flex items-center gap-2"><button id="chatMoreDeleteAllBtn" type="button" class="provider-btn provider-btn-sm chat-session-btn-danger inline-flex items-center gap-1.5" style="background:var(--error);border-color:var(--error);color:#fff;"><span class="icon icon-sm icon-x-circle shrink-0"></span><span id="chatMoreDeleteAllLabel">Delete all sessions</span></button></div><div id="sessionHeaderModalTopMount" class="flex items-center gap-2"></div></div><div class="provider-modal-body flex flex-col gap-3"><div class="flex flex-wrap items-center gap-2"><button id="sandboxToggle" class="sandbox-toggle text-xs border border-[var(--border)] px-2 py-1 rounded-md transition-colors cursor-pointer bg-transparent font-[var(--font-body)] inline-flex items-center gap-1" title="Toggle sandbox mode"><span class="icon icon-md icon-lock shrink-0"></span><span id="sandboxLabel">sandboxed</span></button><div style="position:relative;display:inline-block"><button id="sandboxImageBtn" class="text-xs border border-[var(--border)] px-2 py-1 rounded-md transition-colors cursor-pointer bg-transparent font-[var(--font-body)] inline-flex items-center gap-1 text-[var(--muted)]" title="Sandbox image"><span class="icon icon-md icon-cube shrink-0"></span><span id="sandboxImageLabel" class="max-w-[120px] truncate">ubuntu:25.10</span></button><div id="sandboxImageDropdown" class="hidden" style="position:absolute;top:100%;left:0;z-index:50;margin-top:4px;min-width:200px;max-height:300px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.15);"></div></div><button id="mcpToggleBtn" class="text-xs border border-[var(--border)] px-2 py-1 rounded-md transition-colors cursor-pointer bg-transparent font-[var(--font-body)] inline-flex items-center gap-1" title="Toggle MCP tools for this session"><span class="icon icon-md icon-link shrink-0"></span><span id="mcpToggleLabel">MCP</span></button><button id="debugPanelBtn" class="text-xs border border-[var(--border)] px-2 py-1 rounded-md transition-colors cursor-pointer bg-transparent font-[var(--font-body)] inline-flex items-center gap-1 text-[var(--muted)]" title="Show context debug info"><span class="icon icon-md icon-wrench shrink-0"></span><span id="debugPanelLabel">Debug</span></button><button id="fullContextBtn" class="text-xs border border-[var(--border)] px-2 py-1 rounded-md transition-colors cursor-pointer bg-transparent font-[var(--font-body)] inline-flex items-center gap-1 text-[var(--muted)]" title="Show full LLM context (system prompt + history)"><span class="icon icon-md icon-document shrink-0"></span><span id="fullContextLabel">Context</span></button></div><div id="sessionControlsSection" class="border-t border-[var(--border)] pt-3"><div id="sessionHeaderModalMount" class="w-full"></div></div></div></div></div><div id="debugModal" class="provider-modal-backdrop hidden"><div class="provider-modal" style="width:min(980px,96vw);max-width:96vw;max-height:88vh;"><div class="provider-modal-header"><div class="provider-item-name">Debug context</div><button id="debugModalCloseBtn" type="button" class="provider-btn provider-btn-secondary provider-btn-sm">Close</button></div><div class="provider-modal-body" style="padding:0;overflow:hidden;"><div id="debugPanel" class="px-4 py-3 overflow-y-auto" style="max-height:72vh;"></div></div></div></div><div id="fullContextModal" class="provider-modal-backdrop hidden"><div class="provider-modal" style="width:min(1080px,96vw);max-width:96vw;max-height:88vh;"><div class="provider-modal-header"><div class="provider-item-name">Full context</div><button id="fullContextModalCloseBtn" type="button" class="provider-btn provider-btn-secondary provider-btn-sm">Close</button></div><div class="provider-modal-body" style="padding:0;overflow:hidden;"><div id="fullContextPanel" class="px-4 py-3 overflow-y-auto" style="max-height:72vh;"></div></div></div></div><div class="p-4 flex flex-col gap-2" id="messages" style="grid-row:3;overflow-y:auto;min-height:0"></div><div id="queuedMessages" class="queued-tray hidden" style="grid-row:4;"></div><div id="tokenBar" class="token-bar" style="grid-row:5;"></div><div class="chat-input-row px-4 py-3 border-t border-[var(--border)] bg-[var(--surface)] flex gap-2 items-end" style="grid-row:6;"><span id="chatCommandPrompt" class="chat-command-prompt chat-command-prompt-hidden" title="Command prompt symbol" aria-hidden="true">$</span><textarea id="chatInput" placeholder="Type a message..." rows="1" enterkeyhint="send" class="flex-1 bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] px-3 py-2 rounded-lg text-sm resize-none min-h-[40px] max-h-[120px] leading-relaxed focus:outline-none focus:border-[var(--border-strong)] focus:ring-1 focus:ring-[var(--accent-subtle)] transition-colors font-[var(--font-body)]"></textarea><button id="micBtn" disabled title="Click to start recording" class="mic-btn min-h-[40px] px-3 bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--muted)] cursor-pointer disabled:opacity-40 disabled:cursor-default transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text)]"><span class="icon icon-lg icon-microphone"></span></button><button id="vadBtn" disabled title="Conversation mode (VAD)" class="vad-btn min-h-[40px] px-3 bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--muted)] cursor-pointer disabled:opacity-40 disabled:cursor-default transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text)]"><span class="icon icon-lg icon-waveform"></span></button><button id="sendBtn" disabled class="provider-btn min-h-[40px] disabled:opacity-40 disabled:cursor-default">Send</button></div></div>';
 let chatScrollHandler = null;
 registerPrefix(
   routes.chats,
@@ -6411,6 +6860,7 @@ registerPrefix(
     };
     (_c = chatMsgBox) == null ? void 0 : _c.addEventListener("scroll", chatScrollHandler, { passive: true });
     initVoiceInput($("micBtn"));
+    initVadButton($("vadBtn"));
     initializeChatMediaDrop();
     (_d = chatInput) == null ? void 0 : _d.focus();
   },
@@ -31099,6 +31549,9 @@ function VoiceSection() {
   const [voiceTesting, setVoiceTesting] = d(null);
   const [activeRecorder, setActiveRecorder] = d(null);
   const [voiceTestResults, setVoiceTestResults] = d({});
+  const [pttKeyValue, setPttKeyValue] = d(getPttKey());
+  const [pttListening, setPttListening] = d(false);
+  const [vadSens, setVadSens] = d(getVadSensitivity());
   function fetchVoiceStatus(options) {
     if (!(options == null ? void 0 : options.silent)) {
       setVoiceLoading(true);
@@ -31349,6 +31802,65 @@ function VoiceSection() {
             prov.id
           );
         }) })
+      ] })
+    ] }),
+    /* @__PURE__ */ u("div", { style: { maxWidth: "700px", display: "flex", flexDirection: "column", gap: "12px" }, children: [
+      /* @__PURE__ */ u("h3", { className: "text-sm font-medium text-[var(--text-strong)]", children: "Push-to-Talk" }),
+      /* @__PURE__ */ u("p", { className: "text-xs text-[var(--muted)] leading-relaxed", style: { margin: 0 }, children: "Hold a keyboard key to record voice input. Release to send. Function keys (F1–F24) work even when focused in an input field." }),
+      /* @__PURE__ */ u("div", { className: "flex items-center gap-3", children: [
+        /* @__PURE__ */ u("span", { className: "text-xs text-[var(--muted)]", children: "PTT Key:" }),
+        /* @__PURE__ */ u(
+          "button",
+          {
+            type: "button",
+            className: "provider-key-input",
+            style: { minWidth: "120px", textAlign: "center", cursor: "pointer" },
+            onClick: () => {
+              if (pttListening) return;
+              setPttListening(true);
+              const handler = (ev) => {
+                ev.preventDefault();
+                ev.stopPropagation();
+                setPttKeyValue(ev.key);
+                setPttKey(ev.key);
+                setPttListening(false);
+                document.removeEventListener("keydown", handler, true);
+                rerender$1();
+              };
+              document.addEventListener("keydown", handler, true);
+              rerender$1();
+            },
+            children: pttListening ? "Press any key..." : pttKeyValue
+          }
+        )
+      ] })
+    ] }),
+    /* @__PURE__ */ u("div", { style: { maxWidth: "700px", display: "flex", flexDirection: "column", gap: "12px" }, children: [
+      /* @__PURE__ */ u("h3", { className: "text-sm font-medium text-[var(--text-strong)]", children: "Conversation Mode (VAD)" }),
+      /* @__PURE__ */ u("p", { className: "text-xs text-[var(--muted)] leading-relaxed", style: { margin: 0 }, children: "Adjust how sensitive the voice activity detection is. Higher values pick up softer speech but may trigger on background noise." }),
+      /* @__PURE__ */ u("div", { className: "flex items-center gap-3", children: [
+        /* @__PURE__ */ u("span", { className: "text-xs text-[var(--muted)]", style: { minWidth: "80px" }, children: "Sensitivity:" }),
+        /* @__PURE__ */ u(
+          "input",
+          {
+            type: "range",
+            min: "0",
+            max: "100",
+            step: "5",
+            value: vadSens,
+            style: { flex: 1, maxWidth: "200px", accentColor: "var(--accent)" },
+            onInput: (e) => {
+              const val = parseInt(targetValue(e), 10);
+              setVadSens(val);
+              setVadSensitivity(val);
+              rerender$1();
+            }
+          }
+        ),
+        /* @__PURE__ */ u("span", { className: "text-xs text-[var(--muted)]", style: { minWidth: "35px", textAlign: "right" }, children: [
+          vadSens,
+          "%"
+        ] })
       ] })
     ] }),
     /* @__PURE__ */ u(
