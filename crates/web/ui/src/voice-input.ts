@@ -23,6 +23,7 @@ let audioChunks: Blob[] = [];
 let sttConfigured = false;
 let isRecording = false;
 let isStarting = false;
+let recordingCancelled = false;
 let transcribingEl: HTMLElement | null = null;
 
 // ── PTT state ────────────────────────────────────────────────
@@ -77,6 +78,7 @@ let vadSpeechStart = 0;
 let vadRecordingStart = 0;
 let vadMediaRecorder: MediaRecorder | null = null;
 let vadTranscribing = false;
+let vadReacquiring = false;
 
 // VAD monitor loop mutable state (avoids static properties on function)
 let vadMonitorMuteStart = 0;
@@ -262,6 +264,7 @@ function cancelRecording(): void {
 	if (!(isRecording && mediaRecorder)) return;
 
 	console.debug("[voice] recording cancelled via Escape");
+	recordingCancelled = true;
 	audioChunks = [];
 	isStarting = false;
 	isRecording = false;
@@ -378,10 +381,12 @@ interface TranscriptionUploadResponse {
 }
 
 async function transcribeAudio(): Promise<void> {
-	if (audioChunks.length === 0) {
+	if (recordingCancelled || audioChunks.length === 0) {
+		recordingCancelled = false;
 		cleanupTranscribingState();
 		return;
 	}
+	recordingCancelled = false;
 
 	if (S.chatMsgBox) {
 		transcribingEl = createTranscribingIndicator(t("chat:voiceTranscribingMessage"), false);
@@ -654,12 +659,17 @@ function vadMonitorLoop(): void {
 		vadAudioCtx.resume().catch(() => {});
 	}
 
-	// Health check: if the mic stream track ended, reacquire it
+	// Health check: if the mic stream track ended, reacquire it (guarded to prevent concurrent calls)
 	if (vadStream) {
 		const track = vadStream.getAudioTracks()[0];
 		if (!track || track.readyState !== "live") {
-			console.warn("[voice] VAD: mic track died, reacquiring");
-			vadReacquireStream();
+			if (!vadReacquiring) {
+				vadReacquiring = true;
+				console.warn("[voice] VAD: mic track died, reacquiring");
+				vadReacquireStream().finally(() => {
+					vadReacquiring = false;
+				});
+			}
 			vadRafId = requestAnimationFrame(vadMonitorLoop);
 			return;
 		}

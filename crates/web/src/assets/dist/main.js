@@ -4800,6 +4800,7 @@ let audioChunks = [];
 let sttConfigured = false;
 let isRecording = false;
 let isStarting = false;
+let recordingCancelled = false;
 let transcribingEl = null;
 let pttKey = localStorage.getItem("moltis_ptt_key") || "F13";
 let pttActive = false;
@@ -4845,6 +4846,7 @@ let vadSpeechStart = 0;
 let vadRecordingStart = 0;
 let vadMediaRecorder = null;
 let vadTranscribing = false;
+let vadReacquiring = false;
 let vadMonitorMuteStart = 0;
 function isVoiceEnabled() {
   return get("voice_enabled") === true;
@@ -4989,6 +4991,7 @@ function stopRecording() {
 function cancelRecording() {
   if (!(isRecording && mediaRecorder)) return;
   console.debug("[voice] recording cancelled via Escape");
+  recordingCancelled = true;
   audioChunks = [];
   isStarting = false;
   isRecording = false;
@@ -5080,10 +5083,12 @@ function sendTranscribedMessage(text, audioFilename) {
 }
 async function transcribeAudio() {
   var _a2;
-  if (audioChunks.length === 0) {
+  if (recordingCancelled || audioChunks.length === 0) {
+    recordingCancelled = false;
     cleanupTranscribingState();
     return;
   }
+  recordingCancelled = false;
   if (chatMsgBox) {
     transcribingEl = createTranscribingIndicator(t("chat:voiceTranscribingMessage"));
     chatMsgBox.appendChild(transcribingEl);
@@ -5321,8 +5326,13 @@ function vadMonitorLoop() {
   if (vadStream) {
     const track = vadStream.getAudioTracks()[0];
     if (!track || track.readyState !== "live") {
-      console.warn("[voice] VAD: mic track died, reacquiring");
-      vadReacquireStream();
+      if (!vadReacquiring) {
+        vadReacquiring = true;
+        console.warn("[voice] VAD: mic track died, reacquiring");
+        vadReacquireStream().finally(() => {
+          vadReacquiring = false;
+        });
+      }
       vadRafId = requestAnimationFrame(vadMonitorLoop);
       return;
     }
