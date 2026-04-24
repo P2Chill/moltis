@@ -29,6 +29,7 @@ const CODEX_MODELS_ENDPOINT: &str = "https://chatgpt.com/backend-api/codex/model
 const CODEX_MODELS_CLIENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 const DEFAULT_CODEX_MODELS: &[(&str, &str)] = &[
+    ("gpt-5.5", "GPT-5.5"),
     ("gpt-5.4", "GPT-5.4"),
     ("gpt-5.3-codex", "GPT-5.3 Codex"),
     ("gpt-5.2-codex", "GPT-5.2 Codex"),
