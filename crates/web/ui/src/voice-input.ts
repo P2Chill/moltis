@@ -567,6 +567,7 @@ async function startVad(): Promise<void> {
 function vadStartContinuousRecorder(): void {
 	if (!(vadActive && vadStream)) return;
 	if (vadTranscribing) return;
+	if (vadMediaRecorder && vadMediaRecorder.state === "recording") return;
 	audioChunks = [];
 	const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus") ? "audio/webm;codecs=opus" : "audio/webm";
 	vadMediaRecorder = new MediaRecorder(vadStream, { mimeType });
@@ -811,8 +812,9 @@ function onTtsPlay(e: Event): void {
 	if (vadMediaRecorder && vadMediaRecorder.state === "recording") {
 		vadSpeechDetected = false;
 		audioChunks = [];
-		vadMediaRecorder.stop();
+		const mr = vadMediaRecorder;
 		vadMediaRecorder = null;
+		mr.stop();
 	}
 }
 
