@@ -80,7 +80,6 @@ let vadTranscribing = false;
 
 // VAD monitor loop mutable state (avoids static properties on function)
 let vadMonitorMuteStart = 0;
-let vadMonitorLastLog = 0;
 
 /** Check if voice feature is enabled. */
 function isVoiceEnabled(): boolean {
@@ -409,14 +408,18 @@ async function transcribeAudio(): Promise<void> {
 
 		const abortCtrl = new AbortController();
 		const fetchTimeout = setTimeout(() => abortCtrl.abort(), 15000);
-		const resp = await fetch(`/api/sessions/${encodeURIComponent(S.activeSessionKey)}/upload?transcribe=true`, {
-			method: "POST",
-			headers: { "Content-Type": blob.type || "audio/webm" },
-			body: blob,
-			signal: abortCtrl.signal,
-		});
-		clearTimeout(fetchTimeout);
-		const res: TranscriptionUploadResponse = await resp.json();
+		let res: TranscriptionUploadResponse;
+		try {
+			const resp = await fetch(`/api/sessions/${encodeURIComponent(S.activeSessionKey)}/upload?transcribe=true`, {
+				method: "POST",
+				headers: { "Content-Type": blob.type || "audio/webm" },
+				body: blob,
+				signal: abortCtrl.signal,
+			});
+			res = await resp.json();
+		} finally {
+			clearTimeout(fetchTimeout);
+		}
 
 		micBtn?.classList.remove("transcribing");
 		if (micBtn) micBtn.title = t("chat:micTooltip");
@@ -643,7 +646,7 @@ function vadMonitorLoop(): void {
 	// Health check: resume AudioContext if browser suspended it
 	if (vadAudioCtx && vadAudioCtx.state === "suspended") {
 		console.debug("[voice] VAD: AudioContext suspended, resuming");
-		vadAudioCtx.resume();
+		vadAudioCtx.resume().catch(() => {});
 	}
 
 	// Health check: if the mic stream track ended, reacquire it
@@ -699,22 +702,6 @@ function vadMonitorLoop(): void {
 
 	const rms = getRMS(vadAnalyser, vadDataArray);
 	const now = Date.now();
-
-	if (!vadMonitorLastLog || now - vadMonitorLastLog > 1000) {
-		vadMonitorLastLog = now;
-		console.debug(
-			"[voice] VAD rms:",
-			rms.toFixed(4),
-			"speech:",
-			vadSpeechDetected,
-			"muted:",
-			vadMutedForTts,
-			"transcribing:",
-			vadTranscribing,
-			"ctx:",
-			vadAudioCtx?.state,
-		);
-	}
 
 	if (rms > vadSpeechThreshold) {
 		vadSilenceStart = 0;

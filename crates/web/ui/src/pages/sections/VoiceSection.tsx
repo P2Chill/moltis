@@ -75,6 +75,53 @@ interface VoxtralRequirements {
 	cuda?: { available?: boolean; gpu_name?: string; memory_mb?: number };
 }
 
+interface PttKeyPickerProps {
+	pttListening: boolean;
+	setPttListening: (v: boolean) => void;
+	pttKeyValue: string;
+	setPttKeyValue: (v: string) => void;
+}
+
+function PttKeyPicker({ pttListening, setPttListening, pttKeyValue, setPttKeyValue }: PttKeyPickerProps): VNode {
+	const handlerRef = useRef<((ev: KeyboardEvent) => void) | null>(null);
+
+	useEffect(() => {
+		return () => {
+			if (handlerRef.current) {
+				document.removeEventListener("keydown", handlerRef.current, true);
+				handlerRef.current = null;
+			}
+		};
+	}, []);
+
+	return (
+		<button
+			type="button"
+			className="provider-key-input"
+			style={{ minWidth: "120px", textAlign: "center", cursor: "pointer" }}
+			onClick={() => {
+				if (pttListening) return;
+				setPttListening(true);
+				const handler = (ev: KeyboardEvent): void => {
+					ev.preventDefault();
+					ev.stopPropagation();
+					setPttKeyValue(ev.key);
+					setPttKey(ev.key);
+					setPttListening(false);
+					document.removeEventListener("keydown", handler, true);
+					handlerRef.current = null;
+					rerender();
+				};
+				handlerRef.current = handler;
+				document.addEventListener("keydown", handler, true);
+				rerender();
+			}}
+		>
+			{pttListening ? "Press any key..." : pttKeyValue}
+		</button>
+	);
+}
+
 export function VoiceSection(): VNode {
 	const [allProviders, setAllProviders] = useState<VoiceProviders>({ tts: [], stt: [] });
 	const [voiceLoading, setVoiceLoading] = useState(true);
@@ -389,28 +436,12 @@ export function VoiceSection(): VNode {
 				</p>
 				<div className="flex items-center gap-3">
 					<span className="text-xs text-[var(--muted)]">PTT Key:</span>
-					<button
-						type="button"
-						className="provider-key-input"
-						style={{ minWidth: "120px", textAlign: "center", cursor: "pointer" }}
-						onClick={() => {
-							if (pttListening) return;
-							setPttListening(true);
-							const handler = (ev: KeyboardEvent): void => {
-								ev.preventDefault();
-								ev.stopPropagation();
-								setPttKeyValue(ev.key);
-								setPttKey(ev.key);
-								setPttListening(false);
-								document.removeEventListener("keydown", handler, true);
-								rerender();
-							};
-							document.addEventListener("keydown", handler, true);
-							rerender();
-						}}
-					>
-						{pttListening ? "Press any key..." : pttKeyValue}
-					</button>
+					<PttKeyPicker
+						pttListening={pttListening}
+						setPttListening={setPttListening}
+						pttKeyValue={pttKeyValue}
+						setPttKeyValue={setPttKeyValue}
+					/>
 				</div>
 			</div>
 

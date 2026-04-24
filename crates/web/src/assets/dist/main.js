@@ -4846,7 +4846,6 @@ let vadRecordingStart = 0;
 let vadMediaRecorder = null;
 let vadTranscribing = false;
 let vadMonitorMuteStart = 0;
-let vadMonitorLastLog = 0;
 function isVoiceEnabled() {
   return get("voice_enabled") === true;
 }
@@ -5104,14 +5103,18 @@ async function transcribeAudio() {
     }
     const abortCtrl = new AbortController();
     const fetchTimeout = setTimeout(() => abortCtrl.abort(), 15e3);
-    const resp = await fetch(`/api/sessions/${encodeURIComponent(activeSessionKey)}/upload?transcribe=true`, {
-      method: "POST",
-      headers: { "Content-Type": blob.type || "audio/webm" },
-      body: blob,
-      signal: abortCtrl.signal
-    });
-    clearTimeout(fetchTimeout);
-    const res = await resp.json();
+    let res;
+    try {
+      const resp = await fetch(`/api/sessions/${encodeURIComponent(activeSessionKey)}/upload?transcribe=true`, {
+        method: "POST",
+        headers: { "Content-Type": blob.type || "audio/webm" },
+        body: blob,
+        signal: abortCtrl.signal
+      });
+      res = await resp.json();
+    } finally {
+      clearTimeout(fetchTimeout);
+    }
     micBtn == null ? void 0 : micBtn.classList.remove("transcribing");
     if (micBtn) micBtn.title = t("chat:micTooltip");
     if (res.ok && ((_a2 = res.transcription) == null ? void 0 : _a2.text)) {
@@ -5307,7 +5310,8 @@ function vadMonitorLoop() {
   if (!(vadActive && vadAnalyser && vadDataArray)) return;
   if (vadAudioCtx && vadAudioCtx.state === "suspended") {
     console.debug("[voice] VAD: AudioContext suspended, resuming");
-    vadAudioCtx.resume();
+    vadAudioCtx.resume().catch(() => {
+    });
   }
   if (vadStream) {
     const track = vadStream.getAudioTracks()[0];
@@ -5346,21 +5350,6 @@ function vadMonitorLoop() {
   }
   const rms = getRMS(vadAnalyser, vadDataArray);
   const now = Date.now();
-  if (!vadMonitorLastLog || now - vadMonitorLastLog > 1e3) {
-    vadMonitorLastLog = now;
-    console.debug(
-      "[voice] VAD rms:",
-      rms.toFixed(4),
-      "speech:",
-      vadSpeechDetected,
-      "muted:",
-      vadMutedForTts,
-      "transcribing:",
-      vadTranscribing,
-      "ctx:",
-      vadAudioCtx == null ? void 0 : vadAudioCtx.state
-    );
-  }
   if (rms > vadSpeechThreshold) {
     vadSilenceStart = 0;
     if (vadSpeechDetected && vadRecordingStart && now - vadRecordingStart > 3e4) {
@@ -31539,6 +31528,43 @@ function VaultSection() {
 const voiceShowAddModal = y(false);
 const voiceSelectedProvider = y(null);
 const voiceSelectedProviderData = y(null);
+function PttKeyPicker({ pttListening, setPttListening, pttKeyValue, setPttKeyValue }) {
+  const handlerRef = A(null);
+  y$1(() => {
+    return () => {
+      if (handlerRef.current) {
+        document.removeEventListener("keydown", handlerRef.current, true);
+        handlerRef.current = null;
+      }
+    };
+  }, []);
+  return /* @__PURE__ */ u(
+    "button",
+    {
+      type: "button",
+      className: "provider-key-input",
+      style: { minWidth: "120px", textAlign: "center", cursor: "pointer" },
+      onClick: () => {
+        if (pttListening) return;
+        setPttListening(true);
+        const handler = (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          setPttKeyValue(ev.key);
+          setPttKey(ev.key);
+          setPttListening(false);
+          document.removeEventListener("keydown", handler, true);
+          handlerRef.current = null;
+          rerender$1();
+        };
+        handlerRef.current = handler;
+        document.addEventListener("keydown", handler, true);
+        rerender$1();
+      },
+      children: pttListening ? "Press any key..." : pttKeyValue
+    }
+  );
+}
 function VoiceSection() {
   const [allProviders, setAllProviders] = d({ tts: [], stt: [] });
   const [voiceLoading, setVoiceLoading] = d(true);
@@ -31810,27 +31836,12 @@ function VoiceSection() {
       /* @__PURE__ */ u("div", { className: "flex items-center gap-3", children: [
         /* @__PURE__ */ u("span", { className: "text-xs text-[var(--muted)]", children: "PTT Key:" }),
         /* @__PURE__ */ u(
-          "button",
+          PttKeyPicker,
           {
-            type: "button",
-            className: "provider-key-input",
-            style: { minWidth: "120px", textAlign: "center", cursor: "pointer" },
-            onClick: () => {
-              if (pttListening) return;
-              setPttListening(true);
-              const handler = (ev) => {
-                ev.preventDefault();
-                ev.stopPropagation();
-                setPttKeyValue(ev.key);
-                setPttKey(ev.key);
-                setPttListening(false);
-                document.removeEventListener("keydown", handler, true);
-                rerender$1();
-              };
-              document.addEventListener("keydown", handler, true);
-              rerender$1();
-            },
-            children: pttListening ? "Press any key..." : pttKeyValue
+            pttListening,
+            setPttListening,
+            pttKeyValue,
+            setPttKeyValue
           }
         )
       ] })
