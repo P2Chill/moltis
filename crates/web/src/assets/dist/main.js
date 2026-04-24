@@ -4847,6 +4847,7 @@ let vadRecordingStart = 0;
 let vadMediaRecorder = null;
 let vadTranscribing = false;
 let vadReacquiring = false;
+let vadSourceNode = null;
 let vadMonitorMuteStart = 0;
 function isVoiceEnabled() {
   return get("voice_enabled") === true;
@@ -4927,6 +4928,19 @@ async function startRecording(opts) {
       stream = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
       });
+    }
+    if (recordingCancelled) {
+      isStarting = false;
+      recordingCancelled = false;
+      if (!fromVad) {
+        for (const track of stream.getTracks()) track.stop();
+      }
+      if (micBtn) {
+        micBtn.classList.remove("starting");
+        micBtn.removeAttribute("aria-busy");
+        micBtn.title = t("chat:micTooltip");
+      }
+      return;
     }
     audioChunks = [];
     let recordingUiShown = false;
@@ -5182,6 +5196,9 @@ function onPttKeyUp(e) {
   e.preventDefault();
   pttActive = false;
   releaseVoiceLock();
+  if (isStarting) {
+    recordingCancelled = true;
+  }
   console.debug("[voice] PTT release — sending");
   stopRecording();
 }
@@ -5210,11 +5227,11 @@ async function startVad() {
     vadBtn.title = t("chat:vadStopTooltip");
   }
   vadAudioCtx = new AudioContext();
-  const source = vadAudioCtx.createMediaStreamSource(vadStream);
+  vadSourceNode = vadAudioCtx.createMediaStreamSource(vadStream);
   vadAnalyser = vadAudioCtx.createAnalyser();
   vadAnalyser.fftSize = 512;
   vadAnalyser.smoothingTimeConstant = 0.3;
-  source.connect(vadAnalyser);
+  vadSourceNode.connect(vadAnalyser);
   vadDataArray = new Uint8Array(vadAnalyser.fftSize);
   vadStartContinuousRecorder();
   vadMonitorLoop();
@@ -5262,8 +5279,11 @@ async function vadReacquireStream() {
     }
     vadStream = newStream;
     if (vadAudioCtx && vadAnalyser) {
-      const source = vadAudioCtx.createMediaStreamSource(newStream);
-      source.connect(vadAnalyser);
+      if (vadSourceNode) {
+        vadSourceNode.disconnect();
+      }
+      vadSourceNode = vadAudioCtx.createMediaStreamSource(newStream);
+      vadSourceNode.connect(vadAnalyser);
     }
     if (vadMediaRecorder && vadMediaRecorder.state === "recording") {
       vadMediaRecorder.stop();
@@ -5295,6 +5315,10 @@ function stopVad() {
   if (vadRafId) {
     cancelAnimationFrame(vadRafId);
     vadRafId = null;
+  }
+  if (vadSourceNode) {
+    vadSourceNode.disconnect();
+    vadSourceNode = null;
   }
   if (vadAudioCtx) {
     vadAudioCtx.close().catch(() => {

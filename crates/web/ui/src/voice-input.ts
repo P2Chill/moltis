@@ -79,6 +79,7 @@ let vadRecordingStart = 0;
 let vadMediaRecorder: MediaRecorder | null = null;
 let vadTranscribing = false;
 let vadReacquiring = false;
+let vadSourceNode: MediaStreamAudioSourceNode | null = null;
 
 // VAD monitor loop mutable state (avoids static properties on function)
 let vadMonitorMuteStart = 0;
@@ -174,6 +175,20 @@ async function startRecording(opts?: StartRecordingOpts): Promise<void> {
 			stream = await navigator.mediaDevices.getUserMedia({
 				audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
 			});
+		}
+		// If recording was cancelled while getUserMedia was in-flight (e.g. quick PTT tap), bail out
+		if (recordingCancelled) {
+			isStarting = false;
+			recordingCancelled = false;
+			if (!fromVad) {
+				for (const track of stream.getTracks()) track.stop();
+			}
+			if (micBtn) {
+				micBtn.classList.remove("starting");
+				micBtn.removeAttribute("aria-busy");
+				micBtn.title = t("chat:micTooltip");
+			}
+			return;
 		}
 		audioChunks = [];
 		let recordingUiShown = false;
@@ -495,6 +510,10 @@ function onPttKeyUp(e: KeyboardEvent): void {
 	e.preventDefault();
 	pttActive = false;
 	releaseVoiceLock();
+	if (isStarting) {
+		// getUserMedia still in-flight; cancel so it doesn't start an orphaned recording
+		recordingCancelled = true;
+	}
 	console.debug("[voice] PTT release — sending");
 	stopRecording();
 }
@@ -530,11 +549,11 @@ async function startVad(): Promise<void> {
 	}
 
 	vadAudioCtx = new AudioContext();
-	const source = vadAudioCtx.createMediaStreamSource(vadStream);
+	vadSourceNode = vadAudioCtx.createMediaStreamSource(vadStream);
 	vadAnalyser = vadAudioCtx.createAnalyser();
 	vadAnalyser.fftSize = 512;
 	vadAnalyser.smoothingTimeConstant = 0.3;
-	source.connect(vadAnalyser);
+	vadSourceNode.connect(vadAnalyser);
 	vadDataArray = new Uint8Array(vadAnalyser.fftSize);
 
 	vadStartContinuousRecorder();
@@ -586,8 +605,11 @@ async function vadReacquireStream(): Promise<void> {
 		}
 		vadStream = newStream;
 		if (vadAudioCtx && vadAnalyser) {
-			const source = vadAudioCtx.createMediaStreamSource(newStream);
-			source.connect(vadAnalyser);
+			if (vadSourceNode) {
+				vadSourceNode.disconnect();
+			}
+			vadSourceNode = vadAudioCtx.createMediaStreamSource(newStream);
+			vadSourceNode.connect(vadAnalyser);
 		}
 		if (vadMediaRecorder && vadMediaRecorder.state === "recording") {
 			vadMediaRecorder.stop();
@@ -626,6 +648,10 @@ function stopVad(): void {
 		vadRafId = null;
 	}
 
+	if (vadSourceNode) {
+		vadSourceNode.disconnect();
+		vadSourceNode = null;
+	}
 	if (vadAudioCtx) {
 		vadAudioCtx.close().catch(() => {});
 		vadAudioCtx = null;
