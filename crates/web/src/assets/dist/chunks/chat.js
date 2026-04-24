@@ -9,6 +9,10 @@ const chat = {
   voiceTranscribingMessage: "Transcribing voice...",
   vadTooltip: "Conversation mode (VAD)",
   vadStopTooltip: "Click to stop conversation mode",
+  voiceNoSpeech: "No speech detected",
+  voiceTranscriptionError: "Transcription error",
+  voiceTranscriptionFailed: "Transcription failed: {{error}}",
+  voiceUploadFailed: "Upload failed: {{error}}",
   // ── Slash commands ───────────────────────────────────────
   slashClear: "Clear conversation history",
   slashCompact: "Summarize conversation to save tokens",
