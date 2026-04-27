@@ -1851,12 +1851,69 @@ pub async fn prepare_gateway(
             }
 
             let chat = state.chat().await;
+            // Resolve the session key:
+            //   - Named(n) -> "cron:n" (persistent named cron session, e.g. heartbeat)
+            //   - Main + channel(account_id)/to (with channel_type either supplied or
+            //     looked up at runtime from the configured channels) -> the
+            //     channel-bound main session ("{channel_type}:{account}:{chat_id}").
+            //     Lands the cron turn in the user's actual Telegram/Discord
+            //     conversation so replies on that channel see it in history.
+            //   - Main without channel binding -> "main" (webUI main session)
+            //   - Isolated (and any other unrecognized target) -> fresh UUID per
+            //     run, the original isolated behavior.
             let session_key = match &req.session_target {
                 moltis_cron::types::SessionTarget::Named(name) => {
                     format!("cron:{name}")
                 },
+                moltis_cron::types::SessionTarget::Main => {
+                    let account = req.channel.as_deref().filter(|s| !s.is_empty());
+                    let chat_id = req.to.as_deref().filter(|s| !s.is_empty());
+
+                    // Prefer the explicit channel_type from the payload. If
+                    // missing (older jobs created before this field existed, or
+                    // clients that didn't populate it), look it up at runtime
+                    // from channel.status() — finds the entry with matching
+                    // account_id and uses its `type`.
+                    let mut resolved_kind: Option<String> =
+                        req.channel_type.as_deref().filter(|s| !s.is_empty()).map(String::from);
+                    if resolved_kind.is_none()
+                        && let Some(acct) = account
+                    {
+                        if let Ok(status_value) = state.services.channel.status().await
+                            && let Some(arr) = status_value.get("channels").and_then(|v| v.as_array())
+                        {
+                            for entry in arr {
+                                let entry_account = entry.get("account_id").and_then(|v| v.as_str());
+                                let entry_type = entry.get("type").and_then(|v| v.as_str());
+                                if entry_account == Some(acct)
+                                    && let Some(t) = entry_type
+                                    && !t.is_empty()
+                                {
+                                    resolved_kind = Some(t.to_string());
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    match (resolved_kind.as_deref(), account, chat_id) {
+                        (Some(kind), Some(account), Some(chat_id)) => {
+                            format!("{kind}:{account}:{chat_id}")
+                        }
+                        _ => "main".to_string(),
+                    }
+                },
                 _ => format!("cron:{}", uuid::Uuid::new_v4()),
             };
+            tracing::info!(
+                target: "moltis_cron::route",
+                session_target = ?req.session_target,
+                channel_type = ?req.channel_type,
+                channel = ?req.channel,
+                to = ?req.to,
+                resolved_session_key = %session_key,
+                "cron agent turn session key resolved"
+            );
 
             // Clear session history for named cron sessions before execution
             // so the run starts fresh but the history remains readable for debugging.
@@ -4285,6 +4342,7 @@ pub async fn prepare_gateway(
                         deliver: hb.deliver,
                         channel: hb.channel.clone(),
                         to: hb.to.clone(),
+                        channel_type: None,
                     }),
                     enabled: Some(true),
                     sandbox: Some(moltis_cron::types::CronSandboxConfig {
@@ -4313,6 +4371,7 @@ pub async fn prepare_gateway(
                         deliver: hb.deliver,
                         channel: hb.channel.clone(),
                         to: hb.to.clone(),
+                        channel_type: None,
                     },
                     session_target: SessionTarget::Named("heartbeat".into()),
                     delete_after_run: false,

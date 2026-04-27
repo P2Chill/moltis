@@ -601,31 +601,50 @@ impl AgentTool for CronTool {
         "Manage scheduled tasks (reminders, recurring jobs, cron schedules).\n\
          \n\
          For reminders and recurring tasks that should produce a response in the \
-         main conversation (e.g. \"tell me a joke every day at 9am\"), use:\n\
+         main webUI conversation (e.g. \"tell me a joke every day at 9am\"), use:\n\
          - sessionTarget: \"main\"\n\
          - payload.kind: \"systemEvent\"\n\
          - payload.text: a message that will be injected as if the user typed it \
            (the agent will then process it and respond). Write the text as an \
            instruction to yourself, e.g. \"Tell me a funny joke.\"\n\
          \n\
-         For isolated background tasks (no main session interaction), use:\n\
+         For tasks whose output should land in a CHANNEL\'s main session (e.g. a \
+         daily Telegram digest where the user can reply on Telegram and have the \
+         agent see the digest in history), use:\n\
+         - sessionTarget: \"main\"\n\
+         - payload.kind: \"agentTurn\"\n\
+         - payload.message: the prompt for the agent\n\
+         - payload.channel_type: \"telegram\" | \"discord\" | \"msteams\" | \"whatsapp\"\n\
+         - payload.channel: the channel ACCOUNT id (bot account) — e.g. \
+           \"my_telegram_bot\" or \"discord sparky\"\n\
+         - payload.to: the recipient CHAT id — e.g. Telegram chat_id \
+           \"123456789\" or Discord channel/DM id\n\
+         All three (channel_type + channel + to) are required together for \
+         channel routing. Without channel_type, sessionTarget=main falls back \
+         to the webUI main session.\n\
+         \n\
+         For isolated, throwaway background tasks (no session continuity), use:\n\
          - sessionTarget: \"isolated\"\n\
          - payload.kind: \"agentTurn\"\n\
          - payload.message: the prompt for the isolated agent run\n\
          \n\
-         To deliver the agent output to a channel (e.g. Telegram) after the run:\n\
+         To deliver an isolated job\'s output to a channel as a one-off message \
+         (no session continuity, agent doesn\'t see the channel\'s history):\n\
+         - sessionTarget: \"isolated\"\n\
          - payload.deliver: true\n\
-         - payload.channel: the channel account identifier (e.g. the Telegram \
-           bot username like \"my_telegram_bot\")\n\
-         - payload.to: the recipient chat ID (e.g. \"123456789\")\n\
-         All three fields are required together. deliver=true without channel \
-         and to will be rejected. Delivery only works with agentTurn payloads.\n\
+         - payload.channel: the channel account id (e.g. \"my_telegram_bot\")\n\
+         - payload.to: the recipient chat id (e.g. \"123456789\")\n\
+         deliver=true without channel and to will be rejected. Delivery only \
+         works with agentTurn payloads.\n\
          \n\
-         Important constraints:\n\
-         - sessionTarget \"main\" requires payload kind \"systemEvent\"\n\
-         - sessionTarget \"isolated\" requires payload kind \"agentTurn\"\n\
-         - When the user asks to send output to a channel, always use \
-           sessionTarget \"isolated\" + kind \"agentTurn\" + deliver fields\n\
+         Constraints:\n\
+         - sessionTarget \"isolated\" or \"named\" requires payload kind \"agentTurn\"\n\
+         - sessionTarget \"main\" accepts both kinds (systemEvent for webUI \
+           injection; agentTurn for direct turns optionally bound to a channel)\n\
+         - For continuous-conversation cron jobs in a channel (e.g. daily digest \
+           where you want to reply on Telegram), prefer sessionTarget=main + \
+           agentTurn + channel_type/channel/to over isolated+deliver — the latter \
+           creates a fresh session each run and the user\'s reply has no context.\n\
          \n\
          Optional execution controls for agent turns:\n\
          - payload.model: model id for this job\n\
@@ -662,16 +681,17 @@ impl AgentTool for CronTool {
                         },
                         "payload": {
                             "type": "object",
-                            "description": "What to do. Use {kind:'systemEvent', text} for main-session reminders or {kind:'agentTurn', message, model?, timeout_secs?, deliver?, channel?, to?}. `payload.model` selects the LLM for that job. This tool also accepts a shorthand message string at runtime.",
+                            "description": "What to do. Use {kind:'systemEvent', text} for main-webUI-session reminders, or {kind:'agentTurn', message, model?, timeout_secs?, deliver?, channel?, channel_type?, to?}. With sessionTarget=main + agentTurn + channel_type/channel/to, the run lands in the channel's main session (so the user can reply on Telegram/Discord and the agent sees the digest in history). With sessionTarget=isolated + deliver=true + channel/to, output is delivered as a one-off message in a fresh isolated session. payload.model selects the LLM. Shorthand message string is also accepted at runtime.",
                             "properties": {
                                 "kind": { "type": "string", "enum": ["systemEvent", "agentTurn"] },
                                 "text": { "type": "string" },
                                 "message": { "type": "string" },
                                 "model": { "type": "string" },
                                 "timeout_secs": { "type": "integer" },
-                                "deliver": { "type": "boolean", "description": "Set to true to deliver the agent output to a channel (e.g. Telegram) after the run. Requires channel and to." },
-                                "channel": { "type": "string", "description": "Channel account identifier for delivery (e.g. the Telegram bot username like 'my_telegram_bot'). Required when deliver=true." },
-                                "to": { "type": "string", "description": "Recipient chat ID for delivery (e.g. '123456789' for Telegram). Required when deliver=true." }
+                                "deliver": { "type": "boolean", "description": "(Isolated only.) Set to true to deliver the agent output as a one-off message to a channel after the run. Requires channel and to. For continuous-conversation cron jobs in a channel, use sessionTarget=main + channel_type/channel/to instead." },
+                                "channel_type": { "type": "string", "enum": ["telegram", "discord", "msteams", "whatsapp"], "description": "Channel kind for routing. With sessionTarget=main + channel + to, this routes the cron turn into the channel's main session so user replies on that channel see it in history. Without channel_type, sessionTarget=main falls back to webUI main." },
+                                "channel": { "type": "string", "description": "Channel account identifier (the bot account, e.g. 'my_telegram_bot' or 'discord sparky'). Required for both delivery (with deliver=true) and channel-bound main routing (with channel_type)." },
+                                "to": { "type": "string", "description": "Recipient chat ID — Telegram chat_id (e.g. '123456789'), Discord channel/DM id, etc. Required for both delivery and channel-bound main routing." }
                             },
                             "required": ["kind"]
                         },

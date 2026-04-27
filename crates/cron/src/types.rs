@@ -52,6 +52,14 @@ pub enum CronPayload {
         channel: Option<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
         to: Option<String>,
+        /// Channel kind ("telegram", "discord", "msteams", "whatsapp") for the
+        /// `channel` account_id above. Required (along with `channel` and `to`)
+        /// to route `SessionTarget::Main` to the channel-bound session — without
+        /// it, Main falls back to the webUI main session. Optional for backward
+        /// compatibility with cron jobs created before this field existed.
+        #[serde(default)]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        channel_type: Option<String>,
     },
 }
 

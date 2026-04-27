@@ -110,6 +110,10 @@ pub struct AgentTurnRequest {
     pub deliver: bool,
     pub channel: Option<String>,
     pub to: Option<String>,
+    /// Channel kind ("telegram", "discord", etc.) when the cron is bound to a
+    /// channel account. Used together with `channel` (account_id) and `to`
+    /// (chat_id) to route `Main` to the channel-bound session.
+    pub channel_type: Option<String>,
     pub session_target: SessionTarget,
     pub sandbox: CronSandboxConfig,
 }
@@ -553,6 +557,7 @@ impl CronService {
                 deliver,
                 channel,
                 to,
+                channel_type,
             } => {
                 let req = AgentTurnRequest {
                     message: message.clone(),
@@ -561,6 +566,7 @@ impl CronService {
                     deliver: *deliver,
                     channel: channel.clone(),
                     to: to.clone(),
+                    channel_type: channel_type.clone(),
                     session_target: job.session_target.clone(),
                     sandbox: job.sandbox.clone(),
                 };
@@ -701,11 +707,9 @@ impl CronService {
 /// Validate session_target + payload compatibility.
 fn validate_job_spec(job: &CronJob) -> Result<()> {
     match (&job.session_target, &job.payload) {
-        (SessionTarget::Main, CronPayload::AgentTurn { .. }) => {
-            return Err(Error::message(
-                "sessionTarget=main requires payload kind=systemEvent",
-            ));
-        },
+        // Main + AgentTurn is now allowed: the firing path resolves the main
+        // session for the chosen channel (channel + to) when those are present,
+        // or falls back to the webUI main session otherwise.
         (SessionTarget::Isolated | SessionTarget::Named(_), CronPayload::SystemEvent { .. }) => {
             return Err(Error::message(
                 "sessionTarget=isolated/named requires payload kind=agentTurn",

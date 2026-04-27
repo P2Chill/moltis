@@ -514,6 +514,8 @@ function CronJobRow(props) {
       <button class="cron-action-btn" onClick=${() => {
 				editingJob.value = job;
 				showModal.value = true;
+				// Refresh channel accounts so the dropdown is up-to-date when reopening.
+				loadChannelAccounts();
 			}}>Edit</button>
       <button class="cron-action-btn" onClick=${onRun}>Run</button>
       <button class="cron-action-btn" onClick=${onHistory}>History</button>
@@ -620,6 +622,10 @@ function CronModal() {
 	var jobEnabled = useSignal(true);
 	var deliverToChannel = useSignal(false);
 	var deliverChannel = useSignal("");
+	// Channel kind ("telegram", "discord", "msteams", "whatsapp") for deliverChannel.
+	// Required so SessionTarget=Main routes the cron output into the channel-bound
+	// session ("{channel_type}:{deliverChannel}:{deliverTo}") rather than webUI main.
+	var deliverChannelType = useSignal("");
 	var deliverTo = useSignal("");
 
 	// Sync signal values when the edited job changes (useSignal only
@@ -641,6 +647,7 @@ function CronModal() {
 			jobEnabled.value = j.enabled;
 			deliverToChannel.value = j.payload?.deliver === true;
 			deliverChannel.value = j.payload?.channel || "";
+			deliverChannelType.value = j.payload?.channel_type || j.payload?.channelType || "";
 			deliverTo.value = j.payload?.to || "";
 		} else {
 			saving.value = false;
@@ -657,18 +664,30 @@ function CronModal() {
 			jobEnabled.value = true;
 			deliverToChannel.value = false;
 			deliverChannel.value = "";
+			deliverChannelType.value = "";
 			deliverTo.value = "";
 		}
 	}, [editingJob.value]);
 
 	function onPayloadKindChange(e) {
-		payloadKind.value = e.target.value;
-		sessionTarget.value = e.target.value === "systemEvent" ? "main" : "isolated";
+		var nextKind = e.target.value;
+		payloadKind.value = nextKind;
+		// Only auto-fix invalid combos. Backend rejects isolated/named + systemEvent.
+		// Main accepts either kind now (systemEvent for webUI injection,
+		// agentTurn for direct turns optionally bound to a channel).
+		if (nextKind === "systemEvent" && sessionTarget.value !== "main") {
+			sessionTarget.value = "main";
+		}
 	}
 
 	function onSessionTargetChange(e) {
-		sessionTarget.value = e.target.value;
-		payloadKind.value = e.target.value === "main" ? "systemEvent" : "agentTurn";
+		var nextTarget = e.target.value;
+		sessionTarget.value = nextTarget;
+		// Only flip payloadKind when the new combo is invalid.
+		// Main is permissive — leave the user's choice.
+		if (nextTarget !== "main" && payloadKind.value === "systemEvent") {
+			payloadKind.value = "agentTurn";
+		}
 	}
 
 	function onSave(e) {
@@ -693,13 +712,31 @@ function CronModal() {
 		var payload =
 			selectedPayloadKind === "systemEvent"
 				? { kind: "systemEvent", text: msgText }
-				: {
-						kind: "agentTurn",
-						message: msgText,
-						deliver: deliverToChannel.value,
-						...(deliverToChannel.value && deliverChannel.value ? { channel: deliverChannel.value } : {}),
-						...(deliverToChannel.value && deliverTo.value.trim() ? { to: deliverTo.value.trim() } : {}),
-					};
+				: (() => {
+						var pickedAccount = channelAccounts.value.find(
+							(c) => c.account_id === deliverChannel.value,
+						);
+						var derivedChannelType =
+							pickedAccount?.type ||
+							pickedAccount?.channel_type ||
+							pickedAccount?.channelType ||
+							deliverChannelType.value ||
+							"";
+						return {
+							kind: "agentTurn",
+							message: msgText,
+							deliver: deliverToChannel.value,
+							...(deliverToChannel.value && deliverChannel.value
+								? { channel: deliverChannel.value }
+								: {}),
+							...(deliverToChannel.value && deliverTo.value.trim()
+								? { to: deliverTo.value.trim() }
+								: {}),
+							...(deliverToChannel.value && derivedChannelType
+								? { channel_type: derivedChannelType }
+								: {}),
+						};
+					})();
 		if (selectedPayloadKind === "agentTurn" && jobModel.value) {
 			payload.model = jobModel.value;
 		}
@@ -822,19 +859,39 @@ function CronModal() {
                 value=${deliverChannel.value}
                 onChange=${(v) => {
 									deliverChannel.value = v;
+									// Also capture the channel kind so SessionTarget=Main can route
+									// the cron job into the channel-bound session.
+									var picked = channelAccounts.value.find((c) => c.account_id === v);
+									deliverChannelType.value = picked?.type || picked?.channel_type || picked?.channelType || "";
 								}}
                 placeholder="Select channel account"
                 searchPlaceholder="Search channels\u2026"
               />
             </div>
             <div class="mt-3">
-              <label class="block text-xs text-[var(--muted)] mb-1">Chat ID (recipient)</label>
-              <input class="provider-key-input" placeholder="Telegram chat_id"
+              <label class="block text-xs text-[var(--muted)] mb-1">Recipient ID</label>
+              <input class="provider-key-input" placeholder=${
+								deliverChannelType.value === "discord"
+									? "Discord channel ID (DM channel or server channel)"
+									: deliverChannelType.value === "msteams"
+									? "MS Teams channel ID"
+									: deliverChannelType.value === "whatsapp"
+									? "WhatsApp recipient (phone or chat id)"
+									: "Telegram chat_id (e.g. 123456789)"
+							}
                 value=${deliverTo.value}
                 onInput=${(e) => {
 									deliverTo.value = e.target.value;
 								}} />
-              <p class="text-xs text-[var(--muted)] mt-1">The Telegram chat ID where output will be sent.</p>
+              <p class="text-xs text-[var(--muted)] mt-1">${
+								deliverChannelType.value === "discord"
+									? "For Discord DMs: paste the DM CHANNEL ID (right-click the DM → Copy Channel ID), not your user ID."
+									: deliverChannelType.value === "msteams"
+									? "MS Teams channel ID where output will be sent."
+									: deliverChannelType.value === "whatsapp"
+									? "WhatsApp chat/recipient identifier."
+									: "Telegram chat ID (group, channel, or your DM chat with the bot)."
+							}</p>
             </div>
           `
 					}
@@ -931,6 +988,8 @@ function CronJobsPanel() {
         onClick=${() => {
 					editingJob.value = null;
 					showModal.value = true;
+					// Refresh channel accounts so the dropdown is up-to-date when opening.
+					loadChannelAccounts();
 				}}>+ Add Job</button>
     </div>
     <${StatusBar} />
