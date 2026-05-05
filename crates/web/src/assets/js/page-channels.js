@@ -343,7 +343,7 @@ function AllowlistInput({ value, onChange }) {
 }
 
 // ── Shared form fields (DM policy, mention mode, model, allowlist) ───
-function SharedChannelFields({ addModel, allowlistItems }) {
+function SharedChannelFields({ addModel, allowlistItems, ownersItems }) {
 	var defaultPlaceholder =
 		modelsSig.value.length > 0
 			? `(default: ${modelsSig.value[0].displayName || modelsSig.value[0].id})`
@@ -373,6 +373,18 @@ function SharedChannelFields({ addModel, allowlistItems }) {
       <${AllowlistInput} value=${allowlistItems.value} onChange=${(v) => {
 				allowlistItems.value = v;
 			}} />
+      ${
+				ownersItems &&
+				html`
+        <label class="text-xs text-[var(--muted)]">
+          Owners (can run /sh shell commands)
+          <span class="block text-[10px] opacity-60 font-normal">Leave empty to treat first allowlist entry as implicit owner.</span>
+        </label>
+        <${AllowlistInput} value=${ownersItems.value} onChange=${(v) => {
+					ownersItems.value = v;
+				}} />
+      `
+			}
   `;
 }
 
@@ -382,6 +394,7 @@ function AddTelegramModal() {
 	var saving = useSignal(false);
 	var addModel = useSignal("");
 	var allowlistItems = useSignal([]);
+	var ownersItems = useSignal([]);
 	var accountDraft = useSignal("");
 
 	function onSubmit(e) {
@@ -401,6 +414,7 @@ function AddTelegramModal() {
 			dm_policy: form.querySelector("[data-field=dmPolicy]").value,
 			mention_mode: form.querySelector("[data-field=mentionMode]").value,
 			allowlist: allowlistItems.value,
+			owners: ownersItems.value,
 		};
 		if (addModel.value) {
 			addConfig.model = addModel.value;
@@ -413,6 +427,7 @@ function AddTelegramModal() {
 				showAddTelegram.value = false;
 				addModel.value = "";
 				allowlistItems.value = [];
+				ownersItems.value = [];
 				accountDraft.value = "";
 				loadChannels();
 			} else {
@@ -445,7 +460,7 @@ function AddTelegramModal() {
 	      <input data-field="credential" type="password" placeholder="123456:ABC-DEF..." class="channel-input"
 	        autocomplete="new-password" autocapitalize="none" autocorrect="off" spellcheck="false"
 	        name="telegram_bot_token" />
-	      <${SharedChannelFields} addModel=${addModel} allowlistItems=${allowlistItems} />
+	      <${SharedChannelFields} addModel=${addModel} allowlistItems=${allowlistItems} ownersItems=${ownersItems} />
 	      ${error.value && html`<div class="text-xs text-[var(--error)] channel-error block">${error.value}</div>`}
 	      <button class="provider-btn" onClick=${onSubmit} disabled=${saving.value}>
 	        ${saving.value ? "Connecting\u2026" : "Connect Telegram"}
@@ -632,6 +647,7 @@ function AddDiscordModal() {
 	var saving = useSignal(false);
 	var addModel = useSignal("");
 	var allowlistItems = useSignal([]);
+	var ownersItems = useSignal([]);
 	var accountDraft = useSignal("");
 	var tokenDraft = useSignal("");
 
@@ -652,6 +668,7 @@ function AddDiscordModal() {
 			dm_policy: form.querySelector("[data-field=dmPolicy]").value,
 			mention_mode: form.querySelector("[data-field=mentionMode]").value,
 			allowlist: allowlistItems.value,
+			owners: ownersItems.value,
 		};
 		if (addModel.value) {
 			addConfig.model = addModel.value;
@@ -664,6 +681,7 @@ function AddDiscordModal() {
 				showAddDiscord.value = false;
 				addModel.value = "";
 				allowlistItems.value = [];
+				ownersItems.value = [];
 				accountDraft.value = "";
 				tokenDraft.value = "";
 				loadChannels();
@@ -713,7 +731,7 @@ function AddDiscordModal() {
 	        <a href=${inviteUrl} target="_blank" class="text-xs text-[var(--accent)] underline break-all">${inviteUrl}</a>
 	      </div>`
 				}
-	      <${SharedChannelFields} addModel=${addModel} allowlistItems=${allowlistItems} />
+	      <${SharedChannelFields} addModel=${addModel} allowlistItems=${allowlistItems} ownersItems=${ownersItems} />
 	      ${error.value && html`<div class="text-xs text-[var(--error)] channel-error block">${error.value}</div>`}
 	      <button class="provider-btn" onClick=${onSubmit} disabled=${saving.value}>
 	        ${saving.value ? "Connecting\u2026" : "Connect Discord"}
@@ -873,6 +891,7 @@ function EditChannelModal() {
 	var saving = useSignal(false);
 	var editModel = useSignal("");
 	var allowlistItems = useSignal([]);
+	var ownersItems = useSignal([]);
 	var editCredential = useSignal("");
 	var editWebhookSecret = useSignal("");
 	var editAckReaction = useSignal("");
@@ -882,6 +901,7 @@ function EditChannelModal() {
 	useEffect(() => {
 		editModel.value = ch?.config?.model || "";
 		allowlistItems.value = ch?.config?.allowlist || [];
+		ownersItems.value = ch?.config?.owners || [];
 		editCredential.value = "";
 		editWebhookSecret.value = ch?.config?.webhook_secret || "";
 		editAckReaction.value = ch?.config?.ack_reaction || "";
@@ -920,6 +940,9 @@ function EditChannelModal() {
 		var updateConfig = {};
 		updateConfig.dm_policy = form.querySelector("[data-field=dmPolicy]")?.value || "open";
 		updateConfig.allowlist = allowlistItems.value;
+		if (isDiscord || isTelegram) {
+			updateConfig.owners = ownersItems.value;
+		}
 		if (!isWhatsApp) {
 			updateConfig.mention_mode = form.querySelector("[data-field=mentionMode]")?.value || "mention";
 		}
@@ -1052,6 +1075,18 @@ function EditChannelModal() {
       <${AllowlistInput} value=${allowlistItems.value} onChange=${(v) => {
 				allowlistItems.value = v;
 			}} />
+      ${
+				(isDiscord || isTelegram) &&
+				html`
+        <label class="text-xs text-[var(--muted)]">
+          Owners (can run /sh shell commands)
+          <span class="block text-[10px] opacity-60 font-normal">Leave empty to treat first allowlist entry as implicit owner.</span>
+        </label>
+        <${AllowlistInput} value=${ownersItems.value} onChange=${(v) => {
+					ownersItems.value = v;
+				}} />
+      `
+			}
       ${error.value && html`<div class="text-xs text-[var(--error)] channel-error block">${error.value}</div>`}
 	      <button class="provider-btn"
 	        onClick=${onSave} disabled=${saving.value}>
