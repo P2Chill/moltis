@@ -89,7 +89,39 @@ fn rewrite_for_shell_mode(text: &str) -> Option<String> {
         return None;
     }
 
-    Some(format!("/sh {trimmed}"))
+    // Strip a leading `Name: ` prefix that channel handlers prepend so
+    // multi-user chats know who is talking. In shell mode the prefix
+    // poisons the command line ("P2C: which claude" → `sh: P2C:: not
+    // found`). The owner-only gate at the chat boundary is the primary
+    // safety control; this strip is purely cosmetic so the shell command
+    // actually runs for legitimate owners.
+    let cleaned = strip_sender_prefix(trimmed);
+    Some(format!("/sh {cleaned}"))
+}
+
+/// Remove a leading `Name: ` prefix added by channel handlers for multi-user
+/// awareness. Returns the input unchanged when no prefix is detected.
+///
+/// Heuristic: look for the first `": "` within the first line; treat the
+/// substring before it as a name prefix IFF that substring is non-empty,
+/// contains no whitespace, and contains no shell metacharacters. The
+/// no-whitespace rule is the key disambiguator — channel handlers use
+/// `sender_name` or `username` as the prefix, which is always a single token
+/// in Discord/Telegram. This deliberately leaves real shell strings like
+/// `cd /tmp && echo foo: bar` alone (the colon there comes after a space).
+fn strip_sender_prefix(text: &str) -> &str {
+    let first_line_end = text.find('\n').unwrap_or(text.len());
+    let head = &text[..first_line_end];
+    if let Some(colon_idx) = head.find(": ") {
+        let candidate = &head[..colon_idx];
+        if !candidate.is_empty()
+            && !candidate.contains(char::is_whitespace)
+            && !candidate.contains(|c: char| matches!(c, '|' | '&' | ';' | '$' | '`' | '<' | '>'))
+        {
+            return text[colon_idx + 2..].trim_start();
+        }
+    }
+    text
 }
 
 fn start_channel_typing_loop(
@@ -1941,5 +1973,60 @@ mod tests {
     fn shell_mode_rewrite_skips_peek_and_stop() {
         assert!(rewrite_for_shell_mode("/peek").is_none());
         assert!(rewrite_for_shell_mode("/stop").is_none());
+    }
+
+    #[test]
+    fn shell_mode_strips_discord_name_prefix() {
+        // The actual bug from production: P2C's message after /sh got
+        // prefixed by the Discord handler and shell barfed `P2C:: not found`.
+        assert_eq!(
+            rewrite_for_shell_mode("P2C: which claude").as_deref(),
+            Some("/sh which claude")
+        );
+        assert_eq!(
+            rewrite_for_shell_mode("Schiz0: ls -la").as_deref(),
+            Some("/sh ls -la")
+        );
+    }
+
+    #[test]
+    fn shell_mode_does_not_strip_when_colon_after_space() {
+        // Real shell command — `"echo time:" 12:34` style. The "time:"
+        // is preceded by a space, not at the start, so it stays.
+        assert_eq!(
+            rewrite_for_shell_mode("echo time: now").as_deref(),
+            Some("/sh echo time: now")
+        );
+        // Multi-word "candidate" before colon is not a single-token name —
+        // leave it alone (could be a real label in the command).
+        assert_eq!(
+            rewrite_for_shell_mode("not a name: cmd").as_deref(),
+            Some("/sh not a name: cmd")
+        );
+    }
+
+    #[test]
+    fn shell_mode_does_not_strip_when_metachars_in_candidate() {
+        // Defensive: even if someone\'s username were exotic, candidates
+        // containing shell metacharacters are not treated as name prefixes.
+        assert_eq!(
+            rewrite_for_shell_mode("foo|bar: cmd").as_deref(),
+            Some("/sh foo|bar: cmd")
+        );
+        assert_eq!(
+            rewrite_for_shell_mode("$(rm -rf /): cmd").as_deref(),
+            Some("/sh $(rm -rf /): cmd")
+        );
+    }
+
+    #[test]
+    fn shell_mode_strip_only_first_line() {
+        // Multi-line command: only the first line is considered for prefix
+        // stripping; subsequent lines are untouched even if they contain
+        // `name:` patterns.
+        assert_eq!(
+            rewrite_for_shell_mode("P2C: cat <<EOF\nname: value\nEOF").as_deref(),
+            Some("/sh cat <<EOF\nname: value\nEOF")
+        );
     }
 }

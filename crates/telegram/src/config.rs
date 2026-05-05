@@ -35,6 +35,15 @@ pub struct TelegramAccountConfig {
     /// User/peer allowlist for DMs.
     pub allowlist: Vec<String>,
 
+    /// Owner allowlist for privileged operations (peer IDs or usernames).
+    /// Owners are a STRICT SUBSET of `allowlist` and gate access to host-affecting
+    /// commands like `/sh` (explicit shell mode). Allowlisted-but-not-owner
+    /// users can still chat with the bot — they just can't run shell commands.
+    /// When empty, the FIRST entry of `allowlist` is the implicit owner so
+    /// existing single-user configs keep working without migration.
+    #[serde(default)]
+    pub owners: Vec<String>,
+
     /// Group/chat ID allowlist.
     pub group_allowlist: Vec<String>,
 
@@ -99,6 +108,7 @@ impl Default for TelegramAccountConfig {
             group_policy: GroupPolicy::default(),
             mention_mode: MentionMode::default(),
             allowlist: Vec::new(),
+            owners: Vec::new(),
             group_allowlist: Vec::new(),
             stream_mode: StreamMode::default(),
             edit_throttle_ms: 300,

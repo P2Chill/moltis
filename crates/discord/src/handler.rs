@@ -312,6 +312,20 @@ impl EventHandler for Handler {
         .is_ok();
         let access_granted = policy_allowed;
 
+        // Privileged-command flag: owners can run `/sh`. Non-owners with
+        // allowlist access can chat but not invoke shell mode. The chat
+        // layer enforces this via `meta.is_owner` — see chat::send.
+        let sender_is_owner =
+            access::is_owner(&config, &peer_id, username.as_deref());
+        if sender_is_owner {
+            debug!(
+                account_id = %self.account_id,
+                peer_id,
+                username = ?username,
+                "discord: sender is OWNER (privileged-command access granted)"
+            );
+        }
+
         // Log the message.
         if let Some(log) = message_log {
             let _ = log
@@ -452,12 +466,24 @@ impl EventHandler for Handler {
             inferred_kind = ChannelMessageKind::Location;
         }
 
-        // Prefix the message with the sender's name so Sparky always knows who is talking.
-        let name_prefix = sender_name
-            .as_deref()
-            .or(username.as_deref())
-            .unwrap_or("User");
-        let text = format!("{name_prefix}: {text}");
+        // Prefix the message with the sender's name so Sparky always knows who
+        // is talking — UNLESS the message starts with `/sh` (explicit shell
+        // mode). Prefixing `/sh ...` would either (a) break the shell command
+        // by injecting "Schiz0:" before it, or (b) succeed in running a non-
+        // owner's command if the parser were tolerant. Defense-in-depth: the
+        // owner gate in chat::send is the primary guard, this strip is the
+        // backstop in case any prefixing path bypasses the gate.
+        let trimmed_for_sh = text.trim_start();
+        let is_sh_command = trimmed_for_sh.starts_with("/sh");
+        let text = if is_sh_command {
+            text.clone()
+        } else {
+            let name_prefix = sender_name
+                .as_deref()
+                .or(username.as_deref())
+                .unwrap_or("User");
+            format!("{name_prefix}: {text}")
+        };
 
         // Fetch recent channel history for context when bot is @mentioned in a guild.
         let text = if is_guild && bot_mentioned && config.context_messages > 0 {
@@ -500,6 +526,7 @@ impl EventHandler for Handler {
             message_kind: Some(inferred_kind),
             model: config.model.clone(),
             audio_filename: None,
+            is_owner: sender_is_owner,
         };
 
         if msg.attachments.is_empty() {

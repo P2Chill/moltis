@@ -246,6 +246,19 @@ pub struct ChannelMessageMeta {
     /// Filename of saved voice audio (set by `save_channel_voice`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub audio_filename: Option<String>,
+    /// Whether the sender is an OWNER of the channel account they messaged.
+    /// Owners can run privileged commands like `/sh` (explicit shell mode).
+    /// Non-owners are denied at the chat layer. Default `false` — explicit
+    /// owner check happens in each channel\'s inbound dispatcher (Discord
+    /// `handler.rs`, Telegram `handlers.rs`) via that channel\'s `is_owner()`
+    /// helper, then this flag is set on the meta before `dispatch_to_chat`.
+    #[serde(default, skip_serializing_if = "is_meta_false")]
+    pub is_owner: bool,
+}
+
+#[allow(clippy::trivially_copy_pass_by_ref)]
+fn is_meta_false(b: &bool) -> bool {
+    !*b
 }
 
 /// Inbound channel message media kind.

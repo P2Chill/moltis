@@ -209,6 +209,12 @@ pub async fn handle_message_direct(
 
     debug!(account_id, "handler: access granted");
 
+    // Privileged-command flag: owners can run `/sh`. Non-owners with
+    // allowlist access can chat but not invoke shell mode. The chat layer
+    // enforces this via `meta.is_owner` — see chat::send.
+    let sender_is_owner =
+        access::is_owner(&config, &peer_id, username.as_deref());
+
     // Check for voice/audio messages and transcribe them.
     // `voice_audio` carries the raw bytes + format so we can save them to the
     // session media directory once we have a reply target.
@@ -643,6 +649,7 @@ pub async fn handle_message_direct(
             message_kind: message_kind(&msg),
             model: config.model.clone(),
             audio_filename,
+            is_owner: sender_is_owner,
         };
 
         if attachments.is_empty() {

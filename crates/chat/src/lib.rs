@@ -2667,6 +2667,59 @@ impl ChatService for LiveChatService {
             MessageContent::Multimodal(_) => None,
         };
 
+        // OWNER GATE: `/sh` (explicit shell mode) is host-affecting.
+        // For channel-originated messages, only owners may invoke it.
+        // The inbound dispatcher (Discord/Telegram handler) sets
+        // `meta.is_owner` based on each channel\'s `is_owner()` helper;
+        // here we refuse if the flag is missing-or-false on a channel
+        // message. WebUI messages have no `channel` field — they come
+        // from the authenticated webUI session and are trusted.
+        if let Some(ref _shell_command) = explicit_shell_command {
+            let from_channel = params.get("channel").is_some();
+            if from_channel {
+                let is_owner = params
+                    .get("channel")
+                    .and_then(|c| c.get("is_owner"))
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
+                if !is_owner {
+                    let sender_label = params
+                        .get("channel")
+                        .and_then(|c| c.get("sender_name"))
+                        .and_then(|v| v.as_str())
+                        .or_else(|| {
+                            params
+                                .get("channel")
+                                .and_then(|c| c.get("username"))
+                                .and_then(|v| v.as_str())
+                        })
+                        .unwrap_or("non-owner");
+                    let channel_kind = params
+                        .get("channel")
+                        .and_then(|c| c.get("channel_type"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("channel");
+                    warn!(
+                        sender = %sender_label,
+                        channel = %channel_kind,
+                        session = %session_key,
+                        "REFUSED /sh from non-owner — shell mode is owner-only"
+                    );
+                    let denial = "Shell mode (`/sh`) is owner-only. \
+                                  Your message was not executed."
+                        .to_string();
+                    return Ok(serde_json::json!({
+                        "text": denial,
+                        "inputTokens": 0,
+                        "outputTokens": 0,
+                        "model": "policy",
+                        "provider": "moltis",
+                        "denied": "shell_mode_owner_only",
+                    }));
+                }
+            }
+        }
+
         if let Some(shell_command) = explicit_shell_command {
             // Generate run_id early so we can link the user message to this run.
             let run_id = uuid::Uuid::new_v4().to_string();

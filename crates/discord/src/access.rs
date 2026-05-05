@@ -84,6 +84,35 @@ fn check_guild_access(
     }
 }
 
+/// Determine whether a user is an OWNER of this Discord account.
+///
+/// Owners can run privileged commands (e.g. `/sh` shell mode). When
+/// `config.owners` is empty, the FIRST entry of `allowlist` is treated as the
+/// implicit owner — this preserves single-user setups that predate the
+/// owners field. To lock down a multi-user setup, set `owners` explicitly to
+/// just the user IDs / usernames that should have privileged access.
+///
+/// Returns true when EITHER `peer_id` OR `username` matches.
+#[must_use]
+pub fn is_owner(
+    config: &DiscordAccountConfig,
+    peer_id: &str,
+    username: Option<&str>,
+) -> bool {
+    let owners: &[String] = if config.owners.is_empty() {
+        // Implicit owner = first allowlist entry (single-user backward compat).
+        match config.allowlist.first() {
+            Some(_) => &config.allowlist[..1],
+            None => return false,
+        }
+    } else {
+        &config.owners
+    };
+
+    gating::is_allowed(peer_id, owners)
+        || username.is_some_and(|u| gating::is_allowed(u, owners))
+}
+
 /// Reason an inbound message was denied.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AccessDenied {

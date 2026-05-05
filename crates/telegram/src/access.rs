@@ -85,6 +85,31 @@ fn check_group_access(
     }
 }
 
+/// Determine whether a user is an OWNER of this Telegram account.
+///
+/// Owners can run privileged commands (e.g. `/sh` shell mode). When
+/// `config.owners` is empty, the FIRST entry of `allowlist` is treated as the
+/// implicit owner — backward-compat for single-user setups. Set `owners`
+/// explicitly to lock down a multi-user setup.
+#[must_use]
+pub fn is_owner(
+    config: &TelegramAccountConfig,
+    peer_id: &str,
+    username: Option<&str>,
+) -> bool {
+    let owners: &[String] = if config.owners.is_empty() {
+        match config.allowlist.first() {
+            Some(_) => &config.allowlist[..1],
+            None => return false,
+        }
+    } else {
+        &config.owners
+    };
+
+    gating::is_allowed(peer_id, owners)
+        || username.is_some_and(|u| gating::is_allowed(u, owners))
+}
+
 /// Reason an inbound message was denied.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AccessDenied {

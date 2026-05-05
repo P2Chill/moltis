@@ -302,6 +302,10 @@ impl MsTeamsPlugin {
             message_kind: Some(ChannelMessageKind::Text),
             model: config.model.clone(),
             audio_filename: None,
+            // MS Teams doesn\'t have an `owners` concept yet; fail-safe to
+            // false. Add Teams owner config + is_owner check before enabling
+            // /sh for this channel.
+            is_owner: false,
         })
         .await;
         Ok(())

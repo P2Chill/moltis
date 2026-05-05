@@ -47,6 +47,16 @@ pub struct DiscordAccountConfig {
     /// User allowlist (Discord user IDs or usernames).
     pub allowlist: Vec<String>,
 
+    /// Owner allowlist for privileged operations (Discord user IDs or usernames).
+    /// Owners are a STRICT SUBSET of `allowlist` and gate access to host-affecting
+    /// commands like `/sh` (explicit shell mode). Allowlisted-but-not-owner users
+    /// can still chat with the bot — they just can't run shell commands.
+    /// When this list is empty, the FIRST entry of `allowlist` is treated as the
+    /// implicit owner (so existing single-user configs keep working without
+    /// migration). Set explicitly to lock down multi-user setups.
+    #[serde(default)]
+    pub owners: Vec<String>,
+
     /// Guild allowlist (Discord guild/server IDs).
     pub guild_allowlist: Vec<String>,
 
@@ -110,6 +120,7 @@ impl std::fmt::Debug for DiscordAccountConfig {
             .field("group_policy", &self.group_policy)
             .field("mention_mode", &self.mention_mode)
             .field("allowlist", &self.allowlist)
+            .field("owners", &self.owners)
             .field("guild_allowlist", &self.guild_allowlist)
             .field("model", &self.model)
             .field("model_provider", &self.model_provider)
@@ -134,6 +145,7 @@ impl Default for DiscordAccountConfig {
             group_policy: GroupPolicy::Open,
             mention_mode: MentionMode::Mention,
             allowlist: Vec::new(),
+            owners: Vec::new(),
             guild_allowlist: Vec::new(),
             model: None,
             model_provider: None,

@@ -319,6 +319,10 @@ async fn handle_message(
         message_kind: Some(message_kind),
         model: state.config.model.clone(),
         audio_filename: None,
+        // WhatsApp doesn\'t have an `owners` concept yet; fail-safe to false.
+        // Add WhatsApp owner config + is_owner check before enabling /sh
+        // for this channel.
+        is_owner: false,
     };
 
     // Dispatch based on message kind.
