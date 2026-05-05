@@ -173,12 +173,27 @@ fn extract_location_coordinates(text: &str) -> Option<(f64, f64)> {
 pub fn strip_bot_mention(text: &str, bot_id: u64) -> String {
     let mention = format!("<@{bot_id}>");
     let mention_nick = format!("<@!{bot_id}>");
-    let stripped = text
-        .trim()
-        .strip_prefix(&mention)
-        .or_else(|| text.trim().strip_prefix(&mention_nick))
-        .unwrap_or(text);
-    stripped.trim().to_string()
+    // Replace ALL occurrences (not just leading) — Sparky already knows its
+    // own name, and leaving the raw `<@id>` tag in the body breaks shell
+    // commands when shell mode is active. Substitute with a single space so
+    // adjacent words don't collide.
+    let cleaned = text.replace(&mention, " ").replace(&mention_nick, " ");
+    // Collapse runs of plain spaces produced by removal, but preserve
+    // newlines so multi-line messages and code blocks stay intact.
+    let mut out = String::with_capacity(cleaned.len());
+    let mut prev_space = false;
+    for c in cleaned.chars() {
+        if c == ' ' {
+            if !prev_space {
+                out.push(' ');
+                prev_space = true;
+            }
+        } else {
+            out.push(c);
+            prev_space = false;
+        }
+    }
+    out.trim().to_string()
 }
 
 /// Set the bot's presence (activity + online status) from config.
@@ -1025,16 +1040,41 @@ mod tests {
 
     #[test]
     fn strip_mention_no_match() {
-        assert_eq!(
-            strip_bot_mention("hello <@123> world", 123),
-            "hello <@123> world"
-        );
+        // Plain text with no mention is unchanged.
         assert_eq!(strip_bot_mention("hello world", 123), "hello world");
     }
 
     #[test]
     fn strip_mention_different_bot() {
+        // Mentions of OTHER users/bots are preserved — only the bot's own
+        // tag is stripped, since other-user mentions are useful context for
+        // the LLM ("Schiz0 is asking <@456> about the deploy").
         assert_eq!(strip_bot_mention("<@999> hello", 123), "<@999> hello");
+        assert_eq!(
+            strip_bot_mention("<@123> ping <@456>", 123),
+            "ping <@456>",
+            "self-mention stripped, other-user mention preserved"
+        );
+    }
+
+    #[test]
+    fn strip_mention_anywhere_in_body() {
+        // Self-mentions in the middle of the message are also stripped — they
+        // confuse the model (the bot already knows it was @'d) and break shell
+        // commands when shell mode is active.
+        assert_eq!(
+            strip_bot_mention("hello <@123> world", 123),
+            "hello world"
+        );
+        assert_eq!(
+            strip_bot_mention("<@123> hello <@123> world <@123>", 123),
+            "hello world"
+        );
+        // Adjacent self-mentions collapse to a single space.
+        assert_eq!(
+            strip_bot_mention("<@123><@!123> hi", 123),
+            "hi"
+        );
     }
 
     #[test]

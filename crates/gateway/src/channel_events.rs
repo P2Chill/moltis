@@ -89,14 +89,35 @@ fn rewrite_for_shell_mode(text: &str) -> Option<String> {
         return None;
     }
 
+    // Strip the `[Recent conversation context (for reference):\n...]\n\n`
+    // preamble that the Discord handler prepends to @-mentioned guild
+    // messages so the LLM has prior turns. That preamble is rich text — it
+    // contains raw `<@mention>` tags, newlines, square brackets — none of
+    // which sh can parse. In shell mode we want JUST the user's command, no
+    // chat scaffolding.
+    let de_preambled = strip_context_preamble(trimmed);
     // Strip a leading `Name: ` prefix that channel handlers prepend so
     // multi-user chats know who is talking. In shell mode the prefix
     // poisons the command line ("P2C: which claude" → `sh: P2C:: not
     // found`). The owner-only gate at the chat boundary is the primary
     // safety control; this strip is purely cosmetic so the shell command
     // actually runs for legitimate owners.
-    let cleaned = strip_sender_prefix(trimmed);
+    let cleaned = strip_sender_prefix(de_preambled);
     Some(format!("/sh {cleaned}"))
+}
+
+/// Remove the `[Recent conversation context (for reference):\n...]\n\n`
+/// preamble injected by `discord/handler.rs` for @-mentioned guild messages.
+/// Returns the input unchanged when the exact prefix isn't present, so this
+/// is safe to apply unconditionally.
+fn strip_context_preamble(text: &str) -> &str {
+    const PREFIX: &str = "[Recent conversation context (for reference):\n";
+    if let Some(after_prefix) = text.strip_prefix(PREFIX)
+        && let Some(end_idx) = after_prefix.find("]\n\n")
+    {
+        return after_prefix[end_idx + "]\n\n".len()..].trim_start();
+    }
+    text
 }
 
 /// Remove a leading `Name: ` prefix added by channel handlers for multi-user
@@ -2047,6 +2068,49 @@ mod tests {
         assert_eq!(
             rewrite_for_shell_mode("P2C: cat <<EOF\nname: value\nEOF").as_deref(),
             Some("/sh cat <<EOF\nname: value\nEOF")
+        );
+    }
+
+    #[test]
+    fn shell_mode_strips_discord_context_preamble() {
+        // Production bug: when shell mode is active in a guild channel, the
+        // Discord handler prepends the recent-conversation-context block to
+        // the user's command. Without stripping, sh tries to execute the
+        // preamble — fails with "Syntax error: '(' unexpected" because of
+        // the `(for reference)` in the bracket header.
+        let input = "[Recent conversation context (for reference):\n\
+            • P2C: /sh on\n\
+            • Sparky: Command mode enabled.\n\
+            ]\n\
+            \n\
+            P2C: which claude";
+        assert_eq!(
+            rewrite_for_shell_mode(input).as_deref(),
+            Some("/sh which claude"),
+            "preamble must be stripped, then sender prefix, leaving the bare command"
+        );
+    }
+
+    #[test]
+    fn shell_mode_no_preamble_passes_through() {
+        // When the message has no preamble (e.g. a DM, or @-mention with
+        // context_messages=0) the rewrite is unaffected.
+        assert_eq!(
+            rewrite_for_shell_mode("P2C: pwd").as_deref(),
+            Some("/sh pwd")
+        );
+    }
+
+    #[test]
+    fn shell_mode_malformed_preamble_left_alone() {
+        // If the preamble doesn't have the closing `]\n\n` marker, leave it
+        // alone — better to fail loudly than to truncate user intent.
+        let input = "[Recent conversation context (for reference):\nno terminator";
+        // sender prefix won't match either (whitespace in candidate), so the
+        // whole string passes through verbatim.
+        assert_eq!(
+            rewrite_for_shell_mode(input).as_deref(),
+            Some(&format!("/sh {input}")[..])
         );
     }
 }
