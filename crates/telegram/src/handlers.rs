@@ -480,6 +480,29 @@ pub async fn handle_message_direct(
         if body.starts_with('/') {
             let cmd_text = body.trim_start_matches('/');
             let cmd = cmd_text.split_whitespace().next().unwrap_or("");
+            // Owner-only gate for /sh (shell mode toggle). The gateway's
+            // command handler enables shell mode unconditionally on /sh —
+            // gating has to happen here, before dispatch_command is called.
+            if cmd.eq_ignore_ascii_case("sh") && !sender_is_owner {
+                let bot = {
+                    let accts = accounts.read().unwrap_or_else(|e| e.into_inner());
+                    accts.get(account_id).map(|s| s.bot.clone())
+                };
+                if let Some(bot) = bot {
+                    let _ = bot
+                        .send_message(
+                            ChatId(reply_target.chat_id.parse().unwrap_or(0)),
+                            "Shell mode (/sh) is owner-only.",
+                        )
+                        .await;
+                }
+                warn!(
+                    account_id,
+                    sender = ?username.as_deref(),
+                    "REFUSED /sh from non-owner — shell mode toggle is owner-only"
+                );
+                return Ok(());
+            }
             if should_intercept_slash_command(cmd, cmd_text) {
                 // For /context, send a formatted card with inline keyboard.
                 if cmd == "context" {

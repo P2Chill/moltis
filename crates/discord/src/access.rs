@@ -20,8 +20,24 @@ pub fn check_access(
 ) -> Result<(), AccessDenied> {
     match chat_type {
         ChatType::Dm => check_dm_access(config, peer_id, username),
-        ChatType::Group | ChatType::Channel => check_guild_access(config, guild_id, bot_mentioned, is_dedicated_channel),
+        ChatType::Group | ChatType::Channel => check_guild_access(
+            config,
+            peer_id,
+            username,
+            guild_id,
+            bot_mentioned,
+            is_dedicated_channel,
+        ),
     }
+}
+
+fn sender_on_allowlist(
+    allowlist: &[String],
+    peer_id: &str,
+    username: Option<&str>,
+) -> bool {
+    gating::is_allowed(peer_id, allowlist)
+        || username.is_some_and(|u| gating::is_allowed(u, allowlist))
 }
 
 fn check_dm_access(
@@ -36,9 +52,7 @@ fn check_dm_access(
             if config.allowlist.is_empty() {
                 return Err(AccessDenied::NotOnAllowlist);
             }
-            if gating::is_allowed(peer_id, &config.allowlist)
-                || username.is_some_and(|u| gating::is_allowed(u, &config.allowlist))
-            {
+            if sender_on_allowlist(&config.allowlist, peer_id, username) {
                 Ok(())
             } else {
                 Err(AccessDenied::NotOnAllowlist)
@@ -49,6 +63,8 @@ fn check_dm_access(
 
 fn check_guild_access(
     config: &DiscordAccountConfig,
+    peer_id: &str,
+    username: Option<&str>,
     guild_id: Option<&str>,
     bot_mentioned: bool,
     is_dedicated_channel: bool,
@@ -64,6 +80,20 @@ fn check_guild_access(
             }
         },
         GroupPolicy::Open => {},
+    }
+
+    // The user allowlist also applies in guild channels: if `dm_policy =
+    // Allowlist`, only allowlisted users may talk to the bot anywhere. This
+    // makes the allowlist a single source of truth for "who is this bot
+    // for", instead of a DM-only gate that left servers wide open. Empty
+    // allowlist = deny all (matches DM behaviour).
+    if config.dm_policy == DmPolicy::Allowlist {
+        if config.allowlist.is_empty() {
+            return Err(AccessDenied::NotOnAllowlist);
+        }
+        if !sender_on_allowlist(&config.allowlist, peer_id, username) {
+            return Err(AccessDenied::NotOnAllowlist);
+        }
     }
 
     // Dedicated channels bypass mention mode check.
@@ -86,31 +116,25 @@ fn check_guild_access(
 
 /// Determine whether a user is an OWNER of this Discord account.
 ///
-/// Owners can run privileged commands (e.g. `/sh` shell mode). When
-/// `config.owners` is empty, the FIRST entry of `allowlist` is treated as the
-/// implicit owner — this preserves single-user setups that predate the
-/// owners field. To lock down a multi-user setup, set `owners` explicitly to
-/// just the user IDs / usernames that should have privileged access.
+/// Owners can run privileged commands (e.g. `/sh` shell mode). Empty
+/// `config.owners` means **nobody is an owner** — privileged commands are
+/// rejected for everyone, allowlisted or not. There is intentionally no
+/// implicit-owner fallback: a security-affecting privilege should never be
+/// granted by default just because someone happens to be on the chat
+/// allowlist. Configure owners explicitly via the WebUI.
 ///
-/// Returns true when EITHER `peer_id` OR `username` matches.
+/// Returns true when EITHER `peer_id` OR `username` matches an owner entry.
 #[must_use]
 pub fn is_owner(
     config: &DiscordAccountConfig,
     peer_id: &str,
     username: Option<&str>,
 ) -> bool {
-    let owners: &[String] = if config.owners.is_empty() {
-        // Implicit owner = first allowlist entry (single-user backward compat).
-        match config.allowlist.first() {
-            Some(_) => &config.allowlist[..1],
-            None => return false,
-        }
-    } else {
-        &config.owners
-    };
-
-    gating::is_allowed(peer_id, owners)
-        || username.is_some_and(|u| gating::is_allowed(u, owners))
+    if config.owners.is_empty() {
+        return false;
+    }
+    gating::is_allowed(peer_id, &config.owners)
+        || username.is_some_and(|u| gating::is_allowed(u, &config.owners))
 }
 
 /// Reason an inbound message was denied.

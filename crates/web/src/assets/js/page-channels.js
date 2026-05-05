@@ -369,7 +369,7 @@ function SharedChannelFields({ addModel, allowlistItems, ownersItems }) {
 				}}
         placeholder=${defaultPlaceholder}
         hideDefault=${true} />
-      <label class="text-xs text-[var(--muted)]">DM Allowlist</label>
+      <label class="text-xs text-[var(--muted)]">Allowlist <span class="text-[10px] opacity-60 font-normal">(applies to DMs and your server — anyone not listed is ignored)</span></label>
       <${AllowlistInput} value=${allowlistItems.value} onChange=${(v) => {
 				allowlistItems.value = v;
 			}} />
@@ -378,7 +378,7 @@ function SharedChannelFields({ addModel, allowlistItems, ownersItems }) {
 				html`
         <label class="text-xs text-[var(--muted)]">
           Owners (can run /sh shell commands)
-          <span class="block text-[10px] opacity-60 font-normal">Leave empty to treat first allowlist entry as implicit owner.</span>
+          <span class="block text-[10px] opacity-60 font-normal">Empty = no one can run /sh. Add usernames or peer IDs explicitly.</span>
         </label>
         <${AllowlistInput} value=${ownersItems.value} onChange=${(v) => {
 					ownersItems.value = v;
@@ -870,7 +870,7 @@ function AddWhatsAppModal() {
 					}}
           placeholder=${defaultPlaceholder}
           hideDefault=${true} />
-        <label class="text-xs text-[var(--muted)]">DM Allowlist</label>
+        <label class="text-xs text-[var(--muted)]">Allowlist <span class="text-[10px] opacity-60 font-normal">(applies to DMs and your server — anyone not listed is ignored)</span></label>
         <${AllowlistInput} value=${allowlistItems.value} onChange=${(v) => {
 					allowlistItems.value = v;
 				}} />
@@ -1071,7 +1071,7 @@ function EditChannelModal() {
 				}}
         placeholder=${defaultPlaceholder}
         hideDefault=${true} />
-      <label class="text-xs text-[var(--muted)]">DM Allowlist</label>
+      <label class="text-xs text-[var(--muted)]">Allowlist <span class="text-[10px] opacity-60 font-normal">(applies to DMs and your server — anyone not listed is ignored)</span></label>
       <${AllowlistInput} value=${allowlistItems.value} onChange=${(v) => {
 				allowlistItems.value = v;
 			}} />
@@ -1080,7 +1080,7 @@ function EditChannelModal() {
 				html`
         <label class="text-xs text-[var(--muted)]">
           Owners (can run /sh shell commands)
-          <span class="block text-[10px] opacity-60 font-normal">Leave empty to treat first allowlist entry as implicit owner.</span>
+          <span class="block text-[10px] opacity-60 font-normal">Empty = no one can run /sh. Add usernames or peer IDs explicitly.</span>
         </label>
         <${AllowlistInput} value=${ownersItems.value} onChange=${(v) => {
 					ownersItems.value = v;

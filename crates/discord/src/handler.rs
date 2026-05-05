@@ -415,8 +415,40 @@ impl EventHandler for Handler {
 
         // Handle slash commands.
         if let Some(command) = text.strip_prefix('/') {
+            let trimmed_cmd = command.trim();
+            let cmd_word = trimmed_cmd.split_whitespace().next().unwrap_or("");
+            // Owner-only gate for /sh (shell mode toggle). Without this, any
+            // allowlisted user could run `/sh on` to enable shell mode for the
+            // whole channel — even though their own subsequent commands would
+            // be denied by the chat-side gate, they'd still grief the owner
+            // (whose next plain message would be wrapped as `/sh ...` and run
+            // as a shell command). The owner-gate has to live in front of
+            // dispatch_command because `set_channel_command_mode` is invoked
+            // unconditionally inside it.
+            if cmd_word.eq_ignore_ascii_case("sh") && !sender_is_owner {
+                let denial = "Shell mode (`/sh`) is owner-only.";
+                let http = {
+                    let accounts = self.accounts.read().unwrap_or_else(|e| e.into_inner());
+                    accounts.get(&self.account_id).and_then(|s| s.http.clone())
+                };
+                if let Some(http) = http
+                    && let Err(e) = send_discord_text(&http, msg.channel_id, denial).await
+                {
+                    warn!(
+                        account_id = %self.account_id,
+                        chat_id,
+                        "failed to send Discord /sh denial: {e}"
+                    );
+                }
+                warn!(
+                    account_id = %self.account_id,
+                    sender = ?username.as_deref().or(sender_name.as_deref()),
+                    "REFUSED /sh from non-owner — shell mode toggle is owner-only"
+                );
+                return;
+            }
             let response_text = match sink
-                .dispatch_command(command.trim(), reply_to.clone())
+                .dispatch_command(trimmed_cmd, reply_to.clone())
                 .await
             {
                 Ok(response) => response,

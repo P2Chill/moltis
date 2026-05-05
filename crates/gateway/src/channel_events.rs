@@ -214,7 +214,27 @@ impl ChannelEventSink for GatewayChannelEventSink {
                 default_channel_session_key(&reply_to)
             };
             let effective_text = if state.is_channel_command_mode_enabled(&session_key).await {
-                rewrite_for_shell_mode(text).unwrap_or_else(|| text.to_string())
+                if meta.is_owner {
+                    rewrite_for_shell_mode(text).unwrap_or_else(|| text.to_string())
+                } else {
+                    // Non-owner posted while shell mode is active. Per
+                    // security policy: silently exit shell mode and process
+                    // their message as a normal prompt. This prevents two
+                    // failure modes — (a) a non-owner griefing the channel
+                    // by leaving shell mode on (every subsequent owner
+                    // message would run as a shell command), and (b) a
+                    // non-owner's message getting wrapped as `/sh …` and
+                    // hitting the chat-side denial gate, which produces a
+                    // confusing "shell mode is owner-only" reply for what
+                    // was meant as a regular question.
+                    state.set_channel_command_mode(&session_key, false).await;
+                    warn!(
+                        session = %session_key,
+                        sender = ?meta.sender_name.as_deref().or(meta.username.as_deref()),
+                        "non-owner posted in active shell mode — disabling shell mode and processing as normal prompt"
+                    );
+                    text.to_string()
+                }
             } else {
                 text.to_string()
             };
