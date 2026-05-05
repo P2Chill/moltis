@@ -146,6 +146,7 @@ impl ChannelPlugin for DiscordPlugin {
                 message_log: self.message_log.clone(),
                 event_sink: self.event_sink.clone(),
                 cancel: cancel.clone(),
+                task_handle: std::sync::Mutex::new(None),
                 bot_user_id: None,
                 http: None,
                 otp: std::sync::Mutex::new(OtpState::new(otp_cooldown)),
@@ -154,7 +155,8 @@ impl ChannelPlugin for DiscordPlugin {
 
         // Spawn the serenity client in a background task.
         let cancel_for_task = cancel.clone();
-        tokio::spawn(async move {
+        let account_id_for_handle = account_id_owned.clone();
+        let task_handle = tokio::spawn(async move {
             let handler = Handler {
                 account_id: account_id_owned.clone(),
                 accounts: Arc::clone(&accounts_clone),
@@ -194,22 +196,65 @@ impl ChannelPlugin for DiscordPlugin {
                 () = cancel_for_task.cancelled() => {
                     info!(account_id = %account_id_owned, "Discord client shutting down");
                     client.shard_manager.shutdown_all().await;
+                    // shard_manager.shutdown_all() returns once each shard's
+                    // disconnect frame is sent; serenity's event-pump tasks
+                    // may still be flushing. Give them a brief moment so the
+                    // gateway session is cleanly torn down before this task
+                    // returns and a replacement client may connect.
+                    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
                 }
             }
         });
+
+        // Stash the JoinHandle so stop_account can await termination —
+        // critical for the channel-update path (stop → start) to avoid
+        // having two clients connected to the same bot user simultaneously.
+        {
+            let accounts = self.accounts.read().unwrap_or_else(|e| e.into_inner());
+            if let Some(state) = accounts.get(&account_id_for_handle) {
+                let mut slot = state
+                    .task_handle
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner());
+                *slot = Some(task_handle);
+            }
+        }
 
         Ok(())
     }
 
     async fn stop_account(&mut self, account_id: &str) -> ChannelResult<()> {
-        let cancel = {
+        let removed = {
             let mut accounts = self.accounts.write().unwrap_or_else(|e| e.into_inner());
-            accounts.remove(account_id).map(|s| s.cancel)
+            accounts.remove(account_id)
         };
-        if let Some(cancel) = cancel {
-            cancel.cancel();
-        } else {
+        let Some(state) = removed else {
             warn!(account_id, "Discord account not found");
+            return Ok(());
+        };
+        state.cancel.cancel();
+
+        // Await the gateway task so the next start_account doesn't race a
+        // still-connected old client. Cap with a timeout so a wedged gateway
+        // doesn't block the orchestrator forever.
+        let handle = state
+            .task_handle
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take();
+        if let Some(handle) = handle {
+            match tokio::time::timeout(std::time::Duration::from_secs(5), handle).await {
+                Ok(Ok(())) => {},
+                Ok(Err(join_err)) => warn!(
+                    account_id,
+                    error = %join_err,
+                    "Discord gateway task ended with join error"
+                ),
+                Err(_) => warn!(
+                    account_id,
+                    "Discord gateway task did not exit within 5s — proceeding; may briefly double-deliver events"
+                ),
+            }
         }
         Ok(())
     }
