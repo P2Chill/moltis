@@ -1280,6 +1280,13 @@ pub struct ToolsConfig {
     /// are cached for this many turns before expiring. Default 5.
     #[serde(default = "default_discovered_tool_ttl")]
     pub discovered_tool_ttl: u8,
+
+    /// Number of conversation turns to keep an image (loaded via `read_image`)
+    /// in the model's vision context. Default 5. Each turn decrements the TTL;
+    /// when it reaches 0 the image is dropped. Set to 0 to disable cross-turn
+    /// image persistence (image only visible during the turn it was loaded).
+    #[serde(default = "default_image_vision_ttl")]
+    pub image_vision_ttl: u8,
 }
 
 impl Default for ToolsConfig {
@@ -1297,6 +1304,7 @@ impl Default for ToolsConfig {
             lazy_tools: false,
             core_tools: Vec::new(),
             discovered_tool_ttl: default_discovered_tool_ttl(),
+            image_vision_ttl: default_image_vision_ttl(),
         }
     }
 }
@@ -1314,6 +1322,10 @@ fn default_max_tool_result_bytes() -> usize {
 }
 
 fn default_discovered_tool_ttl() -> u8 {
+    5
+}
+
+fn default_image_vision_ttl() -> u8 {
     5
 }
 

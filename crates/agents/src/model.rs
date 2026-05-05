@@ -5,6 +5,15 @@ use {async_trait::async_trait, tokio_stream::Stream};
 tokio::task_local! {
     /// Per-request thinking budget (0 = disabled). Set by chat crate, read by providers.
     pub static THINKING_BUDGET: u32;
+    /// Per-request lazy_tools override. `Some(v)` forces lazy-tool loading on/off
+    /// for this turn, beating all other config layers (model overrides, global
+    /// default). Set by cron when a job has an explicit `lazy_tools` field; read
+    /// by the agent runner at tool-discovery time.
+    pub static LAZY_TOOLS_OVERRIDE: Option<bool>;
+    /// Per-request MCP-disabled override. `Some(v)` forces MCP tools on/off for
+    /// this turn, beating model overrides and session flags. Set by cron when a
+    /// job has an explicit `mcp_disabled` field; read by `apply_runtime_tool_filters`.
+    pub static MCP_DISABLED_OVERRIDE: Option<bool>;
 }
 
 use crate::multimodal::parse_data_uri;

@@ -114,6 +114,10 @@ pub struct AgentTurnRequest {
     /// channel account. Used together with `channel` (account_id) and `to`
     /// (chat_id) to route `Main` to the channel-bound session.
     pub channel_type: Option<String>,
+    /// Per-cron lazy_tools override. None = use model/global default.
+    pub lazy_tools: Option<bool>,
+    /// Per-cron MCP-disabled override. None = use model/session default.
+    pub mcp_disabled: Option<bool>,
     pub session_target: SessionTarget,
     pub sandbox: CronSandboxConfig,
 }
@@ -558,6 +562,8 @@ impl CronService {
                 channel,
                 to,
                 channel_type,
+                lazy_tools,
+                mcp_disabled,
             } => {
                 let req = AgentTurnRequest {
                     message: message.clone(),
@@ -567,6 +573,8 @@ impl CronService {
                     channel: channel.clone(),
                     to: to.clone(),
                     channel_type: channel_type.clone(),
+                    lazy_tools: *lazy_tools,
+                    mcp_disabled: *mcp_disabled,
                     session_target: job.session_target.clone(),
                     sandbox: job.sandbox.clone(),
                 };
@@ -812,6 +820,9 @@ mod tests {
                     deliver: false,
                     channel: None,
                     to: None,
+                    channel_type: None,
+                    lazy_tools: None,
+                    mcp_disabled: None,
                 },
                 session_target: SessionTarget::Isolated,
                 delete_after_run: false,
@@ -834,11 +845,36 @@ mod tests {
         let store = Arc::new(InMemoryStore::new());
         let svc = make_svc(store, noop_system_event(), noop_agent_turn());
 
-        // main + agentTurn should fail
+        // Main + agentTurn is now ALLOWED (cron Main routing landed in
+        // bb88072b; Main can fire either kind). Isolated/named + systemEvent
+        // is still rejected because the validator only allows systemEvents to
+        // hit the webUI main session.
         let result = svc
             .add(CronJobCreate {
                 id: None,
                 name: "bad".into(),
+                schedule: CronSchedule::At {
+                    at_ms: 9999999999999,
+                },
+                payload: CronPayload::SystemEvent {
+                    text: "ping".into(),
+                },
+                session_target: SessionTarget::Isolated,
+                delete_after_run: false,
+                enabled: true,
+                system: false,
+                sandbox: CronSandboxConfig::default(),
+                wake_mode: CronWakeMode::default(),
+            })
+            .await;
+
+        assert!(result.is_err());
+
+        // Main + agentTurn should now be accepted.
+        let main_result = svc
+            .add(CronJobCreate {
+                id: None,
+                name: "main_ok".into(),
                 schedule: CronSchedule::At {
                     at_ms: 9999999999999,
                 },
@@ -849,6 +885,9 @@ mod tests {
                     deliver: false,
                     channel: None,
                     to: None,
+                    channel_type: None,
+                    lazy_tools: None,
+                    mcp_disabled: None,
                 },
                 session_target: SessionTarget::Main,
                 delete_after_run: false,
@@ -858,8 +897,7 @@ mod tests {
                 wake_mode: CronWakeMode::default(),
             })
             .await;
-
-        assert!(result.is_err());
+        assert!(main_result.is_ok(), "main+agentTurn should be allowed");
     }
 
     #[tokio::test]
@@ -882,6 +920,9 @@ mod tests {
                     deliver: false,
                     channel: None,
                     to: None,
+                    channel_type: None,
+                    lazy_tools: None,
+                    mcp_disabled: None,
                 },
                 session_target: SessionTarget::Isolated,
                 delete_after_run: false,
@@ -924,6 +965,9 @@ mod tests {
                     deliver: false,
                     channel: None,
                     to: None,
+                    channel_type: None,
+                    lazy_tools: None,
+                    mcp_disabled: None,
                 },
                 session_target: SessionTarget::Isolated,
                 delete_after_run: false,
@@ -974,6 +1018,9 @@ mod tests {
                     deliver: false,
                     channel: None,
                     to: None,
+                    channel_type: None,
+                    lazy_tools: None,
+                    mcp_disabled: None,
                 },
                 session_target: SessionTarget::Isolated,
                 delete_after_run: false,
@@ -1011,6 +1058,9 @@ mod tests {
                     deliver: false,
                     channel: None,
                     to: None,
+                    channel_type: None,
+                    lazy_tools: None,
+                    mcp_disabled: None,
                 },
                 session_target: SessionTarget::Isolated,
                 delete_after_run: false,
@@ -1094,6 +1144,9 @@ mod tests {
                     deliver: false,
                     channel: None,
                     to: None,
+                    channel_type: None,
+                    lazy_tools: None,
+                    mcp_disabled: None,
                 },
                 session_target: SessionTarget::Isolated,
                 delete_after_run: false,
@@ -1143,6 +1196,9 @@ mod tests {
                 deliver: false,
                 channel: None,
                 to: None,
+                channel_type: None,
+                lazy_tools: None,
+                mcp_disabled: None,
             },
             session_target: SessionTarget::Isolated,
             delete_after_run: false,
@@ -1235,6 +1291,9 @@ mod tests {
                     deliver: false,
                     channel: None,
                     to: None,
+                    channel_type: None,
+                    lazy_tools: None,
+                    mcp_disabled: None,
                 },
                 session_target: SessionTarget::Isolated,
                 delete_after_run: false,
@@ -1285,6 +1344,9 @@ mod tests {
                     deliver: false,
                     channel: None,
                     to: None,
+                    channel_type: None,
+                    lazy_tools: None,
+                    mcp_disabled: None,
                 },
                 session_target: SessionTarget::Isolated,
                 delete_after_run: false,
@@ -1333,6 +1395,9 @@ mod tests {
                 deliver: false,
                 channel: None,
                 to: None,
+                channel_type: None,
+                lazy_tools: None,
+                mcp_disabled: None,
             },
             session_target: SessionTarget::Named("heartbeat".into()),
             delete_after_run: false,
@@ -1374,6 +1439,9 @@ mod tests {
                 deliver: false,
                 channel: None,
                 to: None,
+                channel_type: None,
+                lazy_tools: None,
+                mcp_disabled: None,
             },
             session_target: SessionTarget::Named("heartbeat".into()),
             delete_after_run: false,
@@ -1421,6 +1489,9 @@ mod tests {
                 deliver: false,
                 channel: None,
                 to: None,
+                channel_type: None,
+                lazy_tools: None,
+                mcp_disabled: None,
             },
             session_target: SessionTarget::Named("heartbeat".into()),
             delete_after_run: false,
@@ -1475,6 +1546,9 @@ mod tests {
                     deliver: true,
                     channel: None,
                     to: None,
+                    channel_type: None,
+                    lazy_tools: None,
+                    mcp_disabled: None,
                 },
                 session_target: SessionTarget::Isolated,
                 delete_after_run: false,
@@ -1512,6 +1586,9 @@ mod tests {
                     deliver: true,
                     channel: Some("telegram_bot".into()),
                     to: Some("123456".into()),
+                    channel_type: None,
+                    lazy_tools: None,
+                    mcp_disabled: None,
                 },
                 session_target: SessionTarget::Isolated,
                 delete_after_run: false,
@@ -1544,6 +1621,9 @@ mod tests {
                     deliver: false,
                     channel: None,
                     to: None,
+                    channel_type: None,
+                    lazy_tools: None,
+                    mcp_disabled: None,
                 },
                 session_target: SessionTarget::Isolated,
                 delete_after_run: false,
@@ -1576,6 +1656,9 @@ mod tests {
                     deliver: true,
                     channel: Some(String::new()),
                     to: Some("123".into()),
+                    channel_type: None,
+                    lazy_tools: None,
+                    mcp_disabled: None,
                 },
                 session_target: SessionTarget::Isolated,
                 delete_after_run: false,

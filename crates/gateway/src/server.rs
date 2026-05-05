@@ -1898,7 +1898,20 @@ pub async fn prepare_gateway(
 
                     match (resolved_kind.as_deref(), account, chat_id) {
                         (Some(kind), Some(account), Some(chat_id)) => {
-                            format!("{kind}:{account}:{chat_id}")
+                            // Honor user-mapped session names: the user can
+                            // attach a chat to a custom-named session (e.g.
+                            // "Telegram 1") via the channel_sessions table.
+                            // The inbound dispatcher consults this same map
+                            // (see channel_events::resolve_channel_session),
+                            // so cron must too — otherwise cron lands in the
+                            // raw `{kind}:{account}:{chat_id}` key while the
+                            // actual conversation lives under the user's name.
+                            let mapped = if let Some(ref sm) = state.services.session_metadata {
+                                sm.get_active_session(kind, account, chat_id).await
+                            } else {
+                                None
+                            };
+                            mapped.unwrap_or_else(|| format!("{kind}:{account}:{chat_id}"))
                         }
                         _ => "main".to_string(),
                     }
@@ -1912,6 +1925,9 @@ pub async fn prepare_gateway(
                 channel = ?req.channel,
                 to = ?req.to,
                 resolved_session_key = %session_key,
+                req_model = ?req.model,
+                req_lazy_tools = ?req.lazy_tools,
+                req_mcp_disabled = ?req.mcp_disabled,
                 "cron agent turn session key resolved"
             );
 
@@ -1970,8 +1986,24 @@ pub async fn prepare_gateway(
             if let Some(ref model) = req.model {
                 params["model"] = serde_json::Value::String(model.clone());
             }
-            let result = chat
-                .send_sync(params)
+            // Apply per-cron lazy_tools / mcp_disabled overrides via task-locals.
+            // These beat model-level config and session flags for this turn only.
+            let lazy_override = req.lazy_tools;
+            let mcp_override = req.mcp_disabled;
+            tracing::debug!(
+                target: "moltis_cron::route",
+                lazy_tools_override = ?lazy_override,
+                mcp_disabled_override = ?mcp_override,
+                "cron override flags applied to agent turn"
+            );
+            let result = moltis_agents::model::LAZY_TOOLS_OVERRIDE
+                .scope(lazy_override, async {
+                    moltis_agents::model::MCP_DISABLED_OVERRIDE
+                        .scope(mcp_override, async {
+                            chat.send_sync(params).await
+                        })
+                        .await
+                })
                 .await
                 .map_err(|e| moltis_cron::Error::message(e.to_string()));
 
@@ -3258,6 +3290,10 @@ pub async fn prepare_gateway(
             moltis_tools::send_image::SendImageTool::new()
                 .with_sandbox_router(Arc::clone(&sandbox_router)),
         ));
+        tool_registry.register(Box::new(
+            moltis_tools::read_image::ReadImageTool::new()
+                .with_sandbox_router(Arc::clone(&sandbox_router)),
+        ));
         if let Some(t) = moltis_tools::web_search::WebSearchTool::from_config_with_env_overrides(
             &config.tools.web.search,
             &runtime_env_overrides,
@@ -4343,6 +4379,8 @@ pub async fn prepare_gateway(
                         channel: hb.channel.clone(),
                         to: hb.to.clone(),
                         channel_type: None,
+                        lazy_tools: None,
+                        mcp_disabled: None,
                     }),
                     enabled: Some(true),
                     sandbox: Some(moltis_cron::types::CronSandboxConfig {
@@ -4372,6 +4410,8 @@ pub async fn prepare_gateway(
                         channel: hb.channel.clone(),
                         to: hb.to.clone(),
                         channel_type: None,
+                        lazy_tools: None,
+                        mcp_disabled: None,
                     },
                     session_target: SessionTarget::Named("heartbeat".into()),
                     delete_after_run: false,

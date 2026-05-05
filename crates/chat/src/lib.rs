@@ -1373,16 +1373,22 @@ fn apply_runtime_tool_filters(
     mcp_disabled: bool,
     model_id: Option<&str>,
 ) -> ToolRegistry {
-    // Resolve effective MCP disabled: model override takes priority over session flag.
-    let effective_mcp_disabled = model_id
-        .and_then(|mid| {
-            let mid_lower = mid.to_lowercase();
-            config.tools.model_overrides.iter().find_map(|(key, ov)| {
-                if mid_lower.contains(&key.to_lowercase()) {
-                    ov.mcp_enabled.map(|v| !v)
-                } else {
-                    None
-                }
+    // Resolve effective MCP disabled: per-request override (cron) > model override > session flag.
+    let request_override = moltis_agents::model::MCP_DISABLED_OVERRIDE
+        .try_with(|v| *v)
+        .ok()
+        .flatten();
+    let effective_mcp_disabled = request_override
+        .or_else(|| {
+            model_id.and_then(|mid| {
+                let mid_lower = mid.to_lowercase();
+                config.tools.model_overrides.iter().find_map(|(key, ov)| {
+                    if mid_lower.contains(&key.to_lowercase()) {
+                        ov.mcp_enabled.map(|v| !v)
+                    } else {
+                        None
+                    }
+                })
             })
         })
         .unwrap_or(mcp_disabled);
@@ -5814,12 +5820,19 @@ async fn run_with_tools(
         install_agent_scoped_memory_tools(&mut filtered_registry, manager, agent_id);
     }
 
-    // Resolve lazy_tools for this model (per-model override takes priority).
+    // Resolve lazy_tools: per-request override (cron) > per-model override > global.
     let lazy_tools_for_prompt = {
+        let request_override = moltis_agents::model::LAZY_TOOLS_OVERRIDE
+            .try_with(|v| *v)
+            .ok()
+            .flatten();
         let model_lower = model_id.to_lowercase();
-        persona.config.tools.model_overrides.iter()
-            .find_map(|(key, ov)| {
-                if model_lower.contains(&key.to_lowercase()) { ov.lazy_tools } else { None }
+        request_override
+            .or_else(|| {
+                persona.config.tools.model_overrides.iter()
+                    .find_map(|(key, ov)| {
+                        if model_lower.contains(&key.to_lowercase()) { ov.lazy_tools } else { None }
+                    })
             })
             .unwrap_or(persona.config.tools.lazy_tools)
     };

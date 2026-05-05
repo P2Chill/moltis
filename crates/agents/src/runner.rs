@@ -28,14 +28,17 @@ const DEFAULT_AGENT_MAX_ITERATIONS: usize = 25;
 
 fn resolve_agent_max_iterations(configured: usize) -> usize {
     if configured == 0 {
-        warn!(
-            default = DEFAULT_AGENT_MAX_ITERATIONS,
-            "tools.agent_max_iterations was 0; falling back to default"
-        );
-        return DEFAULT_AGENT_MAX_ITERATIONS;
+        // 0 means "no cap" — return usize::MAX so the iteration check
+        // (`if iterations > max_iterations`) never trips. Useful for
+        // long-running agent loops where the model can keep iterating
+        // until it stops on its own.
+        return usize::MAX;
     }
     configured
 }
+
+#[allow(dead_code)]
+const _DEFAULT_REFERENCE: usize = DEFAULT_AGENT_MAX_ITERATIONS;
 
 /// Error patterns that indicate the context window has been exceeded.
 const CONTEXT_WINDOW_PATTERNS: &[&str] = &[
@@ -145,6 +148,77 @@ async fn cache_discovered_tools(session_key: &str, names: &[String], ttl: u8) {
     }
 }
 
+// ── Image-vision cache ───────────────────────────────────────────────
+// Keyed by session ID. Each entry holds a list of (data_uri_key → (mime, data, ttl))
+// for images loaded via `read_image`. Decremented at the start of each agent
+// loop; expired entries are removed. Lets the model keep seeing a recently-
+// loaded image across a few follow-up turns without re-calling `read_image`.
+
+#[derive(Clone)]
+struct CachedImage {
+    media_type: String,
+    data: String,
+    ttl: u8,
+}
+
+static IMAGE_VISION_CACHE: LazyLock<tokio::sync::RwLock<
+    std::collections::HashMap<String, Vec<CachedImage>>,
+>> = LazyLock::new(|| tokio::sync::RwLock::new(std::collections::HashMap::new()));
+
+/// Tick the cache: decrement TTLs and remove expired entries. Returns the
+/// remaining (still-fresh) images for this session as (media_type, data) pairs.
+async fn tick_image_vision_cache(session_key: &str) -> Vec<(String, String)> {
+    let mut cache = IMAGE_VISION_CACHE.write().await;
+    let entries = cache.entry(session_key.to_string()).or_default();
+    entries.retain_mut(|img| {
+        img.ttl = img.ttl.saturating_sub(1);
+        img.ttl > 0
+    });
+    entries
+        .iter()
+        .map(|img| (img.media_type.clone(), img.data.clone()))
+        .collect()
+}
+
+/// Read current cached images for a session WITHOUT decrementing TTL. Used to
+/// inject just-cached images into the same agent loop iteration after a tool
+/// (e.g. `read_image`) writes them.
+pub async fn peek_image_vision_cache(session_key: &str) -> Vec<(String, String)> {
+    let cache = IMAGE_VISION_CACHE.read().await;
+    cache
+        .get(session_key)
+        .map(|entries| {
+            entries
+                .iter()
+                .map(|img| (img.media_type.clone(), img.data.clone()))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Push an image into the per-session vision cache with the given TTL.
+/// Identical (media_type, data) pairs are deduplicated — the existing entry's
+/// TTL is refreshed to the new value.
+pub async fn cache_image_for_vision(session_key: &str, media_type: String, data: String, ttl: u8) {
+    if ttl == 0 {
+        return;
+    }
+    let mut cache = IMAGE_VISION_CACHE.write().await;
+    let entries = cache.entry(session_key.to_string()).or_default();
+    if let Some(existing) = entries
+        .iter_mut()
+        .find(|e| e.media_type == media_type && e.data == data)
+    {
+        existing.ttl = ttl;
+    } else {
+        entries.push(CachedImage {
+            media_type,
+            data,
+            ttl,
+        });
+    }
+}
+
 /// Default set of tool names always injected when lazy tool loading is enabled.
 /// All other tools require discovery via `discover_tools`.
 pub const LAZY_CORE_TOOLS: &[&str] = &[
@@ -157,6 +231,7 @@ pub const LAZY_CORE_TOOLS: &[&str] = &[
     "web_fetch",
     "create_skill",
     "send_image",
+    "read_image",
     "speak",
     "transcribe",
     "session_state",
@@ -218,9 +293,16 @@ fn inject_discovered_schemas(
         }
     }
     if added > 0 {
+        let names: Vec<String> = schemas_for_api
+            .iter()
+            .rev()
+            .take(added)
+            .filter_map(|s| s.get("name").and_then(|n| n.as_str()).map(String::from))
+            .collect();
         tracing::info!(
             added,
             total = schemas_for_api.len(),
+            tools = ?names,
             "schemas_for_api expanded after discover_tools"
         );
     }
@@ -709,17 +791,26 @@ pub async fn run_agent_loop_with_context(
     let max_iterations = resolve_agent_max_iterations(config.tools.agent_max_iterations);
     let tool_schemas = tools.list_schemas();
     let lazy_tools = {
+        // Per-request override (e.g. cron job's lazy_tools field) wins over
+        // model-level and global config.
+        let request_override = crate::model::LAZY_TOOLS_OVERRIDE
+            .try_with(|v| *v)
+            .ok()
+            .flatten();
         let model_id = provider.id().to_lowercase();
-        config
-            .tools
-            .model_overrides
-            .iter()
-            .find_map(|(key, ov)| {
-                if model_id.contains(&key.to_lowercase()) {
-                    ov.lazy_tools
-                } else {
-                    None
-                }
+        request_override
+            .or_else(|| {
+                config
+                    .tools
+                    .model_overrides
+                    .iter()
+                    .find_map(|(key, ov)| {
+                        if model_id.contains(&key.to_lowercase()) {
+                            ov.lazy_tools
+                        } else {
+                            None
+                        }
+                    })
             })
             .unwrap_or(config.tools.lazy_tools)
     };
@@ -742,6 +833,36 @@ pub async fn run_agent_loop_with_context(
         messages.extend(hist);
     }
 
+    // Pre-extract session_key for cache lookups before we push the user msg.
+    let session_key_for_hooks = tool_context
+        .as_ref()
+        .and_then(|ctx| ctx.get("_session_key"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    // Cross-turn vision: inject any still-fresh images cached from prior
+    // `read_image` calls so the model can keep seeing them for a few turns.
+    if provider.supports_vision() && !session_key_for_hooks.is_empty() {
+        let cached_images = tick_image_vision_cache(&session_key_for_hooks).await;
+        if !cached_images.is_empty() {
+            let mut parts: Vec<crate::model::ContentPart> = Vec::with_capacity(cached_images.len() + 1);
+            parts.push(crate::model::ContentPart::Text(format!(
+                "[{} image{} from a recent `read_image` call still in your vision context — refer to {} when answering follow-up questions.]",
+                cached_images.len(),
+                if cached_images.len() == 1 { "" } else { "s" },
+                if cached_images.len() == 1 { "it" } else { "them" },
+            )));
+            for (mime, data) in cached_images {
+                parts.push(crate::model::ContentPart::Image {
+                    media_type: mime,
+                    data,
+                });
+            }
+            messages.push(ChatMessage::user_multimodal(parts));
+        }
+    }
+
     messages.push(ChatMessage::User {
         content: user_content.clone(),
     });
@@ -759,14 +880,6 @@ pub async fn run_agent_loop_with_context(
         vec![]
     };
 
-    // Extract session key once for hook payloads and cache lookups.
-    let session_key_for_hooks = tool_context
-        .as_ref()
-        .and_then(|ctx| ctx.get("_session_key"))
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string();
-
     // When lazy_tools is on, restore cached discovered tools from previous turns.
     let discovered_ttl = config.tools.discovered_tool_ttl;
     if lazy_tools && !session_key_for_hooks.is_empty() {
@@ -783,7 +896,7 @@ pub async fn run_agent_loop_with_context(
                 }
             }
             if added > 0 {
-                info!(added, cached = cached_names.len(), "restored cached discovered tools");
+                info!(added, cached = cached_names.len(), tools = ?cached_names, "restored cached discovered tools");
             }
         }
     }
@@ -1235,7 +1348,8 @@ pub async fn run_agent_loop_with_context(
             // Always sanitize tool results as strings - most LLM APIs don't support
             // multimodal content in tool results. Images are stripped but the UI
             // still receives them via ToolCallEnd event.
-            let tool_result_str = sanitize_tool_result(&result.to_string(), max_tool_result_bytes);
+            let raw_result_str = result.to_string();
+            let tool_result_str = sanitize_tool_result(&raw_result_str, max_tool_result_bytes);
             debug!(
                 tool = %tc.name,
                 id = %tc.id,
@@ -1245,6 +1359,53 @@ pub async fn run_agent_loop_with_context(
             trace!(tool = %tc.name, content = %tool_result_str, "tool result message content");
 
             messages.push(ChatMessage::tool(&tc.id, &tool_result_str));
+
+            // Vision injection: tools like `read_image` push images directly
+            // into IMAGE_VISION_CACHE (out-of-band — keeps base64 OUT of the
+            // tool result and out of saved session history, which would
+            // otherwise burn ~70K tokens per image per turn). Here we peek
+            // the cache and inject still-fresh images as a synthetic
+            // User-role multimodal message so the model can see them in this
+            // same turn.
+            //
+            // Bypass for known-vision models when supports_vision() returns
+            // false due to wrapper-chain issues with the registry layer.
+            let model_id_lower = provider.id().to_lowercase();
+            let known_vision_model = model_id_lower.contains("claude-")
+                || model_id_lower.contains("gpt-4o")
+                || model_id_lower.contains("gpt-4-turbo")
+                || model_id_lower.contains("gpt-5")
+                || model_id_lower.contains("gemini-")
+                || model_id_lower.contains("o3")
+                || model_id_lower.contains("o4");
+            let vision_supported = provider.supports_vision() || known_vision_model;
+            if vision_supported && !session_key_for_hooks.is_empty() {
+                let cached_images = peek_image_vision_cache(&session_key_for_hooks).await;
+                if !cached_images.is_empty() {
+                    let mut parts: Vec<crate::model::ContentPart> =
+                        Vec::with_capacity(cached_images.len() + 1);
+                    parts.push(crate::model::ContentPart::Text(format!(
+                        "[{} image{} from `{}` are visible to you NOW in this \
+                         turn. Describe what you see directly in your reply — \
+                         do not say you'll describe it later.]",
+                        cached_images.len(),
+                        if cached_images.len() == 1 { "" } else { "s" },
+                        tc.name,
+                    )));
+                    for (mime, data) in cached_images {
+                        parts.push(crate::model::ContentPart::Image {
+                            media_type: mime,
+                            data,
+                        });
+                    }
+                    info!(
+                        tool = %tc.name,
+                        image_count = parts.len() - 1,
+                        "injected vision-cache images as User multimodal message"
+                    );
+                    messages.push(ChatMessage::user_multimodal(parts));
+                }
+            }
 
             // Lazy tool injection: expand schemas_for_api with discovered tools.
             if lazy_tools {
@@ -1297,17 +1458,24 @@ pub async fn run_agent_loop_streaming(
     let max_iterations = resolve_agent_max_iterations(config.tools.agent_max_iterations);
     let tool_schemas = tools.list_schemas();
     let lazy_tools = {
+        let request_override = crate::model::LAZY_TOOLS_OVERRIDE
+            .try_with(|v| *v)
+            .ok()
+            .flatten();
         let model_id = provider.id().to_lowercase();
-        config
-            .tools
-            .model_overrides
-            .iter()
-            .find_map(|(key, ov)| {
-                if model_id.contains(&key.to_lowercase()) {
-                    ov.lazy_tools
-                } else {
-                    None
-                }
+        request_override
+            .or_else(|| {
+                config
+                    .tools
+                    .model_overrides
+                    .iter()
+                    .find_map(|(key, ov)| {
+                        if model_id.contains(&key.to_lowercase()) {
+                            ov.lazy_tools
+                        } else {
+                            None
+                        }
+                    })
             })
             .unwrap_or(config.tools.lazy_tools)
     };
@@ -1330,6 +1498,36 @@ pub async fn run_agent_loop_streaming(
         messages.extend(hist);
     }
 
+    // Pre-extract session_key for cache lookups before we push the user msg.
+    let session_key_for_hooks = tool_context
+        .as_ref()
+        .and_then(|ctx| ctx.get("_session_key"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    // Cross-turn vision: inject any still-fresh images cached from prior
+    // `read_image` calls so the model can keep seeing them for a few turns.
+    if provider.supports_vision() && !session_key_for_hooks.is_empty() {
+        let cached_images = tick_image_vision_cache(&session_key_for_hooks).await;
+        if !cached_images.is_empty() {
+            let mut parts: Vec<crate::model::ContentPart> = Vec::with_capacity(cached_images.len() + 1);
+            parts.push(crate::model::ContentPart::Text(format!(
+                "[{} image{} from a recent `read_image` call still in your vision context — refer to {} when answering follow-up questions.]",
+                cached_images.len(),
+                if cached_images.len() == 1 { "" } else { "s" },
+                if cached_images.len() == 1 { "it" } else { "them" },
+            )));
+            for (mime, data) in cached_images {
+                parts.push(crate::model::ContentPart::Image {
+                    media_type: mime,
+                    data,
+                });
+            }
+            messages.push(ChatMessage::user_multimodal(parts));
+        }
+    }
+
     messages.push(ChatMessage::User {
         content: user_content.clone(),
     });
@@ -1347,14 +1545,6 @@ pub async fn run_agent_loop_streaming(
         vec![]
     };
 
-    // Extract session key once for hook payloads and cache lookups.
-    let session_key_for_hooks = tool_context
-        .as_ref()
-        .and_then(|ctx| ctx.get("_session_key"))
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string();
-
     // When lazy_tools is on, restore cached discovered tools from previous turns.
     let discovered_ttl = config.tools.discovered_tool_ttl;
     if lazy_tools && !session_key_for_hooks.is_empty() {
@@ -1371,7 +1561,7 @@ pub async fn run_agent_loop_streaming(
                 }
             }
             if added > 0 {
-                info!(added, cached = cached_names.len(), "restored cached discovered tools");
+                info!(added, cached = cached_names.len(), tools = ?cached_names, "restored cached discovered tools");
             }
         }
     }
@@ -1955,7 +2145,8 @@ pub async fn run_agent_loop_streaming(
             // Always sanitize tool results as strings - most LLM APIs don't support
             // multimodal content in tool results. Images are stripped but the UI
             // still receives them via ToolCallEnd event.
-            let tool_result_str = sanitize_tool_result(&result.to_string(), max_tool_result_bytes);
+            let raw_result_str = result.to_string();
+            let tool_result_str = sanitize_tool_result(&raw_result_str, max_tool_result_bytes);
             debug!(
                 tool = %tc.name,
                 id = %tc.id,
@@ -1965,6 +2156,53 @@ pub async fn run_agent_loop_streaming(
             trace!(tool = %tc.name, content = %tool_result_str, "tool result message content");
 
             messages.push(ChatMessage::tool(&tc.id, &tool_result_str));
+
+            // Vision injection: tools like `read_image` push images directly
+            // into IMAGE_VISION_CACHE (out-of-band — keeps base64 OUT of the
+            // tool result and out of saved session history, which would
+            // otherwise burn ~70K tokens per image per turn). Here we peek
+            // the cache and inject still-fresh images as a synthetic
+            // User-role multimodal message so the model can see them in this
+            // same turn.
+            //
+            // Bypass for known-vision models when supports_vision() returns
+            // false due to wrapper-chain issues with the registry layer.
+            let model_id_lower = provider.id().to_lowercase();
+            let known_vision_model = model_id_lower.contains("claude-")
+                || model_id_lower.contains("gpt-4o")
+                || model_id_lower.contains("gpt-4-turbo")
+                || model_id_lower.contains("gpt-5")
+                || model_id_lower.contains("gemini-")
+                || model_id_lower.contains("o3")
+                || model_id_lower.contains("o4");
+            let vision_supported = provider.supports_vision() || known_vision_model;
+            if vision_supported && !session_key_for_hooks.is_empty() {
+                let cached_images = peek_image_vision_cache(&session_key_for_hooks).await;
+                if !cached_images.is_empty() {
+                    let mut parts: Vec<crate::model::ContentPart> =
+                        Vec::with_capacity(cached_images.len() + 1);
+                    parts.push(crate::model::ContentPart::Text(format!(
+                        "[{} image{} from `{}` are visible to you NOW in this \
+                         turn. Describe what you see directly in your reply — \
+                         do not say you'll describe it later.]",
+                        cached_images.len(),
+                        if cached_images.len() == 1 { "" } else { "s" },
+                        tc.name,
+                    )));
+                    for (mime, data) in cached_images {
+                        parts.push(crate::model::ContentPart::Image {
+                            media_type: mime,
+                            data,
+                        });
+                    }
+                    info!(
+                        tool = %tc.name,
+                        image_count = parts.len() - 1,
+                        "injected vision-cache images as User multimodal message"
+                    );
+                    messages.push(ChatMessage::user_multimodal(parts));
+                }
+            }
 
             // Lazy tool injection: expand schemas_for_api with discovered tools.
             if lazy_tools {
@@ -2099,11 +2337,13 @@ mod tests {
     }
 
     #[test]
-    fn test_resolve_agent_max_iterations_falls_back_for_zero() {
-        assert_eq!(
-            resolve_agent_max_iterations(0),
-            DEFAULT_AGENT_MAX_ITERATIONS
-        );
+    fn test_resolve_agent_max_iterations_zero_means_unlimited() {
+        // 0 in config means "no cap" — runner should return usize::MAX so the
+        // iteration guard never trips. Reverts upstream behavior where 0
+        // silently fell back to DEFAULT_AGENT_MAX_ITERATIONS (25).
+        assert_eq!(resolve_agent_max_iterations(0), usize::MAX);
+        assert_eq!(resolve_agent_max_iterations(25), 25);
+        assert_eq!(resolve_agent_max_iterations(1000), 1000);
     }
 
     // ── Mock helpers ─────────────────────────────────────────────────

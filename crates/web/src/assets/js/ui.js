@@ -373,7 +373,7 @@ export function shareLinkDialog(url, visibility) {
 }
 
 // ── Model select dropdown (Preact, reuses .model-combo CSS) ──
-export function ModelSelect({ models, value, onChange, placeholder }) {
+export function ModelSelect({ models, value, onChange, placeholder, hideDefault }) {
 	var [open, setOpen] = useState(false);
 	var [query, setQuery] = useState("");
 	var [kbIndex, setKbIndex] = useState(-1);
@@ -444,10 +444,13 @@ export function ModelSelect({ models, value, onChange, placeholder }) {
       <input class="model-search-input" ref=${searchRef} placeholder="Search models\u2026"
         value=${query} onInput=${(e) => setQuery(e.target.value)} />
       <div class="model-dropdown-list" ref=${listRef}>
-        <div class="model-dropdown-item ${value ? "" : "selected"}"
+        ${
+					!hideDefault &&
+					html`<div class="model-dropdown-item ${value ? "" : "selected"}"
           onClick=${() => pick(null)}>
           <span class="model-item-label">${placeholder || "(none)"}</span>
-        </div>
+        </div>`
+				}
         ${filtered.map(
 					(m, i) => html`<div key=${m.id}
             class="model-dropdown-item ${m.id === value ? "selected" : ""} ${i === kbIndex ? "kb-active" : ""}"

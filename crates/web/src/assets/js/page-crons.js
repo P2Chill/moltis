@@ -627,6 +627,12 @@ function CronModal() {
 	// session ("{channel_type}:{deliverChannel}:{deliverTo}") rather than webUI main.
 	var deliverChannelType = useSignal("");
 	var deliverTo = useSignal("");
+	// Per-cron tool overrides. Tri-state: "" = inherit defaults (model overrides
+	// then global config), "on" = force enabled, "off" = force disabled. Both beat
+	// model-level overrides for that cron turn only. UI uses "Enabled" semantics
+	// (mcpEnabled), translated to backend's mcp_disabled flag at submit time.
+	var lazyTools = useSignal("");
+	var mcpEnabled = useSignal("");
 
 	// Sync signal values when the edited job changes (useSignal only
 	// uses the initial value on first mount, so we must update manually).
@@ -649,6 +655,12 @@ function CronModal() {
 			deliverChannel.value = j.payload?.channel || "";
 			deliverChannelType.value = j.payload?.channel_type || j.payload?.channelType || "";
 			deliverTo.value = j.payload?.to || "";
+			var lazyVal = j.payload?.lazy_tools ?? j.payload?.lazyTools;
+			lazyTools.value = lazyVal === true ? "on" : lazyVal === false ? "off" : "";
+			// Backend stores mcp_disabled; UI shows mcp ENABLED (inverted).
+			var mcpDisabledVal = j.payload?.mcp_disabled ?? j.payload?.mcpDisabled;
+			mcpEnabled.value =
+				mcpDisabledVal === true ? "off" : mcpDisabledVal === false ? "on" : "";
 		} else {
 			saving.value = false;
 			errorField.value = null;
@@ -666,6 +678,8 @@ function CronModal() {
 			deliverChannel.value = "";
 			deliverChannelType.value = "";
 			deliverTo.value = "";
+			lazyTools.value = "";
+			mcpEnabled.value = "";
 		}
 	}, [editingJob.value]);
 
@@ -737,8 +751,23 @@ function CronModal() {
 								: {}),
 						};
 					})();
-		if (selectedPayloadKind === "agentTurn" && jobModel.value) {
-			payload.model = jobModel.value;
+		if (selectedPayloadKind === "agentTurn") {
+			// Always send an explicit model id. The dropdown's "(default: …)"
+			// option submits an empty string; resolve that to the UI's first
+			// model so the backend doesn't fall through to first_with_tools()
+			// (which can pick a different provider, e.g. codex over sonnet).
+			var resolvedModel = jobModel.value || modelsSig.value[0]?.id || "";
+			if (resolvedModel) payload.model = resolvedModel;
+		}
+		// Per-cron tool overrides. Only serialize when the user picked an explicit
+		// on/off; "" means inherit defaults (don't send the field at all so the
+		// backend Option<bool> stays None).
+		if (selectedPayloadKind === "agentTurn") {
+			if (lazyTools.value === "on") payload.lazy_tools = true;
+			else if (lazyTools.value === "off") payload.lazy_tools = false;
+			// UI says mcpEnabled, backend stores mcp_disabled — invert.
+			if (mcpEnabled.value === "off") payload.mcp_disabled = true;
+			else if (mcpEnabled.value === "on") payload.mcp_disabled = false;
 		}
 		var sandboxEnabled = executionTarget.value === "sandbox";
 		var fields = {
@@ -760,6 +789,20 @@ function CronModal() {
 		sendRpc(rpcMethod, rpcParams).then((res) => {
 			saving.value = false;
 			if (res?.ok) {
+				// Optimistic update so the table reflects the new schedule and
+				// next-run time immediately, without waiting for loadJobs().
+				if (res.payload && res.payload.id) {
+					var updated = res.payload;
+					var existing = cronJobs.value;
+					var idx = existing.findIndex((j) => j.id === updated.id);
+					if (idx >= 0) {
+						var copy = existing.slice();
+						copy[idx] = updated;
+						cronJobs.value = copy;
+					} else {
+						cronJobs.value = existing.concat([updated]);
+					}
+				}
 				showModal.value = false;
 				editingJob.value = null;
 				loadJobs();
@@ -930,6 +973,34 @@ function CronModal() {
         />
         <p class="text-xs text-[var(--muted)] mt-1">Used only when execution target is Sandbox.</p>
       </div>
+
+      ${payloadKind.value === "agentTurn" ? html`
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-xs text-[var(--muted)]">Lazy Tools</label>
+            <select data-field="lazyTools" class="provider-key-input"
+              value=${lazyTools.value}
+              onChange=${(e) => { lazyTools.value = e.target.value; }}>
+              <option value="">Default (model/global)</option>
+              <option value="on">On (recommended for Claude)</option>
+              <option value="off">Off (eager-load all tools)</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs text-[var(--muted)]">MCP Tools</label>
+            <select data-field="mcpEnabled" class="provider-key-input"
+              value=${mcpEnabled.value}
+              onChange=${(e) => { mcpEnabled.value = e.target.value; }}>
+              <option value="">Default (model/session)</option>
+              <option value="on">On (force MCP enabled)</option>
+              <option value="off">Off (strip MCP tools)</option>
+            </select>
+          </div>
+        </div>
+        <p class="text-xs text-[var(--muted)] -mt-1">
+          Both override per-model settings for this cron only. Leave on Default unless this job needs different tool behavior.
+        </p>
+      ` : null}
 
       <label class="text-xs text-[var(--muted)] flex items-center gap-2">
         <input data-field="deleteAfter" type="checkbox" checked=${deleteAfterRun.value}

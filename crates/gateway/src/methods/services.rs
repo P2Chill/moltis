@@ -1529,6 +1529,8 @@ pub(super) fn register(reg: &mut MethodRegistry) {
                                 channel: patch.channel.clone(),
                                 to: patch.to.clone(),
                                 channel_type: None,
+                                lazy_tools: None,
+                                mcp_disabled: None,
                             }),
                             enabled: Some(effective_enabled),
                             sandbox: Some(moltis_cron::types::CronSandboxConfig {

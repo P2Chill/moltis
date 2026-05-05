@@ -60,6 +60,20 @@ pub enum CronPayload {
         #[serde(default)]
         #[serde(skip_serializing_if = "Option::is_none")]
         channel_type: Option<String>,
+        /// Per-cron lazy_tools override. `Some(true)` forces lazy-tool loading
+        /// for this turn even if the model/global config disables it; `Some(false)`
+        /// forces eager-load. `None` falls back to model overrides → global default.
+        /// Beats model-level overrides (highest precedence).
+        #[serde(default)]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        lazy_tools: Option<bool>,
+        /// Per-cron MCP-disabled override. `Some(true)` strips MCP tools for this
+        /// turn; `Some(false)` forces them on even if a model override disables them.
+        /// `None` falls back to model overrides → session flag → default (MCP on).
+        /// Beats model-level overrides (highest precedence).
+        #[serde(default)]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        mcp_disabled: Option<bool>,
     },
 }
 
@@ -301,10 +315,52 @@ mod tests {
             deliver: true,
             channel: Some("slack".into()),
             to: None,
+            channel_type: None,
+            lazy_tools: None,
+            mcp_disabled: None,
         };
         let json = serde_json::to_string(&p).unwrap();
         let back: CronPayload = serde_json::from_str(&json).unwrap();
         assert_eq!(p, back);
+    }
+
+    #[test]
+    fn test_payload_agent_turn_with_overrides() {
+        let p = CronPayload::AgentTurn {
+            message: "ping".into(),
+            model: None,
+            timeout_secs: None,
+            deliver: false,
+            channel: None,
+            to: None,
+            channel_type: None,
+            lazy_tools: Some(true),
+            mcp_disabled: Some(false),
+        };
+        let json = serde_json::to_string(&p).unwrap();
+        // Field names follow the enum's snake_case (rename_all on the enum
+        // applies only to the variant tag, not nested struct-variant fields).
+        assert!(json.contains("lazy_tools"));
+        assert!(json.contains("mcp_disabled"));
+        let back: CronPayload = serde_json::from_str(&json).unwrap();
+        assert_eq!(p, back);
+    }
+
+    #[test]
+    fn test_payload_agent_turn_backward_compat_no_overrides() {
+        let json = r#"{
+            "kind": "agentTurn",
+            "message": "old job",
+            "deliver": false
+        }"#;
+        let p: CronPayload = serde_json::from_str(json).unwrap();
+        match p {
+            CronPayload::AgentTurn { lazy_tools, mcp_disabled, .. } => {
+                assert!(lazy_tools.is_none());
+                assert!(mcp_disabled.is_none());
+            },
+            _ => panic!("expected AgentTurn"),
+        }
     }
 
     #[test]
@@ -448,6 +504,9 @@ mod tests {
                 deliver: false,
                 channel: None,
                 to: None,
+                channel_type: None,
+                lazy_tools: None,
+                mcp_disabled: None,
             },
             session_target: SessionTarget::Isolated,
             state: CronJobState::default(),

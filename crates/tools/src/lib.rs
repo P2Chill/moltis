@@ -56,6 +56,7 @@ pub mod location;
 pub mod map;
 pub mod policy;
 pub mod process;
+pub mod read_image;
 pub mod sandbox;
 pub mod sandbox_packages;
 pub mod send_image;

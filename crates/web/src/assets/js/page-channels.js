@@ -367,7 +367,8 @@ function SharedChannelFields({ addModel, allowlistItems }) {
         onChange=${(v) => {
 					addModel.value = v;
 				}}
-        placeholder=${defaultPlaceholder} />
+        placeholder=${defaultPlaceholder}
+        hideDefault=${true} />
       <label class="text-xs text-[var(--muted)]">DM Allowlist</label>
       <${AllowlistInput} value=${allowlistItems.value} onChange=${(v) => {
 				allowlistItems.value = v;
@@ -849,7 +850,8 @@ function AddWhatsAppModal() {
           onChange=${(v) => {
 						addModel.value = v;
 					}}
-          placeholder=${defaultPlaceholder} />
+          placeholder=${defaultPlaceholder}
+          hideDefault=${true} />
         <label class="text-xs text-[var(--muted)]">DM Allowlist</label>
         <${AllowlistInput} value=${allowlistItems.value} onChange=${(v) => {
 					allowlistItems.value = v;
@@ -1044,7 +1046,8 @@ function EditChannelModal() {
         onChange=${(v) => {
 					editModel.value = v;
 				}}
-        placeholder=${defaultPlaceholder} />
+        placeholder=${defaultPlaceholder}
+        hideDefault=${true} />
       <label class="text-xs text-[var(--muted)]">DM Allowlist</label>
       <${AllowlistInput} value=${allowlistItems.value} onChange=${(v) => {
 				allowlistItems.value = v;

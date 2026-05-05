@@ -617,8 +617,12 @@ impl AgentTool for CronTool {
          - payload.channel_type: \"telegram\" | \"discord\" | \"msteams\" | \"whatsapp\"\n\
          - payload.channel: the channel ACCOUNT id (bot account) — e.g. \
            \"my_telegram_bot\" or \"discord sparky\"\n\
-         - payload.to: the recipient CHAT id — e.g. Telegram chat_id \
-           \"123456789\" or Discord channel/DM id\n\
+         - payload.to: the recipient CHAT id. Telegram: numeric chat_id \
+           (~9-11 digits, e.g. \"1657837174\"). Discord: channel id snowflake \
+           (~17-19 digits) — for a DM, use the DM CHANNEL id (Discord developer \
+           mode → right-click DM → Copy Channel ID), NOT the user_id. Sending \
+           to a Discord user_id silently fails because Discord requires opening \
+           a DM channel before posting.\n\
          All three (channel_type + channel + to) are required together for \
          channel routing. Without channel_type, sessionTarget=main falls back \
          to the webUI main session.\n\
@@ -648,6 +652,12 @@ impl AgentTool for CronTool {
          \n\
          Optional execution controls for agent turns:\n\
          - payload.model: model id for this job\n\
+         - payload.lazy_tools: true to force lazy tool loading (Claude models \
+           need this; without it, the full tool list trips the OpenClaw \
+           fingerprint block). Omit to inherit from per-model overrides.\n\
+         - payload.mcp_disabled: true to strip MCP tools for this turn. \
+           Useful when a long-running job doesn\'t need MCP. Omit to inherit \
+           from per-model overrides.\n\
          - sandbox.enabled: true for sandbox execution, false for host\n\
          - sandbox.image: optional sandbox image override"
     }
@@ -681,7 +691,7 @@ impl AgentTool for CronTool {
                         },
                         "payload": {
                             "type": "object",
-                            "description": "What to do. Use {kind:'systemEvent', text} for main-webUI-session reminders, or {kind:'agentTurn', message, model?, timeout_secs?, deliver?, channel?, channel_type?, to?}. With sessionTarget=main + agentTurn + channel_type/channel/to, the run lands in the channel's main session (so the user can reply on Telegram/Discord and the agent sees the digest in history). With sessionTarget=isolated + deliver=true + channel/to, output is delivered as a one-off message in a fresh isolated session. payload.model selects the LLM. Shorthand message string is also accepted at runtime.",
+                            "description": "What to do. Use {kind:'systemEvent', text} for main-webUI-session reminders, or {kind:'agentTurn', message, model?, timeout_secs?, deliver?, channel?, channel_type?, to?, lazy_tools?, mcp_disabled?}. With sessionTarget=main + agentTurn + channel_type/channel/to, the run lands in the channel's main session (so the user can reply on Telegram/Discord and the agent sees the digest in history). With sessionTarget=isolated + deliver=true + channel/to, output is delivered as a one-off message in a fresh isolated session. payload.model selects the LLM. Shorthand message string is also accepted at runtime.",
                             "properties": {
                                 "kind": { "type": "string", "enum": ["systemEvent", "agentTurn"] },
                                 "text": { "type": "string" },
@@ -691,7 +701,9 @@ impl AgentTool for CronTool {
                                 "deliver": { "type": "boolean", "description": "(Isolated only.) Set to true to deliver the agent output as a one-off message to a channel after the run. Requires channel and to. For continuous-conversation cron jobs in a channel, use sessionTarget=main + channel_type/channel/to instead." },
                                 "channel_type": { "type": "string", "enum": ["telegram", "discord", "msteams", "whatsapp"], "description": "Channel kind for routing. With sessionTarget=main + channel + to, this routes the cron turn into the channel's main session so user replies on that channel see it in history. Without channel_type, sessionTarget=main falls back to webUI main." },
                                 "channel": { "type": "string", "description": "Channel account identifier (the bot account, e.g. 'my_telegram_bot' or 'discord sparky'). Required for both delivery (with deliver=true) and channel-bound main routing (with channel_type)." },
-                                "to": { "type": "string", "description": "Recipient chat ID — Telegram chat_id (e.g. '123456789'), Discord channel/DM id, etc. Required for both delivery and channel-bound main routing." }
+                                "to": { "type": "string", "description": "Recipient chat ID — Telegram chat_id (e.g. '123456789'), Discord channel/DM id, etc. Required for both delivery and channel-bound main routing." },
+                                "lazy_tools": { "type": "boolean", "description": "Per-cron lazy tool loading override. true = force lazy-load (only core tools sent up-front, others discovered on demand) — required for Claude models which break with the full tool list. false = force eager-load. Omit to inherit from per-model overrides → global config. Beats model-level config." },
+                                "mcp_disabled": { "type": "boolean", "description": "Per-cron MCP tools toggle. true = strip all MCP tools for this turn. false = force MCP on even if a model override disables them. Omit to inherit from per-model overrides → session flag. Beats model-level config." }
                             },
                             "required": ["kind"]
                         },
