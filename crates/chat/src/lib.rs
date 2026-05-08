@@ -776,13 +776,12 @@ fn infer_reply_medium(params: &Value, text: &str) -> ReplyMedium {
 
 fn runtime_datetime_prompt_tail(runtime_context: Option<&PromptRuntimeContext>) -> Option<String> {
     let runtime = runtime_context?;
-    if let Some(time) = runtime
-        .host
-        .time
-        .as_deref()
-        .filter(|value| !value.is_empty())
-    {
-        return Some(format!("\nThe current user datetime is {time}.\n"));
+    // When a live_now_note will be injected as a transient synthetic
+    // message at the end of context, don't also emit the datetime in the
+    // system prompt — that would be a redundant token spend AND defeat the
+    // purpose of moving it out of the static system prompt.
+    if runtime.live_now_note.is_some() {
+        return None;
     }
     runtime
         .host
@@ -1230,25 +1229,34 @@ async fn build_prompt_runtime_context(
         ..Default::default()
     };
     refresh_runtime_prompt_time(&mut host_ctx);
-    // Annotate the time stamp with elapsed-since-last-message so the LLM
-    // doesn't make stale time-aware suggestions ("you should eat" right
-    // after the user said they ate, four hours ago). Cheap to compute,
-    // ~10 tokens per turn. Uses the timestamp of the most recent
-    // persisted message — NOT session_entry.updated_at, which gets
-    // bumped by mark_seen on every channel inbound (would always read
-    // ~0). Skip when there's no prior message (fresh session) and when
-    // the delta is under 60s (rapid-fire turns don't need annotation).
+    // Build the live "now + delta" note that gets injected as a transient
+    // synthetic message at the END of context (not in the system prompt).
+    // System prompts are treated by the LLM as static — per-turn updates
+    // baked there get ignored. Putting this at the end of the message list
+    // (right before the new user message) makes time-aware reasoning
+    // actually fire ("user just came back after 4 hours, don't repeat the
+    // 'go eat' nudge"). Format always shows the full resolution
+    // (1d 2h 15m 17s rather than rounding to "1d 2h") and always renders
+    // even on rapid-fire turns ("0s" / "3s") so the annotation is visibly
+    // fresh on every turn — no testing-overhead waiting for a 60s gap.
     let _ = session_entry; // session_entry kept in signature for future use
-    if let Some(prev_ms) = previous_message_at_ms
-        && let Some(formatted) = format_elapsed_since_last(prev_ms, now_ms())
-        && let Some(time) = host_ctx.time.as_mut()
-    {
-        time.push_str(&format!(" (T+{formatted} since last message)"));
-    }
+    let now_string = host_ctx
+        .time
+        .clone()
+        .unwrap_or_else(|| prompt_now_for_timezone(host_ctx.timezone.as_deref()));
+    let live_now_note = if let Some(prev_ms) = previous_message_at_ms {
+        let delta = format_elapsed_since_last(prev_ms, now_ms());
+        Some(format!(
+            "Live now: {now_string} (T+{delta} since previous message)"
+        ))
+    } else {
+        Some(format!("Live now: {now_string} (first turn of this session)"))
+    };
 
     PromptRuntimeContext {
         host: host_ctx,
         sandbox: sandbox_ctx,
+        live_now_note,
     }
 }
 
@@ -1257,49 +1265,62 @@ fn refresh_runtime_prompt_time(host: &mut PromptHostRuntimeContext) {
     host.today = Some(prompt_today_for_timezone(host.timezone.as_deref()));
 }
 
-/// Fetch the `created_at` timestamp (ms since epoch) of the most recently
-/// persisted message in this session. Used by `build_prompt_runtime_context`
-/// to compute the inter-turn delta. Reads at most one record from the
-/// session log. Returns `None` for fresh sessions or on read errors.
+/// Fetch the `created_at` timestamp (ms since epoch) of the message PRIOR to
+/// the current turn's just-saved user message. Reads the last two records
+/// from the session log and returns the *older* one's timestamp; that's
+/// the previous turn (typically the assistant's last reply, but could also
+/// be a prior user message if the assistant never responded). Returns
+/// `None` when there's no prior message — i.e. the session has 0 or 1
+/// messages, which means this is the first user turn.
+///
+/// This deliberately reads N=2 instead of N=1: by the time
+/// `build_prompt_runtime_context` runs, the current user message has
+/// already been appended to the store (see `chat::send` flow), so
+/// `read_last_n(1)` would return that brand-new entry with `created_at ≈
+/// now`, producing a meaningless ~0 delta.
 async fn previous_message_created_at_ms(
     session_store: &Arc<SessionStore>,
     session_key: &str,
 ) -> Option<u64> {
-    let msgs = session_store.read_last_n(session_key, 1).await.ok()?;
+    let msgs = session_store.read_last_n(session_key, 2).await.ok()?;
+    if msgs.len() < 2 {
+        return None;
+    }
     msgs.first()
         .and_then(|v| v.get("created_at"))
         .and_then(|v| v.as_u64())
 }
 
-/// Render a millisecond-delta as a compact human string ("2h 15m", "3d 4h",
-/// "45m", "30s"). Returns `None` for deltas under 60s — the LLM doesn't need
-/// to know about half-second turn gaps and noise from "T+0s since last
-/// message" annotations would just waste context.
-fn format_elapsed_since_last(prior_ms: u64, now_ms: u64) -> Option<String> {
+/// Render a millisecond-delta as a compact human string. Emits every
+/// non-zero unit from days down to seconds — "1d 4h 23m 17s" — rather than
+/// rounding to a single component, so the LLM sees the full resolution and
+/// users testing this don't have to wait a minute to verify the annotation
+/// works ("0s" / "3s" / "47s" all show up).
+///
+/// Always returns a value. Token cost is ~5–15 tokens per turn, fixed; the
+/// debug/observability win is worth it. Pure-zero delta is rendered "0s",
+/// not omitted, so a per-turn live note is always visibly fresh.
+fn format_elapsed_since_last(prior_ms: u64, now_ms: u64) -> String {
     let delta_ms = now_ms.saturating_sub(prior_ms);
     let secs = delta_ms / 1000;
-    if secs < 60 {
-        return None;
-    }
     let days = secs / 86_400;
     let hours = (secs % 86_400) / 3_600;
     let minutes = (secs % 3_600) / 60;
-    let formatted = if days > 0 {
-        if hours > 0 {
-            format!("{days}d {hours}h")
-        } else {
-            format!("{days}d")
-        }
-    } else if hours > 0 {
-        if minutes > 0 {
-            format!("{hours}h {minutes}m")
-        } else {
-            format!("{hours}h")
-        }
-    } else {
-        format!("{minutes}m")
-    };
-    Some(formatted)
+    let leftover_secs = secs % 60;
+    let mut parts: Vec<String> = Vec::new();
+    if days > 0 {
+        parts.push(format!("{days}d"));
+    }
+    if hours > 0 {
+        parts.push(format!("{hours}h"));
+    }
+    if minutes > 0 {
+        parts.push(format!("{minutes}m"));
+    }
+    if leftover_secs > 0 || parts.is_empty() {
+        parts.push(format!("{leftover_secs}s"));
+    }
+    parts.join(" ")
 }
 
 fn server_prompt_timezone(configured_timezone: Option<&str>) -> String {
@@ -6435,7 +6456,16 @@ async fn run_with_tools(
     });
 
     // Convert persisted JSON history to typed ChatMessages for the LLM provider.
-    let chat_history = values_to_chat_messages(history_raw);
+    let mut chat_history = values_to_chat_messages(history_raw);
+    // Inject the transient "live now" annotation as a synthetic user-role
+    // message at the END of history (right before the new user content the
+    // runner will push). Mirrors the existing image-vision-cache pattern at
+    // crates/agents/src/runner.rs (two consecutive user-role messages —
+    // accepted by OpenAI/Anthropic). Lives only in this turn's in-memory
+    // message list; never persisted, never visible in next turn's history.
+    if let Some(note) = runtime_context.and_then(|rc| rc.live_now_note.as_deref()) {
+        chat_history.push(ChatMessage::user(format!("[SYSTEM NOTE: {note}]")));
+    }
     let hist = if chat_history.is_empty() {
         None
     } else {
@@ -6934,6 +6964,12 @@ async fn run_streaming(
     messages.push(ChatMessage::system(system_prompt));
     // Convert persisted JSON history to typed ChatMessages for the LLM provider.
     messages.extend(values_to_chat_messages(history_raw));
+    // Transient "live now" annotation injected at end-of-context, just
+    // before the new user message. See `build_prompt_runtime_context` for
+    // why this lives at the end instead of in the static system prompt.
+    if let Some(note) = runtime_context.and_then(|rc| rc.live_now_note.as_deref()) {
+        messages.push(ChatMessage::user(format!("[SYSTEM NOTE: {note}]")));
+    }
     messages.push(ChatMessage::User {
         content: user_content.clone(),
     });
@@ -9000,41 +9036,37 @@ mod tests {
     }
 
     #[test]
-    fn format_elapsed_since_last_thresholds() {
-        // Under 60s — silent (None) so the prompt isn't littered with
-        // "T+0s since last message" on rapid-fire turns.
-        assert_eq!(format_elapsed_since_last(0, 0), None);
-        assert_eq!(format_elapsed_since_last(0, 59_999), None);
-        // Exact minute boundary.
-        assert_eq!(format_elapsed_since_last(0, 60_000).as_deref(), Some("1m"));
-        assert_eq!(format_elapsed_since_last(0, 45 * 60_000).as_deref(), Some("45m"));
-        // Hour + minute.
+    fn format_elapsed_since_last_full_resolution() {
+        // Always returns a value — token cost is fixed, the debug/test
+        // win of always-visible "T+Ns" outweighs the savings.
+        assert_eq!(format_elapsed_since_last(0, 0), "0s");
+        assert_eq!(format_elapsed_since_last(0, 3_000), "3s");
+        assert_eq!(format_elapsed_since_last(0, 47_000), "47s");
+        // Whole-minute boundary.
+        assert_eq!(format_elapsed_since_last(0, 60_000), "1m");
+        // Minute + leftover seconds.
+        assert_eq!(format_elapsed_since_last(0, 75_000), "1m 15s");
+        // Hour + minute + seconds (full multi-unit).
         assert_eq!(
-            format_elapsed_since_last(0, (2 * 3600 + 15 * 60) * 1000).as_deref(),
-            Some("2h 15m")
+            format_elapsed_since_last(0, (2 * 3600 + 15 * 60 + 17) * 1000),
+            "2h 15m 17s"
         );
-        // Hour, no leftover minutes.
+        // Hour with no leftover minutes/seconds.
+        assert_eq!(format_elapsed_since_last(0, 3 * 3600 * 1000), "3h");
+        // Day + hour + minutes + seconds.
         assert_eq!(
-            format_elapsed_since_last(0, 3 * 3600 * 1000).as_deref(),
-            Some("3h")
+            format_elapsed_since_last(0, ((24 + 4) * 3600 + 23 * 60 + 5) * 1000),
+            "1d 4h 23m 5s"
         );
-        // Day + hour.
-        assert_eq!(
-            format_elapsed_since_last(0, (24 + 4) * 3600 * 1000).as_deref(),
-            Some("1d 4h")
-        );
-        // Day with no leftover hours.
-        assert_eq!(
-            format_elapsed_since_last(0, 2 * 24 * 3600 * 1000).as_deref(),
-            Some("2d")
-        );
+        // Day with no leftover smaller units.
+        assert_eq!(format_elapsed_since_last(0, 2 * 24 * 3600 * 1000), "2d");
     }
 
     #[test]
     fn format_elapsed_since_last_handles_clock_skew() {
-        // If updated_at somehow trails AHEAD of now (clock drift, leap),
-        // saturating_sub clamps to 0 → None instead of underflowing.
-        assert_eq!(format_elapsed_since_last(1_000_000, 999_999), None);
+        // If prior_ms trails AHEAD of now (clock drift, leap), saturating_sub
+        // clamps to 0 — emit "0s" rather than underflowing or omitting.
+        assert_eq!(format_elapsed_since_last(1_000_000, 999_999), "0s");
     }
 
     #[test]
@@ -9148,15 +9180,19 @@ mod tests {
 
     #[test]
     fn apply_voice_reply_suffix_keeps_datetime_tail_at_end() {
+        // The date-only fallback (no live_now_note) is what stays in the
+        // system prompt — the live datetime moved to a transient end-of-
+        // context message. This test now exercises that fallback path.
         let runtime_context = PromptRuntimeContext {
             host: PromptHostRuntimeContext {
-                time: Some("2026-02-17 16:18:00 CET".to_string()),
+                today: Some("2026-02-17".to_string()),
                 ..Default::default()
             },
             sandbox: None,
+            live_now_note: None,
         };
         let base_prompt =
-            "You are a helpful assistant.\nThe current user datetime is 2026-02-17 16:18:00 CET.\n"
+            "You are a helpful assistant.\nThe current user date is 2026-02-17.\n"
                 .to_string();
 
         let prompt =
@@ -9166,11 +9202,11 @@ mod tests {
         assert!(
             prompt
                 .trim_end()
-                .ends_with("The current user datetime is 2026-02-17 16:18:00 CET.")
+                .ends_with("The current user date is 2026-02-17.")
         );
         let voice_ix = prompt.find("## Voice Reply Mode");
-        let datetime_ix = prompt.rfind("The current user datetime is 2026-02-17 16:18:00 CET.");
-        assert!(voice_ix.is_some_and(|idx| datetime_ix.is_some_and(|tail| idx < tail)));
+        let date_ix = prompt.rfind("The current user date is 2026-02-17.");
+        assert!(voice_ix.is_some_and(|idx| date_ix.is_some_and(|tail| idx < tail)));
     }
 
     #[test]

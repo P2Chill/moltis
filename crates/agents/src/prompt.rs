@@ -103,6 +103,16 @@ pub struct PromptSandboxRuntimeContext {
 pub struct PromptRuntimeContext {
     pub host: PromptHostRuntimeContext,
     pub sandbox: Option<PromptSandboxRuntimeContext>,
+    /// Transient "right now" annotation rendered as a synthetic user-role
+    /// message at the *end* of the message list (right before the new user
+    /// turn), instead of inside the static system prompt. The LLM tends to
+    /// treat the system prompt as immutable and ignores per-turn updates
+    /// baked into it; injecting this note as a fresh message every turn
+    /// makes time-aware reasoning actually fire (e.g. "user just came back
+    /// after 4 hours, so don't remind them to eat again").
+    /// Format: "Current time: 2026-05-08 14:30:00 CET (T+5m since previous
+    /// message)" or just the time on the first turn of a session.
+    pub live_now_note: Option<String>,
 }
 
 /// Suffix appended to the system prompt when the user's reply medium is voice.
@@ -626,19 +636,23 @@ fn append_runtime_datetime_tail(
     prompt: &mut String,
     runtime_context: Option<&PromptRuntimeContext>,
 ) {
+    // Datetime is intentionally NOT rendered into the system prompt anymore —
+    // it's injected as a transient synthetic message at the end of the
+    // message list each turn (see `PromptRuntimeContext::live_now_note` and
+    // its consumers in `chat::lib`). The system prompt is treated by the
+    // LLM as static; per-turn updates baked there get ignored. The end-of-
+    // context placement makes time-aware reasoning actually fire.
+    //
+    // The date-only fallback is kept for callers that don't populate
+    // live_now_note (e.g. minimal-runtime prompts in tools/tests), so the
+    // model still has *some* date context.
     let Some(runtime) = runtime_context else {
         return;
     };
 
-    if let Some(time) = runtime
-        .host
-        .time
-        .as_deref()
-        .filter(|value| !value.is_empty())
-    {
-        prompt.push_str("\nThe current user datetime is ");
-        prompt.push_str(time);
-        prompt.push_str(".\n");
+    if runtime.live_now_note.is_some() {
+        // The transient end-of-context note will carry the live datetime;
+        // omit it here so the prompt stays cache-friendly across turns.
         return;
     }
 
