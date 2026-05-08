@@ -1152,6 +1152,7 @@ async fn build_prompt_runtime_context(
     provider: &Arc<dyn moltis_agents::model::LlmProvider>,
     session_key: &str,
     session_entry: Option<&SessionEntry>,
+    previous_message_at_ms: Option<u64>,
 ) -> PromptRuntimeContext {
     let data_dir = moltis_config::data_dir();
     let data_dir_display = data_dir.display().to_string();
@@ -1232,11 +1233,14 @@ async fn build_prompt_runtime_context(
     // Annotate the time stamp with elapsed-since-last-message so the LLM
     // doesn't make stale time-aware suggestions ("you should eat" right
     // after the user said they ate, four hours ago). Cheap to compute,
-    // ~10 tokens per turn. Skip on first turn (created_at == updated_at)
-    // to avoid the awkward "T+0s since last message".
-    if let Some(entry) = session_entry
-        && entry.updated_at > entry.created_at
-        && let Some(formatted) = format_elapsed_since_last(entry.updated_at, now_ms())
+    // ~10 tokens per turn. Uses the timestamp of the most recent
+    // persisted message — NOT session_entry.updated_at, which gets
+    // bumped by mark_seen on every channel inbound (would always read
+    // ~0). Skip when there's no prior message (fresh session) and when
+    // the delta is under 60s (rapid-fire turns don't need annotation).
+    let _ = session_entry; // session_entry kept in signature for future use
+    if let Some(prev_ms) = previous_message_at_ms
+        && let Some(formatted) = format_elapsed_since_last(prev_ms, now_ms())
         && let Some(time) = host_ctx.time.as_mut()
     {
         time.push_str(&format!(" (T+{formatted} since last message)"));
@@ -1251,6 +1255,20 @@ async fn build_prompt_runtime_context(
 fn refresh_runtime_prompt_time(host: &mut PromptHostRuntimeContext) {
     host.time = Some(prompt_now_for_timezone(host.timezone.as_deref()));
     host.today = Some(prompt_today_for_timezone(host.timezone.as_deref()));
+}
+
+/// Fetch the `created_at` timestamp (ms since epoch) of the most recently
+/// persisted message in this session. Used by `build_prompt_runtime_context`
+/// to compute the inter-turn delta. Reads at most one record from the
+/// session log. Returns `None` for fresh sessions or on read errors.
+async fn previous_message_created_at_ms(
+    session_store: &Arc<SessionStore>,
+    session_key: &str,
+) -> Option<u64> {
+    let msgs = session_store.read_last_n(session_key, 1).await.ok()?;
+    msgs.first()
+        .and_then(|v| v.get("created_at"))
+        .and_then(|v| v.as_u64())
 }
 
 /// Render a millisecond-delta as a compact human string ("2h 15m", "3d 4h",
@@ -3280,11 +3298,14 @@ impl ChatService for LiveChatService {
             .as_ref()
             .and_then(|entry| entry.thinking_enabled)
             .unwrap_or(false);
+        let prev_msg_ms =
+            previous_message_created_at_ms(&self.session_store, &session_key).await;
         let mut runtime_context = build_prompt_runtime_context(
             &self.state,
             &provider,
             &session_key,
             session_entry.as_ref(),
+            prev_msg_ms,
         )
         .await;
         apply_request_runtime_context(&mut runtime_context.host, &params);
@@ -3783,11 +3804,14 @@ impl ChatService for LiveChatService {
 
         let session_entry = self.session_metadata.get(&session_key).await;
         let session_agent_id = resolve_prompt_agent_id(session_entry.as_ref());
+        let prev_msg_ms =
+            previous_message_created_at_ms(&self.session_store, &session_key).await;
         let mut runtime_context = build_prompt_runtime_context(
             &self.state,
             &provider,
             &session_key,
             session_entry.as_ref(),
+            prev_msg_ms,
         )
         .await;
         apply_request_runtime_context(&mut runtime_context.host, &params);
@@ -4595,11 +4619,14 @@ impl ChatService for LiveChatService {
         // Build runtime context.
         let session_entry = self.session_metadata.get(&session_key).await;
         let persona = load_prompt_persona_for_session(session_entry.as_ref());
+        let prev_msg_ms =
+            previous_message_created_at_ms(&self.session_store, &session_key).await;
         let mut runtime_context = build_prompt_runtime_context(
             &self.state,
             &provider,
             &session_key,
             session_entry.as_ref(),
+            prev_msg_ms,
         )
         .await;
         apply_request_runtime_context(&mut runtime_context.host, &params);
@@ -4720,11 +4747,14 @@ impl ChatService for LiveChatService {
         // Build runtime context.
         let session_entry = self.session_metadata.get(&session_key).await;
         let persona = load_prompt_persona_for_session(session_entry.as_ref());
+        let prev_msg_ms =
+            previous_message_created_at_ms(&self.session_store, &session_key).await;
         let mut runtime_context = build_prompt_runtime_context(
             &self.state,
             &provider,
             &session_key,
             session_entry.as_ref(),
+            prev_msg_ms,
         )
         .await;
         apply_request_runtime_context(&mut runtime_context.host, &params);
