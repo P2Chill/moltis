@@ -1229,6 +1229,18 @@ async fn build_prompt_runtime_context(
         ..Default::default()
     };
     refresh_runtime_prompt_time(&mut host_ctx);
+    // Annotate the time stamp with elapsed-since-last-message so the LLM
+    // doesn't make stale time-aware suggestions ("you should eat" right
+    // after the user said they ate, four hours ago). Cheap to compute,
+    // ~10 tokens per turn. Skip on first turn (created_at == updated_at)
+    // to avoid the awkward "T+0s since last message".
+    if let Some(entry) = session_entry
+        && entry.updated_at > entry.created_at
+        && let Some(formatted) = format_elapsed_since_last(entry.updated_at, now_ms())
+        && let Some(time) = host_ctx.time.as_mut()
+    {
+        time.push_str(&format!(" (T+{formatted} since last message)"));
+    }
 
     PromptRuntimeContext {
         host: host_ctx,
@@ -1239,6 +1251,37 @@ async fn build_prompt_runtime_context(
 fn refresh_runtime_prompt_time(host: &mut PromptHostRuntimeContext) {
     host.time = Some(prompt_now_for_timezone(host.timezone.as_deref()));
     host.today = Some(prompt_today_for_timezone(host.timezone.as_deref()));
+}
+
+/// Render a millisecond-delta as a compact human string ("2h 15m", "3d 4h",
+/// "45m", "30s"). Returns `None` for deltas under 60s — the LLM doesn't need
+/// to know about half-second turn gaps and noise from "T+0s since last
+/// message" annotations would just waste context.
+fn format_elapsed_since_last(prior_ms: u64, now_ms: u64) -> Option<String> {
+    let delta_ms = now_ms.saturating_sub(prior_ms);
+    let secs = delta_ms / 1000;
+    if secs < 60 {
+        return None;
+    }
+    let days = secs / 86_400;
+    let hours = (secs % 86_400) / 3_600;
+    let minutes = (secs % 3_600) / 60;
+    let formatted = if days > 0 {
+        if hours > 0 {
+            format!("{days}d {hours}h")
+        } else {
+            format!("{days}d")
+        }
+    } else if hours > 0 {
+        if minutes > 0 {
+            format!("{hours}h {minutes}m")
+        } else {
+            format!("{hours}h")
+        }
+    } else {
+        format!("{minutes}m")
+    };
+    Some(formatted)
 }
 
 fn server_prompt_timezone(configured_timezone: Option<&str>) -> String {
@@ -8924,6 +8967,44 @@ mod tests {
     fn prompt_today_for_timezone_returns_non_empty_string() {
         let value = prompt_today_for_timezone(Some("UTC"));
         assert!(!value.is_empty());
+    }
+
+    #[test]
+    fn format_elapsed_since_last_thresholds() {
+        // Under 60s — silent (None) so the prompt isn't littered with
+        // "T+0s since last message" on rapid-fire turns.
+        assert_eq!(format_elapsed_since_last(0, 0), None);
+        assert_eq!(format_elapsed_since_last(0, 59_999), None);
+        // Exact minute boundary.
+        assert_eq!(format_elapsed_since_last(0, 60_000).as_deref(), Some("1m"));
+        assert_eq!(format_elapsed_since_last(0, 45 * 60_000).as_deref(), Some("45m"));
+        // Hour + minute.
+        assert_eq!(
+            format_elapsed_since_last(0, (2 * 3600 + 15 * 60) * 1000).as_deref(),
+            Some("2h 15m")
+        );
+        // Hour, no leftover minutes.
+        assert_eq!(
+            format_elapsed_since_last(0, 3 * 3600 * 1000).as_deref(),
+            Some("3h")
+        );
+        // Day + hour.
+        assert_eq!(
+            format_elapsed_since_last(0, (24 + 4) * 3600 * 1000).as_deref(),
+            Some("1d 4h")
+        );
+        // Day with no leftover hours.
+        assert_eq!(
+            format_elapsed_since_last(0, 2 * 24 * 3600 * 1000).as_deref(),
+            Some("2d")
+        );
+    }
+
+    #[test]
+    fn format_elapsed_since_last_handles_clock_skew() {
+        // If updated_at somehow trails AHEAD of now (clock drift, leap),
+        // saturating_sub clamps to 0 → None instead of underflowing.
+        assert_eq!(format_elapsed_since_last(1_000_000, 999_999), None);
     }
 
     #[test]
